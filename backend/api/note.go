@@ -46,9 +46,17 @@ func (a *NoteApi) GetFile(c *gin.Context) {
 	}
 	defer reader.Close()
 
-	// 使用内联展现而非强制下载，由于存储不携带 ContentType 靠外部保存，所以只能设定 stream 交给浏览器推断
+	// 从 DB 查询该文件存储时记录的真实 MIME 类型
+	var note models.NoteItem
+	contentType := "application/octet-stream"
+	if err := global.DB.Select("file_type").Where("storage_id = ?", id).First(&note).Error; err == nil {
+		if note.FileType != "" {
+			contentType = note.FileType
+		}
+	}
+
 	c.Header("Content-Disposition", "inline")
-	c.DataFromReader(http.StatusOK, -1, "application/octet-stream", reader, map[string]string{})
+	c.DataFromReader(http.StatusOK, -1, contentType, reader, map[string]string{})
 }
 
 // Search 执行跨 FTS5 内外联接的高性能文本检索并含 snippet 摘要匹配

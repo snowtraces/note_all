@@ -63,3 +63,42 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(197, 198, 199, 0.4);
 }
+
+/* OCR Markdown 区域排版：支持 GFM 表格 */
+.markdown-ocr table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 13px;
+}
+.markdown-ocr th,
+.markdown-ocr td {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 6px 12px;
+  text-align: left;
+}
+.markdown-ocr th {
+  background: rgba(102, 252, 241, 0.08);
+  color: rgba(102, 252, 241, 0.9);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.markdown-ocr tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.02);
+}
+.markdown-ocr tr:hover td {
+  background: rgba(255, 255, 255, 0.04);
+}
+.markdown-ocr p {
+  margin: 0.4em 0;
+}
+.markdown-ocr h1, .markdown-ocr h2, .markdown-ocr h3 {
+  color: rgba(102, 252, 241, 0.8);
+  margin: 0.8em 0 0.4em;
+}
+.markdown-ocr code {
+  background: rgba(255,255,255,0.07);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12px;
+}

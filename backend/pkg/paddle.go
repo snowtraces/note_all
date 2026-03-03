@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"note_all_backend/global"
+
+	"golang.org/x/net/html"
 )
 
 // ExtractTextFromImage 调用 AI Studio 的 PaddleOCR 模型接口将图片转译成全量 Markdown 文本
@@ -90,6 +92,100 @@ func ExtractTextFromImage(fileBytes []byte, fileExt string) (string, error) {
 	// 使用正则移除带有属性的 <div ...><img ... /></div> 结构，避免结果文本中包含过多的无意义图片标签
 	re := regexp.MustCompile(`(?i)<div[^>]*>\s*<img[^>]*>\s*</div>`)
 	resultText = re.ReplaceAllString(resultText, "")
+	// 将文本中的 HTML <table> 转换为 Markdown 表格
+	resultText = convertHTMLTablesToMarkdown(resultText)
 
 	return strings.TrimSpace(resultText), nil
+}
+
+// convertHTMLTablesToMarkdown 将文本中所有 HTML <table>...</table> 片段替换为 Markdown 表格
+func convertHTMLTablesToMarkdown(text string) string {
+	re := regexp.MustCompile(`(?is)<table[^>]*>.*?</table>`)
+	return re.ReplaceAllStringFunc(text, func(tableHTML string) string {
+		md, err := htmlTableToMarkdown(tableHTML)
+		if err != nil {
+			return tableHTML // 解析失败则保留原始 HTML
+		}
+		return md
+	})
+}
+
+// htmlTableToMarkdown 将单个 HTML table 字符串解析并转换为 Markdown 表格
+func htmlTableToMarkdown(tableHTML string) (string, error) {
+	doc, err := html.Parse(strings.NewReader(tableHTML))
+	if err != nil {
+		return "", err
+	}
+
+	// 递归收集所有 <tr> 节点下的 <td>/<th> 文本
+	var rows [][]string
+	var walkTable func(*html.Node)
+	walkTable = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "tr" {
+			var cells []string
+			for c := n.FirstChild; c != nil; c = c.NextSibling {
+				if c.Type == html.ElementNode && (c.Data == "td" || c.Data == "th") {
+					cell := strings.TrimSpace(extractText(c))
+					// 转义单元格内的 | 避免破坏 Markdown 表格
+					cell = strings.ReplaceAll(cell, "|", "\\|")
+					if cell == "" {
+						cell = " "
+					}
+					cells = append(cells, cell)
+				}
+			}
+			if len(cells) > 0 {
+				rows = append(rows, cells)
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			walkTable(c)
+		}
+	}
+	walkTable(doc)
+
+	if len(rows) == 0 {
+		return "", nil
+	}
+
+	// 计算最大列数，统一每行的列数
+	maxCols := 0
+	for _, row := range rows {
+		if len(row) > maxCols {
+			maxCols = len(row)
+		}
+	}
+	for i, row := range rows {
+		for len(row) < maxCols {
+			row = append(row, " ")
+		}
+		rows[i] = row
+	}
+
+	// 生成 Markdown 表格
+	var sb strings.Builder
+	for i, row := range rows {
+		sb.WriteString("| " + strings.Join(row, " | ") + " |\n")
+		// 第一行后插入分隔行
+		if i == 0 {
+			seps := make([]string, maxCols)
+			for j := range seps {
+				seps[j] = "---"
+			}
+			sb.WriteString("| " + strings.Join(seps, " | ") + " |\n")
+		}
+	}
+	return sb.String(), nil
+}
+
+// extractText 递归提取 HTML 节点的纯文本内容
+func extractText(n *html.Node) string {
+	if n.Type == html.TextNode {
+		return n.Data
+	}
+	var sb strings.Builder
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		sb.WriteString(extractText(c))
+	}
+	return sb.String()
 }

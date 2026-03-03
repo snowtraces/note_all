@@ -15,6 +15,7 @@
     *   **剪贴板嗅探**：App启动时自动嗅探剪贴板内容（文本/图片链接），提示快速保存。
 *   **Web/PC 端**
     *   **快速上传通道**：管理后台提供常规的拖拽上传和粘贴上传（CTRL+V）能力。
+    *   **PC 右键上传（PC Client）**：Windows 原生客户端，注册到资源管理器右键菜单，右击任意图片文件即可一键上传至服务器，无需打开浏览器。
 
 ### 2.2 处理中枢 (Processor) - *核心亮点*
 图片和截图上传后，系统在后台进行异步解析：
@@ -37,6 +38,7 @@
 ### 3.1 客户端 (Client)
 *   **Web端**：`React` (提供现代化的组件化视图管理与生态支持，配合 TailwindCSS 快速构建响应式界面)。
 *   **Android端**：`Flutter` 构建，便于一套代码高质量运行，并能快速接入 Android 原生的“系统分享面板”与“剪贴板读取”插件能力。
+*   **PC端（Windows）**：纯 `Golang` 实现的轻量托盘程序（`pc_client/`），注册 Windows 右键上下文菜单，实现图片文件一键上传，编译产物为单一 `.exe`，无额外运行时依赖。
 
 ### 3.2 服务端 (Backend API)
 *   **核心开发语言**：`Golang` (高并发、编译单文件、极低内存占用，非常契合私有部署与轻量化项目)。
@@ -84,4 +86,24 @@ vite run
 
 > 启动成功后，在浏览器中打开 `http://localhost:3000`，即可体验图片上传与 AI 自动解析检索功能。
 
+### 4.3 启动 PC 客户端 (PC Client)
 
+PC 客户端基于 Golang，编译需要 Go 1.21+ 与 GCC（MinGW-w64，用于 CGo）：
+
+```powershell
+cd pc_client
+
+# 第一步：复制配置文件并填写后端服务地址
+cp config.json.example config.json
+
+# 第二步：一键编译
+.\build.ps1
+```
+
+> 首次运行 `dist\note_all_uploader.exe` 后，在系统托盘图标菜单中点击 **「注册右键菜单」** 完成初始化。
+> 此后在资源管理器中**右击任意图片文件**，选择 **「上传到 Note All」** 即可一键上传。
+>
+> 也可通过命令行直接调用（适合脚本 / 快捷键触发）：
+> ```powershell
+> .\note_all_uploader.exe --upload "C:\path\to\image.png"
+> ```
