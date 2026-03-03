@@ -1,0 +1,8 @@
+# Environment and configuration files
+config.json
+
+# Built application files
+*.exe
+note_all_backend.exe
+storage_data
+data/note_all.db

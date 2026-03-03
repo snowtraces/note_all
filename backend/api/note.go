@@ -1,0 +1,285 @@
+package api
+
+import (
+	"fmt"
+	"net/http"
+	"sort"
+	"strings"
+
+	"note_all_backend/global"
+	"note_all_backend/models"
+	"note_all_backend/service"
+
+	"github.com/gin-gonic/gin"
+)
+
+type NoteApi struct{}
+
+// Upload 处理前端传递来的 Multipart File 请求
+func (a *NoteApi) Upload(c *gin.Context) {
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "获取不到上传文件"})
+		return
+	}
+
+	// 调用服务层承接复杂的落库流程
+	note, err := service.UploadAndCreateNote(fileHeader)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "上传成功，正在后台解析...",
+		"data":    note,
+	})
+}
+
+// GetFile 接受存储 ID 还原图片或文件留以供网页/应用直读
+func (a *NoteApi) GetFile(c *gin.Context) {
+	id := c.Param("id")
+	reader, err := global.Storage.Open(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "引擎中不存在此文件"})
+		return
+	}
+	defer reader.Close()
+
+	// 使用内联展现而非强制下载，由于存储不携带 ContentType 靠外部保存，所以只能设定 stream 交给浏览器推断
+	c.Header("Content-Disposition", "inline")
+	c.DataFromReader(http.StatusOK, -1, "application/octet-stream", reader, map[string]string{})
+}
+
+// Search 执行跨 FTS5 内外联接的高性能文本检索并含 snippet 摘要匹配
+func (a *NoteApi) Search(c *gin.Context) {
+	keyword := c.Query("q")
+
+	type searchResult struct {
+		models.NoteItem
+		Snippet string `json:"snippet"`
+	}
+
+	safeKeyword := strings.ReplaceAll(keyword, "\"", "")
+	safeKeyword = strings.ReplaceAll(safeKeyword, "'", "")
+	if strings.TrimSpace(safeKeyword) == "" {
+		var items []models.NoteItem
+		// 默认拉取最新创建的数据
+		if err := global.DB.Order("id DESC").Limit(30).Find(&items).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取默认列表失败"})
+			return
+		}
+
+		results := make([]searchResult, len(items))
+		for i, item := range items {
+			results[i] = searchResult{NoteItem: item, Snippet: ""}
+		}
+		c.JSON(http.StatusOK, gin.H{"data": results})
+		return
+	}
+
+	// 检查是否包含长度<3的词（尤其是对于中文2字词或者单字），
+	// glebarez/sqlite 的 FTS5 trigram tokenizer 无法直接 MATCH <3 个字符的词。
+	words := strings.Fields(safeKeyword)
+	needsFallback := false
+	for _, w := range words {
+		if len([]rune(w)) < 3 {
+			needsFallback = true
+			break
+		}
+	}
+
+	if needsFallback {
+		// 降级使用 LIKE 查询，解决短字符（包含绝大数中文词语）搜不到的问题
+		dbQuery := global.DB.Model(&models.NoteItem{})
+		for _, w := range words {
+			likeStr := "%" + w + "%"
+			dbQuery = dbQuery.Where("ocr_text LIKE ? OR original_name LIKE ? OR ai_summary LIKE ? OR ai_tags LIKE ?", likeStr, likeStr, likeStr, likeStr)
+		}
+		var items []models.NoteItem
+		if err := dbQuery.Order("id DESC").Limit(50).Find(&items).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("获取笔记详情失败: %v", err)})
+			return
+		}
+
+		results := make([]searchResult, len(items))
+		for i, item := range items {
+			snippetText := ""
+			if len(words) > 0 {
+				snippetText = generateSnippet(item.OcrText, words[0], 64)
+				if snippetText == "" {
+					snippetText = generateSnippet(item.OriginalName, words[0], 64)
+				}
+			}
+			results[i] = searchResult{NoteItem: item, Snippet: snippetText}
+		}
+		c.JSON(http.StatusOK, gin.H{"data": results})
+		return
+	}
+
+	// 对于全都是长度>=3的词，使用高性能的 FTS5 全文索引
+	// glebarez/sqlite (modernc.org/sqlite) 的 FTS5 在非 main goroutine 里有 SQLITE_MISUSE 限制：
+	// GORM 的 Scan/ColumnTypes() 会触发 Error 21。
+	// 根治方案：完全绕开 GORM，用底层 database/sql QueryContext + rows.Scan() 操作 FTS5。
+	sqlDB, err := global.DB.DB()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取DB连接失败"})
+		return
+	}
+
+	// keyword 已脱敏，并且外层双引号强制匹配完整词组，如果想切分词汇其实交给 FTS5 也能处理，但此处为安全起见用字面量
+	ftsSQL := fmt.Sprintf(`
+	SELECT rowid, snippet(note_fts, -1, '<b>', '</b>', '...', 64)
+	FROM note_fts
+	WHERE note_fts MATCH '"%s"'
+	ORDER BY rowid DESC LIMIT 50;`, safeKeyword)
+
+	rows, err := sqlDB.QueryContext(c.Request.Context(), ftsSQL)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("全文检索失败: %v", err)})
+		return
+	}
+	defer rows.Close()
+
+	type ftsHit struct {
+		Rowid   int64
+		Snippet string
+	}
+	var hits []ftsHit
+	for rows.Next() {
+		var h ftsHit
+		if e := rows.Scan(&h.Rowid, &h.Snippet); e != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("读取搜索结果失败: %v", e)})
+			return
+		}
+		hits = append(hits, h)
+	}
+	if err = rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("遍历搜索结果失败: %v", err)})
+		return
+	}
+
+	if len(hits) == 0 {
+		c.JSON(http.StatusOK, gin.H{"data": []searchResult{}})
+		return
+	}
+
+	// Step 2: 用 GORM 标准查询获取 note_items 详情（普通表，无 FTS5）
+	ids := make([]int64, 0, len(hits))
+	snippetMap := make(map[uint]string, len(hits))
+	idxMap := make(map[uint]int, len(hits))
+	for i, h := range hits {
+		ids = append(ids, h.Rowid)
+		snippetMap[uint(h.Rowid)] = h.Snippet
+		idxMap[uint(h.Rowid)] = i
+	}
+	var items []models.NoteItem
+	if err = global.DB.Where("id IN ?", ids).Find(&items).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("获取笔记详情失败: %v", err)})
+		return
+	}
+
+	// Step 3: Go 层合并，保持 FTS5 rank 排名顺序
+	results := make([]searchResult, len(items))
+	for i, item := range items {
+		results[i] = searchResult{NoteItem: item, Snippet: snippetMap[item.ID]}
+	}
+	sort.Slice(results, func(i, j int) bool {
+		return idxMap[results[i].ID] < idxMap[results[j].ID]
+	})
+
+	c.JSON(http.StatusOK, gin.H{"data": results})
+}
+
+// SoftDelete 逻辑删除（移至回收站）
+func (a *NoteApi) SoftDelete(c *gin.Context) {
+	id := c.Param("id")
+	if err := global.DB.Delete(&models.NoteItem{}, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "逻辑删除失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "已移至回收站"})
+}
+
+// Restore 将被逻辑删除的对象恢复
+func (a *NoteApi) Restore(c *gin.Context) {
+	id := c.Param("id")
+	// GORM 更新 DeletedAt 为 NULL 实现恢复
+	if err := global.DB.Unscoped().Model(&models.NoteItem{}).Where("id = ?", id).Update("deleted_at", nil).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "恢复失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "已从回收站恢复"})
+}
+
+// HardDelete 永久销毁（物理删除数据库记录与存储，这里演示简单物理删数据库即可触发关联）
+func (a *NoteApi) HardDelete(c *gin.Context) {
+	id := c.Param("id")
+	if err := global.DB.Unscoped().Delete(&models.NoteItem{}, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "永久删除失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "已永久销毁此记录"})
+}
+
+// Trash 获取回收站内的逻辑删除记录
+func (a *NoteApi) Trash(c *gin.Context) {
+	var items []models.NoteItem
+	// 使用 Unscoped 可以查询到带有 deleted_at 的记录
+	if err := global.DB.Unscoped().Where("deleted_at IS NOT NULL").Order("deleted_at DESC").Find(&items).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取回收站失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": items})
+}
+
+// generateSnippet 在内存中模拟 FTS5 的 snippet 高亮
+func generateSnippet(text, keyword string, snippetLen int) string {
+	lowerText := strings.ToLower(text)
+	lowerKeyword := strings.ToLower(keyword)
+	idx := strings.Index(lowerText, lowerKeyword)
+	if idx == -1 {
+		// 截取前面部分返回
+		r := []rune(text)
+		if len(r) > snippetLen {
+			return string(r[:snippetLen]) + "..."
+		}
+		return text
+	}
+
+	// 找到了，计算 rune 下标以便截取
+	textRunes := []rune(text)
+	keywordRunes := []rune(keyword)
+
+	// Byte index to Rune index mapping (简单的 O(N) 搜索)
+	runeIdx := 0
+	for i := range text {
+		if i == idx {
+			break
+		}
+		runeIdx++
+	}
+
+	start := runeIdx - snippetLen/2
+	if start < 0 {
+		start = 0
+	}
+	end := runeIdx + len(keywordRunes) + snippetLen/2
+	if end > len(textRunes) {
+		end = end - (end - len(textRunes)) // cap at len
+		end = len(textRunes)
+	}
+
+	res := ""
+	if start > 0 {
+		res += "..."
+	}
+	res += string(textRunes[start:runeIdx])
+	res += "<b>" + string(textRunes[runeIdx:runeIdx+len(keywordRunes)]) + "</b>"
+	res += string(textRunes[runeIdx+len(keywordRunes) : end])
+	if end < len(textRunes) {
+		res += "..."
+	}
+
+	return res
+}

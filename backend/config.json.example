@@ -1,0 +1,7 @@
+{
+  "llm_api_url": "https://aistudio.baidu.com/llm/lmapi/v3/chat/completions",
+  "llm_api_token": "your_llm_api_token_here",
+  "llm_model_id": "ernie-4.5-21b-a3b",
+  "paddle_api_url": "https://gem4qfo2mc76xey5.aistudio-app.com/layout-parsing",
+  "paddle_token": "your_paddle_token_here"
+}

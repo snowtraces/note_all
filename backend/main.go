@@ -1,0 +1,34 @@
+package main
+
+import (
+	"encoding/json"
+	"log"
+	"os"
+
+	"note_all_backend/database"
+	"note_all_backend/global"
+	"note_all_backend/router"
+)
+
+func main() {
+	// 0. 加载配置
+	configBytes, err := os.ReadFile("config.json")
+	if err != nil {
+		log.Printf("读取 config.json 失败，尝试以默认配置运行: %v\n", err)
+	} else if err := json.Unmarshal(configBytes, &global.Config); err != nil {
+		log.Fatalf("解析 config.json 失败: %v", err)
+	}
+
+	// 1. 初始化底层核心与外置服务（SQLite / FTS5 / SnowStorage）
+	database.InitSystem()
+	log.Println("Note-All 后端底层架构组件初始化成功...")
+
+	// 2. 装载网络层路由 (Gin)
+	r := router.SetupRouter()
+
+	// 3. 开始在 8080 端口驻留监听服务请求
+	log.Println("Http 接口层已注册，服务驻留于端口: 8080")
+	if err := r.Run(":8080"); err != nil {
+		log.Fatalf("接口服务崩溃: %v", err)
+	}
+}
