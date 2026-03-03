@@ -47,4 +47,41 @@
 *   **OCR**：接入 `百度飞桨 (PaddleOCR)`，可考虑直接嵌入或作为独立微服务调用，提供高准度的文本提取能力。
 *   **AI 结构化能力**：对接 `文心大模型 (ERNIE)` 等提供的大模型 API，用于将零散 OCR 文本整合为摘要标签，实现自动化结构分析。
 
+---
+
+## 4. 快速启动 (Quick Start)
+
+### 4.1 启动后端 (Backend)
+
+后端基于 Golang，使用 SQLite 作为本地数据库，只需确保拥有 Go 环境即可一键启动：
+
+```bash
+cd backend
+
+# 第一步：复制配置文件并按需填入千帆大模型 ApiKey
+cp config.json.example config.json
+
+# 第二步：安装依赖并运行
+go mod tidy
+go run main.go
+```
+
+> 后端服务默认在 `http://localhost:8080` 启动，图片与数据库均存放在 `backend/` 目录下。
+
+### 4.2 启动前端 (Frontend)
+
+前端由 React + Vite 构建，需要 Node.js 环境（推荐 Node 18+）：
+
+```bash
+cd frontend
+
+# 第一步：安装所有依赖
+npm install
+
+# 第二步：启动开发服务器
+vite run
+```
+
+> 启动成功后，在浏览器中打开 `http://localhost:3000`，即可体验图片上传与 AI 自动解析检索功能。
+
 
