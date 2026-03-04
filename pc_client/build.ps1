@@ -22,7 +22,7 @@ $env:CGO_ENABLED = "1"
 $outPath = Join-Path $OutDir $ExeName
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
-go build -ldflags "-H windowsgui -w -s" -o $outPath .
+go build -ldflags "-H windowsgui -w -s" -o $outPath ./cmd/client
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "✗ 编译失败！" -ForegroundColor Red

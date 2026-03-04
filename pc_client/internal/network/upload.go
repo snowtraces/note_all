@@ -1,4 +1,4 @@
-package main
+package network
 
 import (
 	"bytes"
@@ -13,16 +13,12 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"note_all_pc/internal/domain"
 )
 
-// UploadResult 上传结果
-type UploadResult struct {
-	NoteID  string
-	Message string
-}
-
 // UploadFile 将本地图片文件上传到 Note All 服务器
-func UploadFile(filePath string, cfg *Config) (*UploadResult, error) {
+func UploadFile(filePath string, cfg *domain.Config) (*domain.UploadResult, error) {
 	// 1. 检查文件是否为图片类型
 	ext := strings.ToLower(filepath.Ext(filePath))
 	mimeType := mime.TypeByExtension(ext)
@@ -37,11 +33,10 @@ func UploadFile(filePath string, cfg *Config) (*UploadResult, error) {
 	}
 	defer file.Close()
 
-	// 3. 构造 multipart/form-data 请求体，携带正确的 MIME 类型
+	// 3. 构造 multipart/form-data 请求体
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 
-	// 使用 CreatePart 替代 CreateFormFile，以便携带正确的 Content-Type（非默认的 octet-stream）
 	partHeader := make(textproto.MIMEHeader)
 	partHeader.Set("Content-Disposition",
 		fmt.Sprintf(`form-data; name="file"; filename="%s"`, filepath.Base(filePath)))
@@ -91,14 +86,14 @@ func UploadFile(filePath string, cfg *Config) (*UploadResult, error) {
 		return nil, fmt.Errorf("解析响应失败: %w", err)
 	}
 
-	return &UploadResult{
+	return &domain.UploadResult{
 		NoteID:  fmt.Sprintf("%d", result.Data.ID),
 		Message: result.Message,
 	}, nil
 }
 
 // UploadText 将本地纯文本上传到 Note All 服务器
-func UploadText(text string, cfg *Config) (*UploadResult, error) {
+func UploadText(text string, cfg *domain.Config) (*domain.UploadResult, error) {
 	timeout := time.Duration(cfg.UploadTimeoutSec) * time.Second
 	if timeout <= 0 {
 		timeout = 30 * time.Second
@@ -140,7 +135,7 @@ func UploadText(text string, cfg *Config) (*UploadResult, error) {
 		return nil, fmt.Errorf("解析响应失败: %w", err)
 	}
 
-	return &UploadResult{
+	return &domain.UploadResult{
 		NoteID:  fmt.Sprintf("%d", result.Data.ID),
 		Message: result.Message,
 	}, nil

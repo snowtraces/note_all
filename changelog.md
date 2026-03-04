@@ -26,3 +26,4 @@
 - Frontend: 调整了部分 CSS 样式以适配新的组件结构。
 - Backend: 修改了 `note.go` 的一些 API 逻辑以适配。
 - Backend: AI 分析完成后同步写入 `note_tags` 关联记录（删旧写新）。
+- PC Client: 项目结构深度重构，引入 `internal` 目录，按职责划分为 `capture`, `config`, `hotkey`, `network`, `notifier`, `sys`, `ui` 等子包；解决包循环依赖问题；统一 Win32 接口引用。

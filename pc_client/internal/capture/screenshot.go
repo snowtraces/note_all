@@ -1,6 +1,4 @@
-//go:build windows
-
-package main
+package capture
 
 import (
 	"fmt"
@@ -13,20 +11,6 @@ import (
 	"github.com/kbinani/screenshot"
 )
 
-// CaptureFullScreen 截取主显示器全屏
-func CaptureFullScreen() (image.Image, error) {
-	n := screenshot.NumActiveDisplays()
-	if n == 0 {
-		return nil, fmt.Errorf("未检测到显示器")
-	}
-	bounds := screenshot.GetDisplayBounds(0)
-	img, err := screenshot.CaptureRect(bounds)
-	if err != nil {
-		return nil, fmt.Errorf("截屏失败: %w", err)
-	}
-	return img, nil
-}
-
 // CaptureRegion 截取任意全局坐标矩形区域（原生支持多屏/副屏坐标）
 func CaptureRegion(rect image.Rectangle) (image.Image, error) {
 	img, err := screenshot.CaptureRect(rect)
@@ -37,7 +21,6 @@ func CaptureRegion(rect image.Rectangle) (image.Image, error) {
 }
 
 // SaveToTempPNG 将图像编码为 PNG，写入系统临时目录，返回文件路径。
-// 调用方负责在使用完毕后 os.Remove 清理。
 func SaveToTempPNG(img image.Image) (string, error) {
 	tmpDir := os.TempDir()
 	filename := fmt.Sprintf("note_all_shot_%d.png", time.Now().UnixMilli())
