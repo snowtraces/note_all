@@ -6,6 +6,8 @@ import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import rehypeKatex from 'rehype-katex';
 
+import rehypeRaw from 'rehype-raw';
+
 export default function Detail({
   item,
   showTrash,
@@ -84,7 +86,10 @@ export default function Detail({
                 <BrainCircuit size={12} /> AI 智能总结
             </h3>
             <div className="text-silverText/90 text-[15px] leading-relaxed font-normal bg-gradient-to-b from-white/[0.04] to-transparent p-5 rounded-2xl border border-white/5 ai-summary-markdown">
-              <ReactMarkdown remarkPlugins={[remarkBreaks]}>
+              <ReactMarkdown 
+                remarkPlugins={[remarkBreaks]}
+                rehypePlugins={[rehypeRaw]}
+              >
                 {item.ai_summary || "暂无相关摘要..."}
               </ReactMarkdown>
             </div>
@@ -130,7 +135,7 @@ export default function Detail({
                 <div className="markdown-ocr">
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm, remarkMath, remarkBreaks]}
-                    rehypePlugins={[rehypeKatex]}
+                    rehypePlugins={[rehypeRaw, rehypeKatex]}
                     components={{
                       code({node, className, children, ...props}) {
                         const match = /language-(\w+)/.exec(className || '')
