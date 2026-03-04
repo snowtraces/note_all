@@ -16,6 +16,24 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+// syncTags 将逗号分隔的标签字符串同步写入 note_tags 关联表（先清后写）
+func syncTags(nID uint, tags string) {
+	global.DB.Where("note_id = ?", nID).Delete(&models.NoteTag{})
+	if tags == "" || tags == "ai-fail" {
+		return
+	}
+	var tagRecords []models.NoteTag
+	for _, t := range strings.Split(tags, ",") {
+		t = strings.TrimSpace(t)
+		if t != "" {
+			tagRecords = append(tagRecords, models.NoteTag{NoteID: nID, Tag: t})
+		}
+	}
+	if len(tagRecords) > 0 {
+		global.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&tagRecords)
+	}
+}
+
 // UploadAndCreateNote 处理复杂的文件落盘与 DB 生成主线逻辑
 func UploadAndCreateNote(file *multipart.FileHeader) (*models.NoteItem, error) {
 	// 1. 读取 HTTP 表单文件的原始流
@@ -92,25 +110,65 @@ func UploadAndCreateNote(file *multipart.FileHeader) (*models.NoteItem, error) {
 			"status":     "analyzed",
 		})
 
-		// 5.5 同步写入标签关联表：先删除该记录的旧标签，再批量插入新标签
-		global.DB.Where("note_id = ?", nID).Delete(&models.NoteTag{})
-		if tags != "" && tags != "ai-fail" {
-			var tagRecords []models.NoteTag
-			for _, t := range strings.Split(tags, ",") {
-				t = strings.TrimSpace(t)
-				if t != "" {
-					tagRecords = append(tagRecords, models.NoteTag{NoteID: nID, Tag: t})
-				}
-			}
-			if len(tagRecords) > 0 {
-				// 使用 Clauses(clause.OnConflict{DoNothing: true}) 跳过重复
-				global.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&tagRecords)
-			}
-		}
+		// 5.5 同步写入标签关联表
+		syncTags(nID, tags)
 
 		log.Printf("[后台作业总链完成] 记录ID %d: PaddleOCR 与 文心大模型 融合全链路结束！提取精简摘要 [%s]...", nID, summary)
 
 	}(note.ID, note.StorageID, note.OriginalName)
+
+	return &note, nil
+}
+
+// CreateNoteFromText 直接以纯文本创建笔记，跳过 OCR，直接调用 LLM 提炼摘要与标签
+func CreateNoteFromText(text string) (*models.NoteItem, error) {
+	// 取文本前 30 个字符作为名称
+	runes := []rune(strings.TrimSpace(text))
+	name := string(runes)
+	if len(runes) > 30 {
+		name = string(runes[:30]) + "..."
+	}
+	if name == "" {
+		name = "文本录入"
+	}
+
+	// 虚拟 storageID，不写入物理存储
+	storageID := fmt.Sprintf("text_%d", time.Now().UnixNano())
+
+	note := models.NoteItem{
+		OriginalName: name,
+		StorageID:    storageID,
+		FileType:     "text/plain",
+		FileSize:     int64(len(text)),
+		Status:       "pending",
+	}
+
+	if err := global.DB.Create(&note).Error; err != nil {
+		return nil, fmt.Errorf("数据库元数据建立失败: %v", err)
+	}
+
+	// 后台异步 LLM 提炼
+	go func(nID uint, rawText string) {
+		log.Printf("[文本录入作业] 开始为数据包 (ID:%d) 唤起 LLM 提炼...\n", nID)
+
+		summary, tags, err := pkg.ExtractSummaryAndTags(rawText)
+		if err != nil {
+			log.Printf("[大模型提炼失败降级] 记录ID %d: %v", nID, err)
+			summary = rawText
+			tags = "ai-fail"
+		}
+
+		global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Updates(map[string]interface{}{
+			"ocr_text":   rawText,
+			"ai_summary": summary,
+			"ai_tags":    tags,
+			"status":     "analyzed",
+		})
+
+		syncTags(nID, tags)
+
+		log.Printf("[文本录入作业完成] 记录ID %d: 提取精简摘要 [%s]...", nID, summary)
+	}(note.ID, text)
 
 	return &note, nil
 }

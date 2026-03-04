@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 ### Added
+- Frontend: Web 端底部「注入新知识记录」按钮拆分为「上传图片 | 文本录入」并排按钮；点击「文本录入」展开行内 textarea，支持粘贴/输入任意文本后一键提交，提交期间显示提炼状态，完成后自动折叠。
+- Backend: 新增 `POST /api/note/text` 接口，接受 JSON `{text}`，跳过 OCR 直接调用 LLM 生成摘要与标签，使用 `text_<UnixNano>` 作为虚拟 StorageID，无需物理存储文件。
+- Backend: `service/note.go` 提取 `syncTags()` 公共函数，消除上传图片与文本录入两条路径间的代码重复。
 - PC Client: 实现了托盘应用程序 (tray application)，增加系统通知、注册表支持、配置文件加载与上传逻辑。
 - Frontend: `App.jsx` 代码拆分和模块化重构，新增 `Sidebar`, `Detail`, `EmptyState`, `Lightbox` 独立组件。
 - Backend: 集成了 PaddleOCR 处理逻辑。

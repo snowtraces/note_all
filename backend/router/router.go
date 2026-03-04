@@ -24,6 +24,9 @@ func SetupRouter() *gin.Engine {
 		// 1. 上传文件生成新解析工单
 		apiGroup.POST("/upload", noteApi.Upload)
 
+		// 2. 纯文本缺口（跳过 OCR，直接 LLM 摘要+标签）
+		apiGroup.POST("/note/text", noteApi.CreateFromText)
+
 		// 2. 根据自签名 SnowStorage ID 下潜读取物理对象返回
 		apiGroup.GET("/file/:id", noteApi.GetFile)
 

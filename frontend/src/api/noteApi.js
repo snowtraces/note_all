@@ -25,6 +25,15 @@ export const uploadNote = async (formData) => {
   if (!res.ok) throw new Error("Upload failed");
 };
 
+export const createTextNote = async (text) => {
+  const res = await fetch("/api/note/text", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) throw new Error("Text note creation failed");
+};
+
 export const getTags = async () => {
   const res = await fetch('/api/tags');
   const data = await res.json();

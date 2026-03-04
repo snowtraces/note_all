@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Search, UploadCloud, BrainCircuit, X, Trash2, ArchiveRestore, Tag } from 'lucide-react';
+import { Search, UploadCloud, BrainCircuit, X, Trash2, ArchiveRestore, Tag, PenLine } from 'lucide-react';
 import { getTags } from '../api/noteApi';
 
 export default function Sidebar({
@@ -13,10 +13,17 @@ export default function Sidebar({
   selectedItem,
   setSelectedItem,
   uploading,
-  handleUpload
+  handleUpload,
+  handleTextSubmit
 }) {
   const fileInputRef = useRef(null);
   const dropdownRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  // 文本录入状态
+  const [showTextInput, setShowTextInput] = useState(false);
+  const [inputText, setInputText] = useState('');
+  const [textSubmitting, setTextSubmitting] = useState(false);
 
   // 标签联想状态
   const [allTags, setAllTags] = useState([]);
@@ -246,7 +253,7 @@ export default function Sidebar({
         })}
       </div>
 
-      {/* 底部上传按钮 */}
+      {/* 底部操作区 */}
       {!showTrash && (
         <div className="p-4 border-t border-white/5 bg-[#111] shrink-0">
           <input
@@ -255,17 +262,74 @@ export default function Sidebar({
             onChange={handleUpload}
             className="hidden"
           />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-primeAccent/20 to-primeAccentDim/20 border border-primeAccent/30 py-3 rounded-lg text-primeAccent font-medium hover:from-primeAccent/30 hover:to-primeAccentDim/30 hover:shadow-lg hover:shadow-primeAccent/10 transition-all duration-300 disabled:opacity-50"
-          >
-            {uploading ? (
-              <><BrainCircuit size={18} className="animate-spin" /> 吸入中...</>
-            ) : (
-              <><UploadCloud size={18} /> 注入新知识记录</>
-            )}
-          </button>
+
+          {/* 文本录入展开区 */}
+          {showTextInput && (
+            <div className="mb-3 flex flex-col gap-2 animate-fade-in">
+              <textarea
+                ref={textareaRef}
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                placeholder="在此粘贴或输入文本..."
+                rows={5}
+                className="w-full bg-black/40 border border-primeAccent/30 rounded-xl p-3 text-[13px] text-white placeholder-silverText/30 focus:outline-none focus:border-primeAccent/60 focus:ring-1 focus:ring-primeAccent/40 resize-none custom-scrollbar transition-all"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    const trimmed = inputText.trim();
+                    if (!trimmed) return;
+                    setTextSubmitting(true);
+                    await handleTextSubmit(trimmed);
+                    setTextSubmitting(false);
+                    setInputText('');
+                    setShowTextInput(false);
+                  }}
+                  disabled={textSubmitting || !inputText.trim()}
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-primeAccent/20 border border-primeAccent/40 py-2 rounded-lg text-primeAccent text-[13px] font-medium hover:bg-primeAccent/30 transition-all disabled:opacity-40"
+                >
+                  {textSubmitting ? <><BrainCircuit size={14} className="animate-spin" /> 提炼中...</> : <>✓ 确认录入</>}
+                </button>
+                <button
+                  onClick={() => { setShowTextInput(false); setInputText(''); }}
+                  className="px-4 py-2 rounded-lg border border-white/10 text-silverText/60 text-[13px] hover:bg-white/5 hover:text-white transition-all"
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 两个并排按鈕 */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-primeAccent/20 to-primeAccentDim/20 border border-primeAccent/30 py-3 rounded-lg text-primeAccent font-medium hover:from-primeAccent/30 hover:to-primeAccentDim/30 hover:shadow-lg hover:shadow-primeAccent/10 transition-all duration-300 disabled:opacity-50 text-[13px]"
+            >
+              {uploading ? (
+                <><BrainCircuit size={15} className="animate-spin" /> 吸入中...</>
+              ) : (
+                <><UploadCloud size={15} /> 上传图片</>
+              )}
+            </button>
+
+            <button
+              onClick={() => {
+                setShowTextInput((v) => !v);
+                setInputText('');
+                // 展开后进行自动 focus
+                setTimeout(() => textareaRef.current?.focus(), 50);
+              }}
+              className={`flex-1 flex items-center justify-center gap-2 border py-3 rounded-lg font-medium transition-all duration-300 text-[13px] ${
+                showTextInput
+                  ? 'bg-primeAccent/15 border-primeAccent/50 text-primeAccent'
+                  : 'bg-white/[0.04] border-white/10 text-silverText/70 hover:bg-white/[0.08] hover:text-white'
+              }`}
+            >
+              <PenLine size={15} /> 文本录入
+            </button>
+          </div>
         </div>
       )}
     </div>

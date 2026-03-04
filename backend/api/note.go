@@ -36,6 +36,28 @@ func (a *NoteApi) Upload(c *gin.Context) {
 	})
 }
 
+// CreateFromText 接受纯文本 JSON，跳过 OCR 直接走 LLM 摘要+标签
+func (a *NoteApi) CreateFromText(c *gin.Context) {
+	var body struct {
+		Text string `json:"text" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少 text 参数"})
+		return
+	}
+
+	note, err := service.CreateNoteFromText(body.Text)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "文本录入成功，正在后台提炼...",
+		"data":    note,
+	})
+}
+
 // GetFile 接受存储 ID 还原图片或文件留以供网页/应用直读
 func (a *NoteApi) GetFile(c *gin.Context) {
 	id := c.Param("id")

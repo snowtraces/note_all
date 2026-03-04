@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import 'katex/dist/katex.min.css';
 import './index.css';
 
-import { getTrash, searchNotes, deleteNote, restoreNote, uploadNote } from './api/noteApi';
+import { getTrash, searchNotes, deleteNote, restoreNote, uploadNote, createTextNote } from './api/noteApi';
 import Sidebar from './components/Sidebar';
 import Detail from './components/Detail';
 import EmptyState from './components/EmptyState';
@@ -110,6 +110,17 @@ function App() {
     }
   };
 
+  const handleTextSubmit = async (text) => {
+    try {
+      await createTextNote(text);
+      setTimeout(() => executeSearch(query), 3000);
+      setTimeout(() => executeSearch(query), 12000);
+    } catch (e) {
+      alert('文本录入失败...');
+      console.error(e);
+    }
+  };
+
   return (
     <div className="h-screen w-full flex bg-[#0a0a0a] text-white overflow-hidden font-sans">
       <Sidebar 
@@ -124,6 +135,7 @@ function App() {
         setSelectedItem={setSelectedItem}
         uploading={uploading}
         handleUpload={handleUpload}
+        handleTextSubmit={handleTextSubmit}
       />
 
       {/* 右侧面板 */}
