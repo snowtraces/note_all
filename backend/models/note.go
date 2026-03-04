@@ -2,9 +2,11 @@ package models
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
+	gormClause "gorm.io/gorm/clause"
 )
 
 // NoteItem 存储记录的核心结构
@@ -27,12 +29,18 @@ type NoteItem struct {
 	Status    string `gorm:"size:32;default:'pending'" json:"status"` // pending/ocred/analyzed/error
 }
 
+// NoteTag 标签-文件扁平关联表（每行代表一个文件拥有一个标签）
+type NoteTag struct {
+	ID     uint   `gorm:"primaryKey" json:"id"`
+	NoteID uint   `gorm:"not null;index;uniqueIndex:uidx_note_tag" json:"note_id"`
+	Tag    string `gorm:"size:64;not null;index;uniqueIndex:uidx_note_tag" json:"tag"`
+}
+
 // SetupDBWithFTS 初始化数据库结构，包括建立 FTS5 虚拟表及与基础表联动的触发器
 func SetupDBWithFTS(db *gorm.DB) error {
-	// 1. 自动迁移主表
-	err := db.AutoMigrate(&NoteItem{})
-	if err != nil {
-		return fmt.Errorf("failed to migrate main table: %v", err)
+	// 1. 自动迁移主表 + 标签关联表
+	if err := db.AutoMigrate(&NoteItem{}, &NoteTag{}); err != nil {
+		return fmt.Errorf("failed to migrate tables: %v", err)
 	}
 
 	// 2. 建立 FTS5 虚拟表 (仅在不存在时建立)。注意：SQLite FTS5 原生支持简单的词法分词器，
@@ -88,5 +96,41 @@ func SetupDBWithFTS(db *gorm.DB) error {
 		}
 	}
 
+	return nil
+}
+
+// BackfillNoteTags 将历史 note_items 中已有的 ai_tags 同步写入 note_tags 关联表。
+// 幂等：依赖 (note_id, tag) 唯一索引，重复运行不会产生脏数据。
+func BackfillNoteTags(db *gorm.DB) error {
+	type row struct {
+		ID     uint
+		AiTags string
+	}
+	var rows []row
+	if err := db.Model(&NoteItem{}).
+		Select("id, ai_tags").
+		Where("ai_tags IS NOT NULL AND ai_tags != '' AND ai_tags != 'ai-fail' AND deleted_at IS NULL").
+		Find(&rows).Error; err != nil {
+		return fmt.Errorf("backfill: 读取 note_items 失败: %v", err)
+	}
+
+	total := 0
+	for _, r := range rows {
+		var tagRecords []NoteTag
+		for _, t := range strings.Split(r.AiTags, ",") {
+			t = strings.TrimSpace(t)
+			if t != "" {
+				tagRecords = append(tagRecords, NoteTag{NoteID: r.ID, Tag: t})
+			}
+		}
+		if len(tagRecords) == 0 {
+			continue
+		}
+		// OnConflict DoNothing：已存在的 (note_id, tag) 跳过，不报错
+		if err := db.Clauses(gormClause.OnConflict{DoNothing: true}).Create(&tagRecords).Error; err != nil {
+			return fmt.Errorf("backfill: 写入 note_tags 失败 (note_id=%d): %v", r.ID, err)
+		}
+		total += len(tagRecords)
+	}
 	return nil
 }

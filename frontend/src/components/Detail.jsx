@@ -3,6 +3,7 @@ import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon } from 'luc
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import rehypeKatex from 'rehype-katex';
 
 export default function Detail({
@@ -78,7 +79,7 @@ export default function Detail({
             </h2>
             <div className="text-white/95 text-[15px] leading-[1.8] font-light tracking-wide bg-[#111] p-6 rounded-2xl border border-primeAccent/10 selection:bg-primeAccent selection:text-black mt-2 markdown-ocr shadow-inner">
               <ReactMarkdown
-                remarkPlugins={[remarkGfm, remarkMath]}
+                remarkPlugins={[remarkGfm, remarkMath, remarkBreaks]}
                 rehypePlugins={[rehypeKatex]}
               >
                 {item.ocr_text || "未能提取到或尚未进行 OCR 文本识别。"}

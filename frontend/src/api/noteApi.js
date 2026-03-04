@@ -24,3 +24,9 @@ export const uploadNote = async (formData) => {
   const res = await fetch("/api/upload", { method: "POST", body: formData });
   if (!res.ok) throw new Error("Upload failed");
 };
+
+export const getTags = async () => {
+  const res = await fetch('/api/tags');
+  const data = await res.json();
+  return data.data || [];
+};

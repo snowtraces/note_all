@@ -138,7 +138,13 @@ function App() {
             setPreviewImage={setPreviewImage}
           />
         ) : (
-          <EmptyState />
+          <EmptyState
+            onTagClick={(tag) => {
+              const q = `#${tag}`;
+              setQuery(q);
+              executeSearch(q);
+            }}
+          />
         )}
       </div>
 

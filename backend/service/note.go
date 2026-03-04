@@ -6,11 +6,14 @@ import (
 	"log"
 	"mime/multipart"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"note_all_backend/global"
 	"note_all_backend/models"
 	"note_all_backend/pkg"
+
+	"gorm.io/gorm/clause"
 )
 
 // UploadAndCreateNote 处理复杂的文件落盘与 DB 生成主线逻辑
@@ -88,6 +91,22 @@ func UploadAndCreateNote(file *multipart.FileHeader) (*models.NoteItem, error) {
 			"ai_tags":    tags,
 			"status":     "analyzed",
 		})
+
+		// 5.5 同步写入标签关联表：先删除该记录的旧标签，再批量插入新标签
+		global.DB.Where("note_id = ?", nID).Delete(&models.NoteTag{})
+		if tags != "" && tags != "ai-fail" {
+			var tagRecords []models.NoteTag
+			for _, t := range strings.Split(tags, ",") {
+				t = strings.TrimSpace(t)
+				if t != "" {
+					tagRecords = append(tagRecords, models.NoteTag{NoteID: nID, Tag: t})
+				}
+			}
+			if len(tagRecords) > 0 {
+				// 使用 Clauses(clause.OnConflict{DoNothing: true}) 跳过重复
+				global.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&tagRecords)
+			}
+		}
 
 		log.Printf("[后台作业总链完成] 记录ID %d: PaddleOCR 与 文心大模型 融合全链路结束！提取精简摘要 [%s]...", nID, summary)
 

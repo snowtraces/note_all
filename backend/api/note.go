@@ -68,6 +68,27 @@ func (a *NoteApi) Search(c *gin.Context) {
 		Snippet string `json:"snippet"`
 	}
 
+	// ===== # 标签精确模式 =====
+	if strings.HasPrefix(keyword, "#") {
+		tagName := strings.TrimSpace(keyword[1:])
+		var items []models.NoteItem
+		err := global.DB.Joins("JOIN note_tags ON note_tags.note_id = note_items.id").
+			Where("note_tags.tag = ?", tagName).
+			Order("note_items.id DESC").
+			Limit(50).
+			Find(&items).Error
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("标签搜索失败: %v", err)})
+			return
+		}
+		results := make([]searchResult, len(items))
+		for i, item := range items {
+			results[i] = searchResult{NoteItem: item, Snippet: ""}
+		}
+		c.JSON(http.StatusOK, gin.H{"data": results})
+		return
+	}
+
 	safeKeyword := strings.ReplaceAll(keyword, "\"", "")
 	safeKeyword = strings.ReplaceAll(safeKeyword, "'", "")
 	if strings.TrimSpace(safeKeyword) == "" {
@@ -290,4 +311,26 @@ func generateSnippet(text, keyword string, snippetLen int) string {
 	}
 
 	return res
+}
+
+// GetTags 获取全部标签（按使用次数降序）
+func (a *NoteApi) GetTags(c *gin.Context) {
+	type tagCount struct {
+		Tag   string `json:"tag"`
+		Count int    `json:"count"`
+	}
+	var tags []tagCount
+	err := global.DB.Model(&models.NoteTag{}).
+		Select("tag, COUNT(*) as count").
+		Group("tag").
+		Order("count DESC").
+		Scan(&tags).Error
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("获取标签失败: %v", err)})
+		return
+	}
+	if tags == nil {
+		tags = []tagCount{}
+	}
+	c.JSON(http.StatusOK, gin.H{"data": tags})
 }
