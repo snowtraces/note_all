@@ -8,17 +8,9 @@ import (
 	"unsafe"
 )
 
-var (
-	shell32             = syscall.NewLazyDLL("shell32.dll")
-	procShellNotifyIcon = shell32.NewProc("Shell_NotifyIconW")
-
-	user32            = syscall.NewLazyDLL("user32.dll")
-	procCreateWindow  = user32.NewProc("CreateWindowExW")
-	procDefWindowProc = user32.NewProc("DefWindowProcW")
-)
+// ── NOTIFYICONDATA 常量 ──────────────────────────────────────────────────────
 
 const (
-	// Shell_NotifyIcon 消息类型
 	NIM_ADD    = 0x00000000
 	NIM_MODIFY = 0x00000001
 	NIM_DELETE = 0x00000002
@@ -52,33 +44,41 @@ type NOTIFYICONDATA struct {
 	DwInfoFlags      uint32
 }
 
-// ShowBalloonNotify 使用 Shell_NotifyIconW 显示系统气泡通知
-// 注意：此函数在托盘图标存在时才能工作。
-// 若没有托盘图标（纯上传模式），则降级为 MessageBox。
+// ShowBalloonNotify 用于 --upload 命令行模式的通知（需要用户手动点击关闭）
 func ShowBalloonNotify(title, message string, isError bool) {
-	// 降级方案：用 Windows MessageBox（无需托盘图标）
-	// 对于 --upload 模式，使用此方式通知用户
 	showMessageBox(title, message, isError)
 }
 
-// showMessageBox 使用 MessageBoxW 弹出通知
+// ShowToastNotify 托盘模式下的操作通知（3s 后自动消失，不阻塞调用方）
+// 使用 MessageBoxTimeoutW 实现免交互自动关闭
+func ShowToastNotify(title, message string, isError bool) {
+	go func() {
+		// MB_TOPMOST(0x40000) 确保弹窗置于最上层
+		var flags uintptr = 0x40 | 0x00040000 // MB_ICONINFORMATION | MB_TOPMOST
+		if isError {
+			flags = 0x10 | 0x00040000 // MB_ICONERROR | MB_TOPMOST
+		}
+		titlePtr, _ := syscall.UTF16PtrFromString(fmt.Sprintf("Note All - %s", title))
+		messagePtr, _ := syscall.UTF16PtrFromString(message)
+		// MessageBoxTimeoutW 签名：(hWnd, text, caption, uType, langID, milliseconds)
+		procMessageBoxTimeoutW.Call(
+			0,
+			uintptr(unsafe.Pointer(messagePtr)),
+			uintptr(unsafe.Pointer(titlePtr)),
+			flags,
+			0,    // MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT)
+			3000, // 3000ms 后自动关闭
+		)
+	}()
+}
+
+// showMessageBox 阻塞式 MessageBoxW，用于需要用户确认的场景
 func showMessageBox(title, message string, isError bool) {
-	user32dll := syscall.NewLazyDLL("user32.dll")
-	msgBox := user32dll.NewProc("MessageBoxW")
-
-	var flags uintptr = 0x40 // MB_ICONINFORMATION
+	var flags uintptr = 0x40 | 0x00040000 // MB_ICONINFORMATION | MB_TOPMOST
 	if isError {
-		flags = 0x10 // MB_ICONERROR
+		flags = 0x10 | 0x00040000 // MB_ICONERROR | MB_TOPMOST
 	}
-
 	titlePtr, _ := syscall.UTF16PtrFromString(fmt.Sprintf("Note All - %s", title))
 	messagePtr, _ := syscall.UTF16PtrFromString(message)
-
-	msgBox.Call(0, uintptr(unsafe.Pointer(messagePtr)), uintptr(unsafe.Pointer(titlePtr)), flags)
-}
-
-// ShowToastNotify 托盘气泡通知（需配合 systray 使用）
-// 在 tray.go 中通过 systray 提供的能力展示，此处预留接口
-func ShowToastNotify(title, message string, isError bool) {
-	showMessageBox(title, message, isError)
+	procMessageBoxW.Call(0, uintptr(unsafe.Pointer(messagePtr)), uintptr(unsafe.Pointer(titlePtr)), flags)
 }

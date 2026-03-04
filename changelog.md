@@ -11,6 +11,12 @@
 - Backend: 服务启动时自动回填历史 `note_items` 的标签数据到 `note_tags` 表（幂等）。
 - Frontend: 搜索框支持 `#` 触发标签联想下拉，支持键盘 ↑↓ 导航和 Enter 选中。
 - Frontend: 无选中详情时，右侧面板展示标签词云，字号/透明度/颜色按标签频次比例映射，点击联动搜索。
+- PC Client: 全局热键 `Alt+Q` 截图上传功能，包含以下子模块：
+  - `hotkey.go`：RegisterHotKey 注册全局热键，atomic 防重入，触发完整截图上传流程。
+  - `overlay.go`：Win32 全屏半透明遮罩窗口，双缓冲渲染消除闪烁，同时监听 WM_KEYDOWN/WM_SYSKEYDOWN 支持 ESC 取消，修复多次调用 PostQuitMessage 导致第二次拉起卡死的问题。
+  - `screenshot.go`：基于 `kbinani/screenshot` 截取全局坐标矩形区域，支持多显示器。
+  - `win32.go`：统一 Win32 DLL/Proc 声明，新增 DPI Awareness 自动初始化（Per-Monitor DPI Aware V2），修复高 DPI 下框选坐标偏差。
+- PC Client: 上传通知改用 `MessageBoxTimeoutW`，3s 后自动消失，置顶显示；截图中间流程静默处理，不打扰用户。
 
 ### Changed
 - Frontend: 调整了部分 CSS 样式以适配新的组件结构。
