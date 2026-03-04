@@ -15,28 +15,38 @@ import (
 
 // Win32 热键常量
 const (
-	wmHotkey = 0x0312
-	modAlt   = 0x0001
-	hotkeyID = 1
-	vkQ      = 0x51
+	wmHotkey     = 0x0312
+	modAlt       = 0x0001
+	modShift     = 0x0004
+	hotkeyQID    = 1
+	hotkeyShiftQ = 2
+	vkQ          = 0x51
 )
 
 // overlayActive 防止多次同时触发截图（原子标志）
 var overlayActive int32
 
-// StartHotkeyListener 注册全局热键 Alt+Q，阻塞运行消息循环。
-// 需以 goroutine 方式调用，内部已 LockOSThread。
 func StartHotkeyListener(cfg *Config) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	ret, _, err := procRegisterHotKey.Call(0, hotkeyID, modAlt, vkQ)
+	// 注册 Alt+Q (截图)
+	ret, _, err := procRegisterHotKey.Call(0, hotkeyQID, modAlt, vkQ)
 	if ret == 0 {
-		log.Printf("⚠️  注册热键 Alt+Q 失败（可能已被其他程序占用）: %v", err)
-		return
+		log.Printf("⚠️  注册热键 Alt+Q 失败: %v", err)
+	} else {
+		defer procUnregisterHotKey.Call(0, hotkeyQID)
+		log.Println("✅ 全局热键 Alt+Q 已注册，按下即可截图上传")
 	}
-	defer procUnregisterHotKey.Call(0, hotkeyID)
-	log.Println("✅ 全局热键 Alt+Q 已注册，按下即可截图上传")
+
+	// 注册 Alt+Shift+Q (文本录入)
+	ret2, _, err2 := procRegisterHotKey.Call(0, hotkeyShiftQ, modAlt|modShift, vkQ)
+	if ret2 == 0 {
+		log.Printf("⚠️  注册热键 Alt+Shift+Q 失败: %v", err2)
+	} else {
+		defer procUnregisterHotKey.Call(0, hotkeyShiftQ)
+		log.Println("✅ 全局热键 Alt+Shift+Q 已注册，按下即可文本录入")
+	}
 
 	var m struct {
 		Hwnd    uintptr
@@ -51,10 +61,16 @@ func StartHotkeyListener(cfg *Config) {
 		if r == 0 || r == ^uintptr(0) {
 			break
 		}
-		if m.Message == wmHotkey && m.WParam == hotkeyID {
-			// 防重入：若已有截图流程在进行则忽略
-			if atomic.CompareAndSwapInt32(&overlayActive, 0, 1) {
-				go handleScreenshot(cfg)
+		if m.Message == wmHotkey {
+			if m.WParam == hotkeyQID {
+				// 防重入：若已有遮罩层或其他流程在进行则忽略
+				if atomic.CompareAndSwapInt32(&overlayActive, 0, 1) {
+					go handleScreenshot(cfg)
+				}
+			} else if m.WParam == hotkeyShiftQ {
+				if atomic.CompareAndSwapInt32(&overlayActive, 0, 1) {
+					go handleTextInput(cfg)
+				}
 			}
 		}
 	}
@@ -107,4 +123,22 @@ func handleScreenshot(cfg *Config) {
 		return
 	}
 	ShowToastNotify("上传成功", fmt.Sprintf("%s  编号: #%s", result.Message, result.NoteID), false)
+}
+
+// handleTextInput 处理文本录入流程：弹输入框 -> 上传 -> 通知
+func handleTextInput(cfg *Config) {
+	defer atomic.StoreInt32(&overlayActive, 0)
+
+	text, ok := ShowTextInputDialog()
+	if !ok || text == "" {
+		return
+	}
+
+	result, err := UploadText(text, cfg)
+	if err != nil {
+		ShowToastNotify("文本上传失败", err.Error(), true)
+		return
+	}
+
+	ShowToastNotify("文本上传成功", fmt.Sprintf("%s  编号: #%s", result.Message, result.NoteID), false)
 }

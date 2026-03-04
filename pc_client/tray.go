@@ -22,7 +22,7 @@ func RunTray(cfg *Config) {
 func onTrayReady(cfg *Config) {
 	systray.SetIcon(getTrayIcon())
 	systray.SetTitle("Note All")
-	systray.SetTooltip("Note All PC 客户端 - 驻留中\nAlt+Q 截图上传")
+	systray.SetTooltip("Note All PC 客户端 - 驻留中\nAlt+Q 截图上传\nAlt+Shift+Q 文本录入")
 
 	// ── 启动全局热键监听（Alt+Q 截图上传）──
 	go StartHotkeyListener(cfg)
