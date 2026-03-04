@@ -22,6 +22,7 @@
 - PC Client: 上传通知改用 `MessageBoxTimeoutW`，3s 后自动消失，置顶显示；截图中间流程静默处理，不打扰用户。
 
 ### Changed
+- Frontend: 词云显示优化，默认仅展示使用频率最高的前 36 个标签，防止界面过载。
 - Frontend: 调整了部分 CSS 样式以适配新的组件结构。
 - Backend: 修改了 `note.go` 的一些 API 逻辑以适配。
 - Backend: AI 分析完成后同步写入 `note_tags` 关联记录（删旧写新）。

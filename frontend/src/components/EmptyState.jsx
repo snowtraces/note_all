@@ -8,7 +8,12 @@ export default function EmptyState({ onTagClick }) {
 
   useEffect(() => {
     getTags()
-      .then(data => setTags(data || []))
+      .then(data => {
+        const validData = data || [];
+        // 按使用次数倒序排列并只取前36个标签显示
+        const sortedData = validData.sort((a, b) => b.count - a.count);
+        setTags(sortedData.slice(0, 36));
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
