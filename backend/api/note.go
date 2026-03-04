@@ -58,6 +58,25 @@ func (a *NoteApi) CreateFromText(c *gin.Context) {
 	})
 }
 
+// UpdateText 修改已有碎片的文本记录
+func (a *NoteApi) UpdateText(c *gin.Context) {
+	id := c.Param("id")
+	var body struct {
+		Text string `json:"text"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数解析失败"})
+		return
+	}
+
+	if err := service.UpdateNoteText(id, body.Text); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新文本失败: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "修改文本成功，正在后台重新提炼分析..."})
+}
+
 // GetFile 接受存储 ID 还原图片或文件留以供网页/应用直读
 func (a *NoteApi) GetFile(c *gin.Context) {
 	id := c.Param("id")

@@ -172,3 +172,42 @@ func CreateNoteFromText(text string) (*models.NoteItem, error) {
 
 	return &note, nil
 }
+
+// UpdateNoteText 更新已有碎片的 OCR 文本，并触发后台重新提炼 LLM 摘要和标签任务
+func UpdateNoteText(id string, text string) error {
+	// 先更新原文，避免页面刷新还能看到老数据，标记为状态分析中
+	if err := global.DB.Model(&models.NoteItem{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"ocr_text": text,
+		"status":   "pending",
+	}).Error; err != nil {
+		return fmt.Errorf("原文写入失败: %v", err)
+	}
+
+	// 开户后段协程跑昂贵的 LLM API 更新逻辑
+	go func(itemID string, rawText string) {
+		log.Printf("[重新提炼作业] 开始为数据包 (ID:%s) 唤起 LLM 更新提炼...\n", itemID)
+
+		summary, tags, err := pkg.ExtractSummaryAndTags(rawText)
+		if err != nil {
+			log.Printf("[重新提炼大模型失败降级] 记录ID %s: %v", itemID, err)
+			summary = rawText
+			tags = "ai-fail"
+		}
+
+		global.DB.Model(&models.NoteItem{}).Where("id = ?", itemID).Updates(map[string]interface{}{
+			"ai_summary": summary,
+			"ai_tags":    tags,
+			"status":     "analyzed",
+		})
+
+		// 需要先把 string 类型的 itemID 转换为 uint 用于 tag 同步
+		var noteItem models.NoteItem
+		if err := global.DB.Select("id").Where("id = ?", itemID).First(&noteItem).Error; err == nil {
+			syncTags(noteItem.ID, tags)
+		}
+
+		log.Printf("[重新提炼作业完成] 记录ID %s: 提取新精简摘要 [%s]...", itemID, summary)
+	}(id, text)
+
+	return nil
+}

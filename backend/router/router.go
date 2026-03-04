@@ -39,6 +39,9 @@ func SetupRouter() *gin.Engine {
 		apiGroup.DELETE("/note/:id/hard", noteApi.HardDelete)
 		apiGroup.GET("/trash", noteApi.Trash)
 
+		// 4.5 更新已有文本碎片内容
+		apiGroup.PATCH("/note/:id/text", noteApi.UpdateText)
+
 		// 5. 标签接口
 		apiGroup.GET("/tags", noteApi.GetTags)
 	}

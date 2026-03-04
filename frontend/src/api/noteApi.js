@@ -20,6 +20,15 @@ export const restoreNote = async (id) => {
   if (!res.ok) throw new Error("Restore failed");
 };
 
+export const updateNoteText = async (id, text) => {
+  const res = await fetch(`/api/note/${id}/text`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  });
+  if (!res.ok) throw new Error("Update text failed");
+};
+
 export const uploadNote = async (formData) => {
   const res = await fetch("/api/upload", { method: "POST", body: formData });
   if (!res.ok) throw new Error("Upload failed");
