@@ -1,11 +1,11 @@
 module note_all_pc
 
-go 1.21
+go 1.24.0
 
 require (
 	github.com/getlantern/systray v1.2.2
 	github.com/kbinani/screenshot v0.0.0-20250624051815-089614a94018
-	golang.org/x/sys v0.24.0
+	golang.org/x/sys v0.38.0
 )
 
 require (
