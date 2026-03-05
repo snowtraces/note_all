@@ -3,6 +3,7 @@ import 'katex/dist/katex.min.css';
 import './index.css';
 
 import { getTrash, searchNotes, deleteNote, restoreNote, uploadNote, createTextNote, updateNoteText } from './api/noteApi';
+import { useDataPoller } from './hooks/useDataPoller';
 import Sidebar from './components/Sidebar';
 import Detail from './components/Detail';
 import EmptyState from './components/EmptyState';
@@ -16,6 +17,15 @@ function App() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [showTrash, setShowTrash] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
+
+  // 探针模式：静默更新列表，不重置 selectedItem
+  useDataPoller({
+    query,
+    results,
+    enabled: !showTrash,
+    onChanged: (fresh) => setResults(fresh),
+    interval: 5000,
+  });
 
   // 初始化或者切换回收站状态时获取数据
   useEffect(() => {

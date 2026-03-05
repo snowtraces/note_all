@@ -2,7 +2,8 @@
 
 ## [Unreleased]
 ### Added
-- Frontend: Web 端底部「注入新知识记录」按钮拆分为「上传图片 | 文本录入」并排按钮；点击「文本录入」展开行内 textarea，支持粘贴/输入任意文本后一键提交，提交期间显示提炼状态，完成后自动折叠。
+- Frontend: 新增探针模式（`hooks/useDataPoller.js`），每 5 秒轮询 `/api/search?q` 接口，通过对列表的 `id / status / ai_summary / ai_tags / ocr_text.length` 字段拼接生成指纹进行比对，一旦检测到任意变化（新增记录 或 OCR/摘要异步回写）则静默刷新列表，不重置用户当前选中的详情项。回收站模式下自动暂停轮询。
+
 - Backend: 新增 `POST /api/note/text` 接口，接受 JSON `{text}`，跳过 OCR 直接调用 LLM 生成摘要与标签，使用 `text_<UnixNano>` 作为虚拟 StorageID，无需物理存储文件。
 - Backend: `service/note.go` 提取 `syncTags()` 公共函数，消除上传图片与文本录入两条路径间的代码重复。
 - PC Client: 实现了托盘应用程序 (tray application)，增加系统通知、注册表支持、配置文件加载与上传逻辑。
