@@ -3,6 +3,7 @@
 ## [Unreleased] - 2026-03-05
 
 ### feat(ui/input)
+- 优化文本输入对话框：支持将 HTML 多行代码（`<pre><code>` 或包含换行的 `<code>`）识别并转换为 Markdown 代码块（三反引号）
 - 文本输入对话框：优先读取剪贴板 HTML 格式，自动转换为 Markdown（标题、列表、链接、加粗、斜体、删除线、行内代码、水平线）
 - 通过 Win32 API（`OpenClipboard` / `GetClipboardData`）直取 UTF-8 原始字节，修复中文 Windows 环境下 .NET 高层 API 按 GBK 解码导致的中文乱码问题
 - 使用 `<!--StartFragment-->` 标记精确提取 HTML 片段，替代 `<body>` 匹配，转换结果更精准

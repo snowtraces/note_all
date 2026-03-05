@@ -102,8 +102,19 @@ function Convert-HtmlToMarkdown($raw) {
     $html = $html -replace '(?si)<(?:i|em)[^>]*>(.*?)</(?:i|em)>',         '*$1*'
     $html = $html -replace '(?si)<(?:s|strike|del)[^>]*>(.*?)</(?:s|strike|del)>', '~~$1~~'
 
-    # 行内代码
-    $html = $html -replace '(?si)<code[^>]*>(.*?)</code>', ($bt + '$1' + $bt)
+    # ------ 代码处理 ------
+    # 1. 优先处理 <pre><code> 块级结构
+    $html = $html -replace '(?si)<pre[^>]*>\s*<code[^>]*>(.*?)</code>\s*</pre>', ($nl + $bt + $bt + $bt + $nl + '$1' + $nl + $bt + $bt + $bt + $nl)
+
+    # 2. 剩余独立的 <code> 标签（动态判断多行）
+    $html = [System.Text.RegularExpressions.Regex]::Replace($html, '(?si)<code[^>]*>(.*?)</code>', {
+        param($m)
+        $c = $m.Groups[1].Value
+        if ($c -match '[\r\n]') {
+            return $nl + $bt + $bt + $bt + $nl + $c.Trim() + $nl + $bt + $bt + $bt + $nl
+        }
+        return $bt + $c + $bt
+    })
 
     # 水平线
     $html = $html -replace '(?i)<hr[^>]*>', ($nl + '---' + $nl)
