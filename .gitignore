@@ -1,0 +1,16 @@
+# IDEs
+.idea/
+.vscode/
+
+# Build artifacts
+dist/
+/backend/data/
+/backend/storage/
+*.exe
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db

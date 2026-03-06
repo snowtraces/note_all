@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 ### Added
+- Android Client: 初始化基于 Kotlin + Jetpack Compose 的原生安卓端工程结构，向下兼容至 AGP 7.2.1 与 Java 8。
+- Android Client: 注册 `ShareReceiveActivity` 作为系统级 Share Target，实现跨应用图文直接分享与后台极速收录。
+- Android Client: 引入剪贴板嗅探特性，主界面获焦时自动检测剪贴板变更并弹出快捷「一键入库」轻提示。
+- Android Client: `DetailScreen` 详情页新增 "RAW 模式" 编辑修正功能，打通端侧文字校勘与后端大语言模型的重刷流水线（对接 `PATCH /api/note/{id}/text` 接口）。
+- Docs: 新增产品规格书 `01_Product_PRD/Android_Client_PRD.md`，规范化双端开发路径。
 - Frontend: 新增探针模式（`hooks/useDataPoller.js`），每 5 秒轮询 `/api/search?q` 接口，通过对列表的 `id / status / ai_summary / ai_tags / ocr_text.length` 字段拼接生成指纹进行比对，一旦检测到任意变化（新增记录 或 OCR/摘要异步回写）则静默刷新列表，不重置用户当前选中的详情项。回收站模式下自动暂停轮询。
 
 - Backend: 新增 `POST /api/note/text` 接口，接受 JSON `{text}`，跳过 OCR 直接调用 LLM 生成摘要与标签，使用 `text_<UnixNano>` 作为虚拟 StorageID，无需物理存储文件。
