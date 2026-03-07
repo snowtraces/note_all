@@ -18,7 +18,7 @@ class ConfigManager(private val context: Context) {
     }
 
     val baseUrlFlow: Flow<String> = context.dataStore.data.map { preferences ->
-        preferences[BASE_URL_KEY] ?: "http://192.168.1.100:8080"
+        preferences[BASE_URL_KEY] ?: "http://192.168.31.160:8080"
     }
 
     suspend fun saveBaseUrl(url: String) {

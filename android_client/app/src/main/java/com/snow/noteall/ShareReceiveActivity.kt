@@ -102,6 +102,26 @@ class ShareReceiveActivity : ComponentActivity() {
             } else {
                 onResult("Unsupported type: $type", false)
             }
+        } else if (Intent.ACTION_SEND_MULTIPLE == action && type != null) {
+            if (type.startsWith("image/")) {
+                val imageUris = intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
+                if (imageUris.isNullOrEmpty()) {
+                    onResult("No images found", false)
+                    return
+                }
+                
+                var successCount = 0
+                for ((index, uri) in imageUris.withIndex()) {
+                    onResult("Uploading image ${index + 1}/${imageUris.size}...", false)
+                    val success = uploadImageSuspend(uri)
+                    if (success) {
+                        successCount++
+                    }
+                }
+                onResult("Uploaded $successCount/${imageUris.size} images successfully!", successCount == imageUris.size)
+            } else {
+                onResult("Unsupported type: $type", false)
+            }
         } else {
             onResult("No content to share", false)
         }
@@ -126,7 +146,16 @@ class ShareReceiveActivity : ComponentActivity() {
     }
 
     private suspend fun uploadImage(uri: Uri, onResult: (String, Boolean) -> Unit) {
-        withContext(Dispatchers.IO) {
+        val success = uploadImageSuspend(uri)
+        if (success) {
+            onResult("Uploading image success!", true)
+        } else {
+            onResult("Fail to upload image", false)
+        }
+    }
+
+    private suspend fun uploadImageSuspend(uri: Uri): Boolean {
+        return withContext(Dispatchers.IO) {
             try {
                 // Copy to temp file
                 val tempFile = File(cacheDir, "share_temp_${System.currentTimeMillis()}.png")
@@ -144,15 +173,10 @@ class ShareReceiveActivity : ComponentActivity() {
                 val api = ApiClient.getApi(baseUrl)
                 
                 api.uploadImage(body)
-                
-                withContext(Dispatchers.Main) {
-                    onResult("Uploading image success!", true)
-                    tempFile.delete() // Clean up
-                }
+                tempFile.delete() // Clean up
+                true
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    onResult("Fail to upload image: ${e.message}", false)
-                }
+                false
             }
         }
     }
