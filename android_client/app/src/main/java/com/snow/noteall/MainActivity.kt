@@ -9,10 +9,17 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.ExperimentalMaterialApi
@@ -51,7 +58,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun MainApp() {
     val context = LocalContext.current
@@ -137,9 +144,13 @@ fun MainApp() {
     } else {
         // --- MAIN LIST SCREEN ---
         Scaffold(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
             topBar = {
                 TopAppBar(
                     title = { Text("Note All") },
+                    colors = TopAppBarDefaults.smallTopAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    ),
                     actions = {
                         IconButton(onClick = { showSettings = true }) {
                             Icon(Icons.Default.Settings, contentDescription = "Settings")
@@ -166,8 +177,9 @@ fun MainApp() {
                         }
                     }
                 } else {
-                    LazyColumn(
-                        contentPadding = PaddingValues(bottom = 80.dp),
+                    LazyVerticalStaggeredGrid(
+                        columns = StaggeredGridCells.Fixed(2),
+                        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 80.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
                         items(notes) { note ->
@@ -259,47 +271,86 @@ fun NoteCard(note: NoteItem, baseUrl: String, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(4.dp)
             .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column {
             if (note.fileType?.startsWith("image/") == true && baseUrl.isNotEmpty()) {
                 val imgUrl = "$baseUrl/api/file/${note.storageId}"
                 AsyncImage(
                     model = imgUrl,
                     contentDescription = note.originalName,
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(160.dp)
+                        .heightIn(min = 80.dp, max = 110.dp)
                 )
-                Spacer(modifier = Modifier.height(12.dp))
             }
             
-            val contentText = if (!note.aiSummary.isNullOrEmpty()) note.aiSummary else (note.ocrText ?: "Empty Note")
-            Text(
-                text = contentText,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis
-            )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "Status: ${note.status ?: "ok"}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.secondary
-                )
-                if (!note.aiTags.isNullOrEmpty()) {
-                    Spacer(modifier = Modifier.width(8.dp))
+            Column(modifier = Modifier.padding(16.dp)) {
+                val rawText = if (!note.aiSummary.isNullOrEmpty()) note.aiSummary else (note.ocrText ?: "无附加文案")
+                val lines = rawText.trim().split("\n")
+                val title = lines.firstOrNull() ?: ""
+                val body = if (lines.size > 1) lines.drop(1).joinToString("\n").trim() else ""
+
+                if (title.isNotEmpty()) {
                     Text(
-                        text = "• ${note.aiTags}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+                
+                if (body.isNotEmpty()) {
+                    Text(
+                        text = body,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 6,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                } else if (title.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val dateStr = note.createdAt ?: ""
+                    val displayDate = try {
+                        if (dateStr.length >= 10) {
+                            val parts = dateStr.substring(0, 10).split("-")
+                            if (parts.size >= 3) {
+                                "${parts[1].toInt()}月${parts[2].toInt()}日"
+                            } else dateStr.take(10)
+                        } else dateStr
+                    } catch (e: Exception) {
+                        dateStr.take(10)
+                    }
+
+                    Text(
+                        text = displayDate,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                    
+                    if (!note.status.isNullOrEmpty() && note.status != "ok") {
+                        Text(
+                            text = note.status,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
         }

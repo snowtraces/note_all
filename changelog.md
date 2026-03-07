@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 ### Added
+- Android Client: 深度重构主页 UI，采用双列 `StaggeredGrid` 瀑布流布局。全面引入基于深色胡桃木与琥珀金配色的类 Google Files (Material You) / 小米便签质感暗色主题，优化了卡片圆角、图片约束裁切、取消边缘护甲及高度阴影，大幅提升沉浸式阅读体验。
 - Android Client: 引入列表原生下拉刷新 (`PullToRefresh`) 功能，允许用户手动获取最新数据，并且在空状态下予以手势兼容支持。
 - System: 新增一键代码清理、文档更新与提交推送工作的全局自动化工作流 (`.agent/workflows/commit.md`)。
 - Android Client: 完善 `ShareReceiveActivity` 逻辑和入口，支持从系统图库中使用多选触发分享 (`ACTION_SEND_MULTIPLE`)，实现了多张图片的按序异步并发上传处理以及友好的进度展示提示，避免首张图片上传完成后 Activity 即被意外销毁的拦截缺陷。
