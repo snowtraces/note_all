@@ -59,6 +59,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material")
+    implementation("androidx.compose.material:material-icons-extended")
     
     // Retrofit & Moshi
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
@@ -67,6 +68,15 @@ dependencies {
     
     // Coil (Image Loading)
     implementation("io.coil-kt:coil-compose:2.2.2")
+
+    // Markdown (Reliable Android rendering)
+    implementation("io.noties.markwon:core:4.6.2")
+    implementation("io.noties.markwon:ext-tables:4.6.2")
+    implementation("io.noties.markwon:ext-strikethrough:4.6.2")
+    implementation("io.noties.markwon:ext-tasklist:4.6.2")
+    implementation("io.noties.markwon:ext-latex:4.6.2")
+    implementation("io.noties.markwon:inline-parser:4.6.2")
+    implementation("io.noties.markwon:html:4.6.2")
 
     // DataStore (Preferences)
     implementation("androidx.datastore:datastore-preferences:1.0.0")

@@ -27,4 +27,16 @@ interface NoteApi {
 
     @PATCH("/api/note/{id}/text")
     suspend fun updateNoteText(@Path("id") noteId: Int, @Body request: TextUploadRequest): Any
+
+    @retrofit2.http.DELETE("/api/note/{id}")
+    suspend fun deleteNote(@Path("id") noteId: Int): Any
+
+    @GET("/api/trash")
+    suspend fun getTrash(): NoteItemsResponse
+
+    @POST("/api/note/{id}/restore")
+    suspend fun restoreNote(@Path("id") noteId: Int): Any
+
+    @retrofit2.http.DELETE("/api/note/{id}/hard")
+    suspend fun hardDeleteNote(@Path("id") noteId: Int): Any
 }
