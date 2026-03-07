@@ -4,12 +4,12 @@ plugins {
 }
 
 android {
-    compileSdk = 33
+    namespace = "com.snowtraces.noteall"
+    compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.snow.noteall"
+        applicationId = "com.snowtraces.noteall"
         minSdk = 24
-        targetSdk = 33
         versionCode = 1
         versionName = "1.0"
 
@@ -29,21 +29,23 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "21"
     }
     buildFeatures {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.1.1"
+        kotlinCompilerExtensionVersion = "1.5.14"
     }
-    packagingOptions {
-        exclude("/META-INF/AL2.0")
-        exclude("/META-INF/LGPL2.1")
+    packaging {
+        resources {
+            excludes += "/META-INF/AL2.0"
+            excludes += "/META-INF/LGPL2.1"
+        }
     }
 }
 

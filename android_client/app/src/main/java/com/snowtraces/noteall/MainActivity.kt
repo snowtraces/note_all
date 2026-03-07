@@ -1,4 +1,4 @@
-package com.snow.noteall
+package com.snowtraces.noteall
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -39,11 +39,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.snow.noteall.config.ConfigManager
-import com.snow.noteall.network.ApiClient
-import com.snow.noteall.network.NoteItem
-import com.snow.noteall.network.TextUploadRequest
-import com.snow.noteall.ui.theme.NoteAllTheme
+import com.snowtraces.noteall.config.ConfigManager
+import com.snowtraces.noteall.network.ApiClient
+import com.snowtraces.noteall.network.NoteItem
+import com.snowtraces.noteall.network.TextUploadRequest
+import com.snowtraces.noteall.ui.theme.NoteAllTheme
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 

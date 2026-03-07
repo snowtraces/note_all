@@ -1,4 +1,4 @@
-package com.snow.noteall.ui.theme
+package com.snowtraces.noteall.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

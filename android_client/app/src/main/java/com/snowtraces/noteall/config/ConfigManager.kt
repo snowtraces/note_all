@@ -1,4 +1,4 @@
-package com.snow.noteall.config
+package com.snowtraces.noteall.config
 
 import android.content.Context
 import androidx.datastore.core.DataStore

@@ -1,4 +1,4 @@
-package com.snow.noteall.network
+package com.snowtraces.noteall.network
 
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass

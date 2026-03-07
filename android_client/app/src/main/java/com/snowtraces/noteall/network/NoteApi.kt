@@ -1,4 +1,4 @@
-package com.snow.noteall.network
+package com.snowtraces.noteall.network
 
 import okhttp3.MultipartBody
 import retrofit2.http.Body

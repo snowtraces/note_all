@@ -1,4 +1,4 @@
-package com.snow.noteall.ui.theme
+package com.snowtraces.noteall.ui.theme
 
 import android.app.Activity
 import android.os.Build

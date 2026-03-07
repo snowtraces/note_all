@@ -1,4 +1,4 @@
-package com.snow.noteall
+package com.snowtraces.noteall
 
 import android.content.Intent
 import android.net.Uri
@@ -12,10 +12,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.snow.noteall.config.ConfigManager
-import com.snow.noteall.network.ApiClient
-import com.snow.noteall.network.TextUploadRequest
-import com.snow.noteall.ui.theme.NoteAllTheme
+import com.snowtraces.noteall.config.ConfigManager
+import com.snowtraces.noteall.network.ApiClient
+import com.snowtraces.noteall.network.TextUploadRequest
+import com.snowtraces.noteall.ui.theme.NoteAllTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
