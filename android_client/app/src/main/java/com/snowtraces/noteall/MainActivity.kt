@@ -477,7 +477,6 @@ fun MainApp() {
                                     Box {
                                         NoteCard(
                                             note = note, 
-                                            baseUrl = baseUrl,
                                             isUnlocked = note.id == activeSwipeNoteId,
                                             onClick = { 
                                                 if (activeSwipeNoteId == note.id) activeSwipeNoteId = null
@@ -756,7 +755,7 @@ fun AddNoteDialog(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun NoteCard(note: NoteItem, baseUrl: String, isUnlocked: Boolean = false, onClick: () -> Unit, onLongClick: () -> Unit) {
+fun NoteCard(note: NoteItem, isUnlocked: Boolean = false, onClick: () -> Unit, onLongClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()

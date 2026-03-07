@@ -35,6 +35,9 @@
   - `win32.go`：统一 Win32 DLL/Proc 声明，新增 DPI Awareness 自动初始化（Per-Monitor DPI Aware V2），修复高 DPI 下框选坐标偏差。
 - PC Client: 上传通知改用 `MessageBoxTimeoutW`，3s 后自动消失，置顶显示；截图中间流程静默处理，不打扰用户。
 
+### Fixed
+- Android Client: 修复 `MainActivity.kt` 中 `NoteCard` 组件存在的 `baseUrl` 参数未使用的 Lint 警告，移除冗余代码。
+
 ### Changed
 - Frontend: 词云显示优化，默认仅展示使用频率最高的前 36 个标签，防止界面过载。
 - Frontend: 调整了部分 CSS 样式以适配新的组件结构。
