@@ -15,6 +15,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
@@ -47,15 +51,31 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun MainApp() {
     val context = LocalContext.current
     val configManager = remember { ConfigManager(context) }
     var notes by remember { mutableStateOf<List<NoteItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
+    var isRefreshing by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     var baseUrl by remember { mutableStateOf("") }
+    
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = isRefreshing,
+        onRefresh = {
+            if (baseUrl.isNotEmpty()) {
+                isRefreshing = true
+                coroutineScope.launch {
+                    fetchNotes(baseUrl, "") {
+                        notes = it
+                        isRefreshing = false
+                    }
+                }
+            }
+        }
+    )
     
     var selectedNote by remember { mutableStateOf<NoteItem?>(null) }
     
@@ -133,20 +153,34 @@ fun MainApp() {
                 }
             }
         ) { padding ->
-            Box(modifier = Modifier.padding(padding).fillMaxSize()) {
-                if (isLoading) {
+            Box(modifier = Modifier.padding(padding).fillMaxSize().pullRefresh(pullRefreshState)) {
+                if (isLoading && !isRefreshing) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                } else if (notes.isEmpty()) {
-                    Text("这里空空如也，快去收集吧！", modifier = Modifier.align(Alignment.Center))
+                } else if (notes.isEmpty() && !isLoading && !isRefreshing) {
+                    // Provide a scrollable state so the user can pull-to-refresh even when empty
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        item {
+                            Box(modifier = Modifier.fillParentMaxSize()) {
+                                Text("这里空空如也，快去收集吧！", modifier = Modifier.align(Alignment.Center))
+                            }
+                        }
+                    }
                 } else {
                     LazyColumn(
-                        contentPadding = PaddingValues(bottom = 80.dp)
+                        contentPadding = PaddingValues(bottom = 80.dp),
+                        modifier = Modifier.fillMaxSize()
                     ) {
                         items(notes) { note ->
                             NoteCard(note, baseUrl, onClick = { selectedNote = note })
                         }
                     }
                 }
+
+                PullRefreshIndicator(
+                    refreshing = isRefreshing,
+                    state = pullRefreshState,
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
 
                 // Clipboard Sneak Peek Panel
                 if (clipboardText != null) {

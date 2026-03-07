@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 ### Added
+- Android Client: 引入列表原生下拉刷新 (`PullToRefresh`) 功能，允许用户手动获取最新数据，并且在空状态下予以手势兼容支持。
 - System: 新增一键代码清理、文档更新与提交推送工作的全局自动化工作流 (`.agent/workflows/commit.md`)。
 - Android Client: 完善 `ShareReceiveActivity` 逻辑和入口，支持从系统图库中使用多选触发分享 (`ACTION_SEND_MULTIPLE`)，实现了多张图片的按序异步并发上传处理以及友好的进度展示提示，避免首张图片上传完成后 Activity 即被意外销毁的拦截缺陷。
 - Android Client: 初始化基于 Kotlin + Jetpack Compose 的原生安卓端工程结构，向下兼容至 AGP 7.2.1 与 Java 8。
