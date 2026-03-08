@@ -1,5 +1,10 @@
 # Changelog
 
+## [2026-03-08] Unified Build System
+### Added
+- 🚀 **根目录统一构建脚本**: 新增 `build.ps1`，整合后端、前端、PC 端及 Android 端的编译命令。
+- 📝 **README 更新**: 明确了全量构建与模块构建的使用指南。
+
 ## [Unreleased]
 ### Added
 - Docs: 重构了工程主页 `README.md` 的视觉结构。引入了真实的 Web UI 展示截图 (`showcase.png`)，并增加了 Mermaid 流程图解，将技术细节进行折叠处理，显著提升了项目的专业感与可读性。

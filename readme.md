@@ -67,26 +67,24 @@ graph LR
 
 ---
 
-## 🚀 快速启动 (Quick Start)
+---
 
-### 1️⃣ 后端服务 (Backend API)
-```bash
-cd backend
-cp config.json.example config.json # 填入大模型 ApiKey
-go run main.go
+## 🛠️ 编译与打包 (Build)
+
+项目提供根目录统一构建脚本 `build.ps1` (PowerShell)：
+
+```powershell
+# 全量编译所有模块 (Backend, Frontend, PC, Android)
+.\build.ps1 -Module all
+
+# 仅编译特定模块
+.\build.ps1 -Module backend   # 后端
+.\build.ps1 -Module frontend  # 前端
+.\build.ps1 -Module pc        # Windows 客户端
+.\build.ps1 -Module android   # Android 客户端 (需 JDK 21)
 ```
-> 地址：`http://localhost:8080`
 
-### 2️⃣ Web 前端 (React Frontend)
-```bash
-cd frontend
-npm install && npm run dev
-```
-> 地址：`http://localhost:3000`
-
-### 3️⃣ Android & Windows 客户端
-- **Android**: 确保 `JDK 21`，使用 Android Studio 打开 `android_client` 即可运行。
-- **Windows**: 运行 `pc_client/build.ps1`，启动托盘程序后右键「注册右键菜单」。
+> **环境要求**: Go 1.21+, Node.js 18+, JDK 21+, Android SDK (用于 App)。
 
 ---
 

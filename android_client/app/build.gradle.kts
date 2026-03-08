@@ -1,6 +1,14 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+}
+
+val properties = Properties()
+val localPropertiesFile = project.rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { properties.load(it) }
 }
 
 android {
@@ -19,9 +27,19 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("../keystore/note_all_release.jks")
+            storePassword = properties.getProperty("SIGNING_STORE_PASSWORD")
+            keyAlias = properties.getProperty("SIGNING_KEY_ALIAS")
+            keyPassword = properties.getProperty("SIGNING_KEY_PASSWORD")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
