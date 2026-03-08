@@ -39,4 +39,16 @@ interface NoteApi {
 
     @retrofit2.http.DELETE("/api/note/{id}/hard")
     suspend fun hardDeleteNote(@Path("id") noteId: Int): Any
+
+    @POST("/api/ask")
+    suspend fun ask(@Body request: AskRequest): AskResponse
+
+    @GET("/api/chat/sessions")
+    suspend fun listChatSessions(): ChatSessionsResponse
+
+    @GET("/api/chat/session/{id}")
+    suspend fun getChatMessages(@Path("id") sessionId: Int): ChatMessagesResponse
+
+    @retrofit2.http.DELETE("/api/chat/session/{id}")
+    suspend fun deleteChatSession(@Path("id") sessionId: Int): Any
 }

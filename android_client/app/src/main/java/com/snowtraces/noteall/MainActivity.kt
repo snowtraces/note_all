@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.snowtraces.noteall.config.ConfigManager
@@ -43,6 +44,9 @@ import com.snowtraces.noteall.network.NoteItem
 import com.snowtraces.noteall.ui.components.AddNoteDialog
 import com.snowtraces.noteall.ui.components.NoteCard
 import com.snowtraces.noteall.ui.screens.DetailScreen
+import com.snowtraces.noteall.viewmodel.ChatViewModel
+import com.snowtraces.noteall.ui.screens.ChatScreen
+import com.snowtraces.noteall.ui.screens.ChatSessionsScreen
 import com.snowtraces.noteall.ui.theme.NoteAllTheme
 import com.snowtraces.noteall.viewmodel.NoteViewModel
 import kotlinx.coroutines.Dispatchers
@@ -73,6 +77,7 @@ fun MainApp() {
     val configManager = remember { ConfigManager(context) }
     val repository = remember { NoteRepository() }
     val viewModel: NoteViewModel = remember { NoteViewModel(repository) }
+    val chatViewModel: ChatViewModel = remember { ChatViewModel(repository) }
     
     val coroutineScope = rememberCoroutineScope()
     
@@ -84,7 +89,7 @@ fun MainApp() {
     
     val pullRefreshState = rememberPullRefreshState(
         refreshing = viewModel.isRefreshing,
-        onRefresh = { viewModel.refresh() }
+        onRefresh = { viewModel.refresh(showIndicator = true) }
     )
     
     var selectedNote by remember { mutableStateOf<NoteItem?>(null) }
@@ -105,7 +110,19 @@ fun MainApp() {
         val savedBaseUrl = configManager.baseUrlFlow.first()
         tempUrl = savedBaseUrl
         viewModel.baseUrl = savedBaseUrl
+        chatViewModel.baseUrl = savedBaseUrl
         viewModel.refresh()
+    }
+    
+    // Handle global back press for deep navigation
+    BackHandler(enabled = viewModel.currentView != AppView.Home || selectedNote != null) {
+        if (selectedNote != null) {
+            selectedNote = null
+        } else if (viewModel.currentView == AppView.Chat) {
+            viewModel.setView(AppView.ChatSessions)
+        } else {
+            viewModel.setView(AppView.Home)
+        }
     }
 
     // A very basic clipboard sniffing on resume
@@ -162,6 +179,20 @@ fun MainApp() {
                 Spacer(modifier = Modifier.height(4.dp))
                 
                 NavigationDrawerItem(
+                    label = { Text("智能交互问答", style = MaterialTheme.typography.labelLarge) },
+                    selected = viewModel.currentView == AppView.Chat || viewModel.currentView == AppView.ChatSessions,
+                    onClick = {
+                        viewModel.setView(AppView.ChatSessions)
+                        coroutineScope.launch { drawerState.close() }
+                    },
+                    icon = { Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    shape = RoundedCornerShape(28.dp)
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                NavigationDrawerItem(
                     label = { Text("回收站", style = MaterialTheme.typography.labelLarge) },
                     selected = viewModel.currentView == AppView.Trash,
                     onClick = {
@@ -192,24 +223,47 @@ fun MainApp() {
             }
         }
     ) {
-        if (selectedNote != null) {
-            // --- DETAIL & RAW MODE SCREEN ---
-            BackHandler { selectedNote = null }
-            DetailScreen(
-                note = selectedNote!!, 
-                baseUrl = viewModel.baseUrl, 
-                onBack = { selectedNote = null },
-                onUpdateRaw = { id, newText ->
-                    viewModel.updateNoteText(id, newText, 
-                        onComplete = {
-                            Toast.makeText(context, "更新成功，后台正重新学习此记录", Toast.LENGTH_LONG).show()
-                            selectedNote = null
-                        },
-                        onError = { Toast.makeText(context, "Fail: $it", Toast.LENGTH_SHORT).show() }
-                    )
-                }
-            )
-        } else {
+        when {
+            selectedNote != null -> {
+                DetailScreen(
+                    note = selectedNote!!, 
+                    baseUrl = viewModel.baseUrl, 
+                    onBack = { selectedNote = null },
+                    onUpdateRaw = { id, newText ->
+                        viewModel.updateNoteText(id, newText, 
+                            onComplete = {
+                                Toast.makeText(context, "更新成功，后台正重新学习此记录", Toast.LENGTH_LONG).show()
+                                selectedNote = null
+                            },
+                            onError = { Toast.makeText(context, "Fail: $it", Toast.LENGTH_SHORT).show() }
+                        )
+                    }
+                )
+            }
+            viewModel.currentView == AppView.Chat -> {
+                ChatScreen(
+                    viewModel = chatViewModel,
+                    onBack = { viewModel.setView(AppView.ChatSessions) },
+                    onNavigateToNote = { note -> 
+                        selectedNote = note
+                    }
+                )
+            }
+            viewModel.currentView == AppView.ChatSessions -> {
+                ChatSessionsScreen(
+                    viewModel = chatViewModel,
+                    onBack = { viewModel.setView(AppView.Home) },
+                    onSelectSession = { id ->
+                        if (id == -1) {
+                            chatViewModel.startNewChat()
+                        } else {
+                            chatViewModel.loadSession(id)
+                        }
+                        viewModel.setView(AppView.Chat)
+                    }
+                )
+            }
+            else -> {
             // --- MAIN LIST SCREEN ---
             Scaffold(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -454,15 +508,21 @@ fun MainApp() {
                         }
                     }
                 }
-                }
             }
+        }
             
             // Hard Delete Confirmation Dialog
             if (noteToHardDelete != null) {
                 AlertDialog(
                     onDismissRequest = { noteToHardDelete = null },
                     icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                    title = { Text("确认永久删除？") },
+                    title = { 
+                        Text(
+                            "确认永久删除？", 
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        ) 
+                    },
                     text = { Text("这条笔记将从服务器彻底移除，无法恢复。") },
                     confirmButton = {
                         Button(
@@ -474,12 +534,14 @@ fun MainApp() {
                                     onError = { Toast.makeText(context, "删除失败: $it", Toast.LENGTH_SHORT).show() }
                                 )
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                            shape = RoundedCornerShape(12.dp)
                         ) { Text("确认删除") }
                     },
                     dismissButton = {
                         TextButton(onClick = { noteToHardDelete = null }) { Text("取消") }
-                    }
+                    },
+                    shape = RoundedCornerShape(28.dp)
                 )
             }
 
@@ -487,30 +549,45 @@ fun MainApp() {
             if (showSettings) {
                 AlertDialog(
                     onDismissRequest = { showSettings = false },
-                    title = { Text("系统设置") },
+                    title = { 
+                        Text(
+                            "系统设置",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        ) 
+                    },
                     text = {
-                        TextField(
-                            value = tempUrl,
-                            onValueChange = { tempUrl = it },
-                            label = { Text("后端服务器 (Base URL)") },
-                            singleLine = true
-                        )
+                        Column(modifier = Modifier.padding(top = 8.dp)) {
+                            OutlinedTextField(
+                                value = tempUrl,
+                                onValueChange = { tempUrl = it },
+                                label = { Text("后端服务器 (Base URL)") },
+                                placeholder = { Text("http://your-ip:8080") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                        }
                     },
                     confirmButton = {
-                        Button(onClick = {
-                            coroutineScope.launch {
-                                configManager.saveBaseUrl(tempUrl)
-                                viewModel.baseUrl = tempUrl
-                                showSettings = false
-                                viewModel.refresh()
-                            }
-                        }) {
+                        Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    configManager.saveBaseUrl(tempUrl)
+                                    viewModel.baseUrl = tempUrl
+                                    showSettings = false
+                                    viewModel.refresh(showIndicator = true)
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
                             Text("保存并加载")
                         }
                     },
                     dismissButton = {
                         TextButton(onClick = { showSettings = false }) { Text("取消") }
-                    }
+                    },
+                    shape = RoundedCornerShape(28.dp)
                 )
             }
 
@@ -566,6 +643,7 @@ fun MainApp() {
                         }
                     }
                 )
+            }
             }
         }
     }

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 ### Added
+- Android Client: 深度集成了 **Insight Engine (AI 智能助手)**。支持多轮 RAG (检索增强生成) 对话，能够基于用户笔记知识库进行智能答疑与知识溯源。
+- Android Client: 新增 `ChatScreen` (对话主页) 与 `ChatSessionsScreen` (历史会话管理)。支持开启新对话、查看历史上下文及删除会话。
+- Android Client: 引入 “智能引证 (Smart References)” 特性。AI 回复中会自动关联相关的笔记来源，点击可直接跳转至笔记详情。
+- Android Client: 交互细节优化。统一了全应用内弹窗 (Dialog) 的 Material 3 设计风格 (28dp 圆角与加粗标题)；优化了视图切换逻辑，消除了从对话页返回主列表时冗余的下拉刷新动画。
+- Android Client: 安全加固。为对话历史删除增加了二次确认对话框，防止误触导致数据丢失。
+- Network: 补全了 `hardDeleteNote` (物理删除) 与聊天相关的多项 API 接口定义，修正了 `session_id` 的 JSON 字段映射。
 - UI: 全新设计了多端应用图标。以极简平面几何折叠（书本与 N）为核心风格，移除了不协调的旧版资源。
   - Web：注入高清 `logo512.png`、`apple-touch-icon.png` 及其 HTML 声明。
   - Android：以 `.webp` 无损缩放大规模更替了全尺寸 `ic_launcher` (含 round 版本)，彻底下架废弃的任何 vector asset 映射。

@@ -45,3 +45,45 @@ data class TagsResponse(
     val code: Int?,
     val data: List<TagItem>?
 )
+
+@JsonClass(generateAdapter = true)
+data class AskRequest(
+    val messages: List<Map<String, String>>,
+    @Json(name = "session_id") val sessionId: Int? = 0
+)
+
+@JsonClass(generateAdapter = true)
+data class AskResponse(
+    val data: String?,
+    @Json(name = "session_id") val sessionId: Int?,
+    val references: List<NoteItem>?
+)
+
+@JsonClass(generateAdapter = true)
+data class ChatSession(
+    val id: Int,
+    val title: String,
+    @Json(name = "created_at") val createdAt: String?
+)
+
+@JsonClass(generateAdapter = true)
+data class ChatSessionsResponse(
+    val code: Int? = 0,
+    val data: List<ChatSession>? = emptyList()
+)
+
+@JsonClass(generateAdapter = true)
+data class ChatMessage(
+    val id: Int,
+    @Json(name = "session_id") val sessionId: Int,
+    val role: String, // "user" or "assistant"
+    val content: String,
+    val references: List<NoteItem>?,
+    @Json(name = "created_at") val createdAt: String?
+)
+
+@JsonClass(generateAdapter = true)
+data class ChatMessagesResponse(
+    val code: Int? = 0,
+    val data: List<ChatMessage>? = emptyList()
+)

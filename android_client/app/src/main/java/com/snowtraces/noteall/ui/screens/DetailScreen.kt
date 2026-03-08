@@ -32,13 +32,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FindInPage
 import androidx.compose.ui.Alignment
 import coil.compose.AsyncImage
+import com.snowtraces.noteall.ui.components.MarkdownDisplay
 import com.snowtraces.noteall.network.NoteItem
-import io.noties.markwon.Markwon
-import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
-import io.noties.markwon.ext.tables.TablePlugin
-import io.noties.markwon.ext.tasklist.TaskListPlugin
-import io.noties.markwon.html.HtmlPlugin
-import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -253,39 +248,4 @@ fun FullScreenImageDialog(imgUrl: String, onDismiss: () -> Unit) {
             }
         }
     }
-}
-
-@Composable
-fun MarkdownDisplay(content: String, isPrimary: Boolean) {
-    val context = LocalContext.current
-    val textSize = if (isPrimary) 16f else 14f
-
-    val markwon = remember(textSize) { 
-        Markwon.builder(context)
-            .usePlugin(MarkwonInlineParserPlugin.create())
-            .usePlugin(TablePlugin.create(context))
-            .usePlugin(StrikethroughPlugin.create())
-            .usePlugin(TaskListPlugin.create(context))
-            .usePlugin(HtmlPlugin.create())
-            .build()
-    }
-    val textColor = if (isPrimary) {
-        MaterialTheme.colorScheme.onSurface
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-
-    AndroidView(
-        factory = { ctx ->
-            TextView(ctx).apply {
-                this.setTextColor(textColor.toArgb())
-                this.textSize = textSize
-                this.setTextIsSelectable(true)
-            }
-        },
-        update = { textView ->
-            markwon.setMarkdown(textView, content)
-        },
-        modifier = Modifier.fillMaxWidth()
-    )
 }

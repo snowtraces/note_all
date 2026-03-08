@@ -1,6 +1,10 @@
 package com.snowtraces.noteall.data
 
 import com.snowtraces.noteall.network.ApiClient
+import com.snowtraces.noteall.network.AskRequest
+import com.snowtraces.noteall.network.AskResponse
+import com.snowtraces.noteall.network.ChatMessage
+import com.snowtraces.noteall.network.ChatSession
 import com.snowtraces.noteall.network.NoteItem
 import com.snowtraces.noteall.network.TextUploadRequest
 import okhttp3.MultipartBody
@@ -49,5 +53,26 @@ class NoteRepository {
     suspend fun uploadImage(baseUrl: String, body: MultipartBody.Part) {
         val api = ApiClient.getApi(baseUrl)
         api.uploadImage(body)
+    }
+
+    suspend fun ask(baseUrl: String, messages: List<Map<String, String>>, sessionId: Int?): AskResponse {
+        val api = ApiClient.getApi(baseUrl)
+        return api.ask(AskRequest(messages, sessionId))
+    }
+
+    suspend fun getChatSessions(baseUrl: String): List<ChatSession> {
+        if (baseUrl.isEmpty()) return emptyList()
+        val api = ApiClient.getApi(baseUrl)
+        return api.listChatSessions().data ?: emptyList()
+    }
+
+    suspend fun getChatMessages(baseUrl: String, sessionId: Int): List<ChatMessage> {
+        val api = ApiClient.getApi(baseUrl)
+        return api.getChatMessages(sessionId).data ?: emptyList()
+    }
+
+    suspend fun deleteChatSession(baseUrl: String, sessionId: Int) {
+        val api = ApiClient.getApi(baseUrl)
+        api.deleteChatSession(sessionId)
     }
 }

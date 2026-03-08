@@ -30,11 +30,22 @@ class NoteViewModel(private val repository: NoteRepository) : ViewModel() {
     var baseUrl by mutableStateOf("")
 
     fun setView(view: AppView) {
-        currentView = view
-        refresh()
+        if (currentView != view) {
+            val isSwitchingSource = (currentView == AppView.Home && view == AppView.Trash) || 
+                                     (currentView == AppView.Trash && view == AppView.Home)
+            currentView = view
+            
+            if (isSwitchingSource) {
+                notes = emptyList() // Clear for list change
+                refresh(showIndicator = true) 
+            } else if (view == AppView.Home || view == AppView.Trash) {
+                // Return from other screens (Chat/Sessions)
+                refresh(showIndicator = false) // Silent sync in background
+            }
+        }
     }
 
-    fun refresh() {
+    fun refresh(showIndicator: Boolean = false) {
         if (baseUrl.isEmpty()) return
         
         viewModelScope.launch {
@@ -42,15 +53,15 @@ class NoteViewModel(private val repository: NoteRepository) : ViewModel() {
             
             if (notes.isEmpty()) {
                 isLoading = true
-            } else {
+            } else if (showIndicator) {
                 isRefreshing = true
             }
 
             try {
-                notes = if (currentView == AppView.Home) {
-                    repository.getNotes(baseUrl, searchQuery)
-                } else {
-                    repository.getTrash(baseUrl)
+                notes = when (currentView) {
+                    AppView.Home -> repository.getNotes(baseUrl, searchQuery)
+                    AppView.Trash -> repository.getTrash(baseUrl)
+                    else -> notes // Don't refresh notes when in Chat/Sessions view
                 }
             } catch (e: Exception) {
                 // In a real app, we'd handle errors via a UI event/state
