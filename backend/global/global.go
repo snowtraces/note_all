@@ -12,6 +12,9 @@ var (
 
 	// Config 全局配置对象
 	Config AppConfig
+
+	// WorkerChan 后台任务通道，用于实现阻塞排队逻辑，避免并发过高触发 429
+	WorkerChan chan func()
 )
 
 type AppConfig struct {

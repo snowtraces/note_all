@@ -66,21 +66,25 @@ func UploadAndCreateNote(file *multipart.FileHeader) (*models.NoteItem, error) {
 		return nil, fmt.Errorf("数据库元数据建立失败: %v", err)
 	}
 
-	// 5. 启动一个 Goroutine 后台开启 Paddle OCR 文本解析任务
-	go func(nID uint, sID string, originalName string) {
+	// 5. 将任务发送到后台队列进行阻塞排队处理，避免并发过高触发 OCR/LLM 接口限流 (429)
+	nID := note.ID
+	sID := note.StorageID
+	originalName := note.OriginalName
+
+	global.WorkerChan <- func() {
 		log.Printf("[后台作业] 开始为数据包 (ID:%d) 唤起 OCR 识别...\n", nID)
 
 		// 5.1 从存储里扒出二进制字节，供 paddle API 发送
 		fileReader, err := global.Storage.Open(sID)
 		if err != nil {
-			log.Printf("[OCR 异场] 无法触达存储获取源文件: %v", err)
+			log.Printf("[OCR 异常] 无法触达存储获取源文件: %v", err)
 			return
 		}
 
 		fileBlob, err := io.ReadAll(fileReader)
 		if err != nil {
 			fileReader.Close()
-			log.Printf("[OCR 异场] 文件分块读取碎片异常: %v", err)
+			log.Printf("[OCR 异常] 文件分块读取碎片异常: %v", err)
 			return
 		}
 		fileReader.Close()
@@ -104,7 +108,7 @@ func UploadAndCreateNote(file *multipart.FileHeader) (*models.NoteItem, error) {
 			tags = "ai-fail"
 		}
 
-		// 5.4 数据最终态更新（将 OCR / 摘要 / 标签直接送入 DB 将触发 SQLite Trigger 同步推入全文 FTS5 虚拟表！）
+		// 5.4 数据最终态更新
 		global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Updates(map[string]interface{}{
 			"ocr_text":   markdownText,
 			"ai_summary": summary,
@@ -116,8 +120,7 @@ func UploadAndCreateNote(file *multipart.FileHeader) (*models.NoteItem, error) {
 		syncTags(nID, tags)
 
 		log.Printf("[后台作业总链完成] 记录ID %d: PaddleOCR 与 文心大模型 融合全链路结束！提取精简摘要 [%s]...", nID, summary)
-
-	}(note.ID, note.StorageID, note.OriginalName)
+	}
 
 	return &note, nil
 }
@@ -175,7 +178,13 @@ func CreateNoteFromText(text string) (*models.NoteItem, error) {
 		return nil, fmt.Errorf("数据库元数据建立失败: %v", err)
 	}
 
-	go func(nID uint, rawText string, isUrl bool, pureLen int, rawUrl string) {
+	nID := note.ID
+	rawText := text
+	isUrl := isURLFetch
+	pureLen := pureContentLen
+	rawUrl := originalUrl
+
+	global.WorkerChan <- func() {
 		prefix := "[文本录入作业]"
 		if isUrl {
 			prefix = "[URL剪藏作业]"
@@ -236,7 +245,7 @@ func CreateNoteFromText(text string) (*models.NoteItem, error) {
 		syncTags(nID, tags)
 
 		log.Printf("%s 记录ID %d: 提取精简摘要 [%s]...", prefix, nID, summary)
-	}(note.ID, text, isURLFetch, pureContentLen, originalUrl)
+	}
 
 	return &note, nil
 }
@@ -252,7 +261,10 @@ func UpdateNoteText(id string, text string) error {
 	}
 
 	// 开户后段协程跑昂贵的 LLM API 更新逻辑
-	go func(itemID string, rawText string) {
+	itemID := id
+	rawText := text
+
+	global.WorkerChan <- func() {
 		log.Printf("[重新提炼作业] 开始为数据包 (ID:%s) 唤起 LLM 更新提炼...\n", itemID)
 
 		summary, tags, err := pkg.ExtractSummaryAndTags(rawText)
@@ -275,7 +287,7 @@ func UpdateNoteText(id string, text string) error {
 		}
 
 		log.Printf("[重新提炼作业完成] 记录ID %s: 提取新精简摘要 [%s]...", itemID, summary)
-	}(id, text)
+	}
 
 	return nil
 }

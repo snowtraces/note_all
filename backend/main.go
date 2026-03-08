@@ -8,6 +8,7 @@ import (
 	"note_all_backend/database"
 	"note_all_backend/global"
 	"note_all_backend/router"
+	"note_all_backend/service"
 )
 
 func main() {
@@ -21,6 +22,7 @@ func main() {
 
 	// 1. 初始化底层核心与外置服务（SQLite / FTS5 / SnowStorage）
 	database.InitSystem()
+	service.InitWorker()
 	log.Println("Note-All 后端底层架构组件初始化成功...")
 
 	// 2. 装载网络层路由 (Gin)
