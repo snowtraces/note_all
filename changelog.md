@@ -16,6 +16,7 @@
 - Android Client: 注册 `ShareReceiveActivity` 作为系统级 Share Target，实现跨应用图文直接分享与后台极速收录。
 - Android Client: 引入剪贴板嗅探特性，主界面获焦时自动检测剪贴板变更并弹出快捷「一键入库」轻提示。
 - Android Client: `DetailScreen` 详情页新增 "RAW 模式" 编辑修正功能，打通端侧文字校勘与后端大语言模型的重刷流水线（对接 `PATCH /api/note/{id}/text` 接口）。
+- Android Client: `DetailScreen` 详情页交互升级，图片支持点击全屏查看并支持双指捏合缩放/拖拽；所有文字（包括 AI 摘要与溯源 OCR 原文）现已支持长按无缝唤起系统文本选择与复制功能，减少屏幕留白，阅读空间更为紧凑。
 - Docs: 新增产品规格书 `01_Product_PRD/Android_Client_PRD.md`，规范化双端开发路径。
 - Docs: 体系化重构了工程主页 `README.md`，新增了针对 Android 端的核心特性解构与独立安装使用指引。
 - Frontend: 新增探针模式（`hooks/useDataPoller.js`），每 5 秒轮询 `/api/search?q` 接口，通过对列表的 `id / status / ai_summary / ai_tags / ocr_text.length` 字段拼接生成指纹进行比对，一旦检测到任意变化（新增记录 或 OCR/摘要异步回写）则静默刷新列表，不重置用户当前选中的详情项。回收站模式下自动暂停轮询。
