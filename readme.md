@@ -1,11 +1,15 @@
-# 📦 Note All (个人知识收集与检索系统)
+<div align="center">
+  <img src="frontend/public/logo512.png" alt="Note All Logo" width="120" />
+  <h1>📦 Note All<br>(个人知识收集与检索系统)</h1>
 
-<img src="frontend/public/logo512.png" alt="Note All Logo" width="120" align="right" />
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![React](https://img.shields.io/badge/Frontend-React%2018-61DAFB?logo=react)
-![Golang](https://img.shields.io/badge/Backend-Golang-00ADD8?logo=go)
-![Android](https://img.shields.io/badge/Android-Jetpack%20Compose-3DDC84?logo=android)
-![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20Windows%20%7C%20Android-lightgrey)
+  <p>
+    <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" />
+    <img src="https://img.shields.io/badge/Frontend-React%2018-61DAFB?logo=react" alt="React" />
+    <img src="https://img.shields.io/badge/Backend-Golang-00ADD8?logo=go" alt="Golang" />
+    <img src="https://img.shields.io/badge/Android-Jetpack%20Compose-3DDC84?logo=android" alt="Android" />
+    <img src="https://img.shields.io/badge/Platform-Web%20%7C%20Windows%20%7C%20Android-lightgrey" alt="Platform" />
+  </p>
+</div>
 
 > 一款专注于“无感收集、AI自动提取、极速检索”的碎片化知识管理神器。告别传统笔记的繁琐分类，随时随地分享文字与截图，让大模型为你打理一切！
 
