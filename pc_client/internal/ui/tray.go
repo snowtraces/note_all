@@ -3,11 +3,7 @@
 package ui
 
 import (
-	"bytes"
 	"fmt"
-	"image"
-	"image/color"
-	"image/png"
 	"os/exec"
 	"runtime"
 
@@ -95,44 +91,4 @@ func openBrowser(url string) {
 		cmd = exec.Command("xdg-open", url)
 	}
 	_ = cmd.Start()
-}
-
-func getTrayIcon() []byte {
-	img := image.NewRGBA(image.Rect(0, 0, 16, 16))
-	bg := color.RGBA{26, 35, 126, 255}
-	fg := color.RGBA{255, 255, 255, 255}
-
-	for y := 0; y < 16; y++ {
-		for x := 0; x < 16; x++ {
-			img.SetRGBA(x, y, bg)
-		}
-	}
-	dots := [][2]int{
-		{3, 3}, {3, 4}, {3, 5}, {3, 6}, {3, 7},
-		{4, 4}, {5, 5}, {6, 6},
-		{7, 3}, {7, 4}, {7, 5}, {7, 6}, {7, 7},
-	}
-	for _, d := range dots {
-		img.SetRGBA(d[0]+3, d[1]+3, fg)
-	}
-
-	var pngBuf bytes.Buffer
-	if err := png.Encode(&pngBuf, img); err != nil {
-		return nil
-	}
-	pngData := pngBuf.Bytes()
-
-	var ico bytes.Buffer
-	ico.Write([]byte{0, 0, 1, 0, 1, 0})
-	sz := uint32(len(pngData))
-	off := uint32(22)
-	ico.Write([]byte{
-		16, 16, 0, 0,
-		1, 0, 32, 0,
-		byte(sz), byte(sz >> 8), byte(sz >> 16), byte(sz >> 24),
-		byte(off), byte(off >> 8), byte(off >> 16), byte(off >> 24),
-	})
-	ico.Write(pngData)
-
-	return ico.Bytes()
 }

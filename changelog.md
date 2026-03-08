@@ -2,12 +2,12 @@
 
 ## [Unreleased]
 ### Added
+- UI: 全新设计了多端应用图标。以极简平面几何折叠（书本与 N）为核心风格，移除了不协调的旧版资源。
+  - Web：注入高清 `logo512.png`、`apple-touch-icon.png` 及其 HTML 声明。
+  - Android：以 `.webp` 无损缩放大规模更替了全尺寸 `ic_launcher` (含 round 版本)，彻底下架废弃的任何 vector asset 映射。
+  - PC Desktop：移除了脆弱失效的 `go-winres` CGo 依赖链条，基于 Go 1.16+ `go:embed` 技术将生成的 `.ico` 以原生流形式注入托盘内存，极大地降低了系统环境编译耦合度与文件碎片。
 - Android Client: 进行了大规模的架构重构。全面引入了 **ViewModel (MVVM)** 和 **Repository** 模式，将业务逻辑与 UI 状态管理彻底解耦。将原本臃肿的 MainActivity.kt 拆分为 NoteViewModel, NoteRepository, AppView, NoteCard, AddNoteDialog 以及 DetailScreen 等多个高内聚模块，主 Activity 代码量缩减约 50%，显著提升了项目的可维护性与扩展性。
 - Android Client: 统一了跨 Activity 的数据访问链路。ShareReceiveActivity 与 MainActivity 均已迁移至 NoteRepository 提供的标准接口，消除了网络请求逻辑的冗余。
-- Android Client: 代码质量与兼容性修复。针对 Android 13+ 处理了 getParcelableExtra 等 API 的废弃警告；修复了 ViewModel 委托属性访问器冲突的问题；对 MainActivity 的 Import 列表进行了深度清理。
-- Android Client: 深度重构主页 UI，采用双列 `StaggeredGrid` 瀑布流布局。全面引入基于深色胡桃木与琥珀金配色的类 Google Files (Material You) / 小米便签质感暗色主题，优化了卡片圆角、图片约束裁切、取消边缘护甲及高度阴影，大幅提升沉浸式阅读体验。
-- Android Client: 引入列表原生下拉刷新 (`PullToRefresh`) 功能，允许用户手动获取最新数据，并且在空状态下予以手势兼容支持。
-- Android Client: 渲染引擎全面迁移至 `Markwon`。新增对 Markdown 表格、删除线、任务列表以及 HTML 标签（如 `<u>` 下划线）的原生解析支持；集成 `JLatexMath` 插件初步实现数学公式渲染。
 - Android Client: 安全防误操作机制升级。实现“长按卡片解锁 + 右滑”组合手势进行删除；首页删除增加 Snackbar 撤销功能，回收站永久删除增加强制二次确认对话框。
 - Android Client: UI 细节打磨。将“剪贴板监测面板”重构并移至顶部工具栏下方，提升收录效率；同步系统状态栏颜色至深色胡桃木主题，消除视觉阻断感；细化侧边栏宽度与间距。
 - System: 新增一键代码清理、文档更新与提交推送工作的全局自动化工作流 (`.agent/workflows/commit.md`)。
