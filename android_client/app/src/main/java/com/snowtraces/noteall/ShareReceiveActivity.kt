@@ -2,6 +2,7 @@ package com.snowtraces.noteall
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -15,12 +16,10 @@ import androidx.compose.ui.unit.dp
 import com.snowtraces.noteall.config.ConfigManager
 import com.snowtraces.noteall.network.ApiClient
 import com.snowtraces.noteall.network.TextUploadRequest
+import com.snowtraces.noteall.data.NoteRepository
 import com.snowtraces.noteall.ui.theme.NoteAllTheme
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -29,10 +28,10 @@ import java.io.FileOutputStream
 
 class ShareReceiveActivity : ComponentActivity() {
 
+    private val repository = NoteRepository()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Make activity finish immediately after processing if possible,
-        // but for now we show a BottomSheet-like UI or simple Dialog
         showShareUI(intent)
     }
 
@@ -52,9 +51,8 @@ class ShareReceiveActivity : ComponentActivity() {
                         handleSendIntent(intent) { msg, success ->
                             message = msg
                             if (success) {
-                                // Close after brief delay
                                 scope.launch {
-                                    kotlinx.coroutines.delay(1000)
+                                    delay(1000)
                                     finish()
                                 }
                             } else {
@@ -97,14 +95,24 @@ class ShareReceiveActivity : ComponentActivity() {
                 val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT) ?: return onResult("No text found", false)
                 uploadText(sharedText, onResult)
             } else if (type.startsWith("image/")) {
-                val imageUri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM) ?: return onResult("No image found", false)
+                val imageUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+                } ?: return onResult("No image found", false)
                 uploadImage(imageUri, onResult)
             } else {
                 onResult("Unsupported type: $type", false)
             }
         } else if (Intent.ACTION_SEND_MULTIPLE == action && type != null) {
             if (type.startsWith("image/")) {
-                val imageUris = intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
+                val imageUris = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
+                }
                 if (imageUris.isNullOrEmpty()) {
                     onResult("No images found", false)
                     return
@@ -132,8 +140,7 @@ class ShareReceiveActivity : ComponentActivity() {
             try {
                 val configManager = ConfigManager(this@ShareReceiveActivity)
                 val baseUrl = configManager.baseUrlFlow.first()
-                val api = ApiClient.getApi(baseUrl)
-                val response = api.uploadText(TextUploadRequest(text))
+                repository.uploadText(baseUrl, text)
                 withContext(Dispatchers.Main) {
                     onResult("Uploading text success!", true)
                 }
@@ -157,7 +164,6 @@ class ShareReceiveActivity : ComponentActivity() {
     private suspend fun uploadImageSuspend(uri: Uri): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                // Copy to temp file
                 val tempFile = File(cacheDir, "share_temp_${System.currentTimeMillis()}.png")
                 val inputStream = contentResolver.openInputStream(uri)
                 val outputStream = FileOutputStream(tempFile)
@@ -170,10 +176,9 @@ class ShareReceiveActivity : ComponentActivity() {
                 
                 val configManager = ConfigManager(this@ShareReceiveActivity)
                 val baseUrl = configManager.baseUrlFlow.first()
-                val api = ApiClient.getApi(baseUrl)
                 
-                api.uploadImage(body)
-                tempFile.delete() // Clean up
+                repository.uploadImage(baseUrl, body)
+                tempFile.delete() 
                 true
             } catch (e: Exception) {
                 false

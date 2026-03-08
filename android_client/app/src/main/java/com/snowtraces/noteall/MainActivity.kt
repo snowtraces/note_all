@@ -4,81 +4,56 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
-import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.DismissDirection
+import androidx.compose.material.DismissValue
 import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.FractionalThreshold
+import androidx.compose.material.SwipeToDismiss
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
-import androidx.compose.material.FractionalThreshold
 import androidx.compose.material.rememberDismissState
-import androidx.compose.material.SwipeToDismiss
-import androidx.compose.material.DismissValue
-import androidx.compose.material.DismissDirection
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.filled.DeleteForever
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.snowtraces.noteall.config.ConfigManager
-import com.snowtraces.noteall.network.ApiClient
+import com.snowtraces.noteall.data.NoteRepository
+import com.snowtraces.noteall.model.AppView
 import com.snowtraces.noteall.network.NoteItem
-import com.snowtraces.noteall.network.TextUploadRequest
+import com.snowtraces.noteall.ui.components.AddNoteDialog
+import com.snowtraces.noteall.ui.components.NoteCard
+import com.snowtraces.noteall.ui.screens.DetailScreen
 import com.snowtraces.noteall.ui.theme.NoteAllTheme
+import com.snowtraces.noteall.viewmodel.NoteViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.FileOutputStream
-import io.noties.markwon.Markwon
-import io.noties.markwon.ext.tables.TablePlugin
-import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
-import io.noties.markwon.ext.tasklist.TaskListPlugin
-// import io.noties.markwon.ext.latex.JLatexMathPlugin
-import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
-import io.noties.markwon.html.HtmlPlugin
-import androidx.compose.ui.viewinterop.AndroidView
-import android.widget.TextView
-import androidx.compose.foundation.combinedClickable
-
-enum class AppView { Home, Trash }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -96,40 +71,20 @@ class MainActivity : ComponentActivity() {
 fun MainApp() {
     val context = LocalContext.current
     val configManager = remember { ConfigManager(context) }
-    var notes by remember { mutableStateOf<List<NoteItem>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(false) }
-    var isRefreshing by remember { mutableStateOf(false) }
+    val repository = remember { NoteRepository() }
+    val viewModel: NoteViewModel = remember { NoteViewModel(repository) }
+    
     val coroutineScope = rememberCoroutineScope()
-    var baseUrl by remember { mutableStateOf("") }
     
     // Search State
-    var searchQuery by remember { mutableStateOf("") }
     var isSearchingTitle by remember { mutableStateOf(false) }
     
     // Navigation State
-    var currentView by remember { mutableStateOf(AppView.Home) }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     
     val pullRefreshState = rememberPullRefreshState(
-        refreshing = isRefreshing,
-        onRefresh = {
-            if (baseUrl.isNotEmpty()) {
-                isRefreshing = true
-                coroutineScope.launch {
-                    if (currentView == AppView.Home) {
-                        fetchNotes(baseUrl, searchQuery) {
-                            notes = it
-                            isRefreshing = false
-                        }
-                    } else {
-                        fetchTrash(baseUrl) {
-                            notes = it
-                            isRefreshing = false
-                        }
-                    }
-                }
-            }
-        }
+        refreshing = viewModel.isRefreshing,
+        onRefresh = { viewModel.refresh() }
     )
     
     var selectedNote by remember { mutableStateOf<NoteItem?>(null) }
@@ -147,12 +102,10 @@ fun MainApp() {
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
-        baseUrl = configManager.baseUrlFlow.first()
-        tempUrl = baseUrl
-        if (baseUrl.isNotEmpty()) {
-            isLoading = true
-            fetchNotes(baseUrl, "") { notes = it; isLoading = false }
-        }
+        val savedBaseUrl = configManager.baseUrlFlow.first()
+        tempUrl = savedBaseUrl
+        viewModel.baseUrl = savedBaseUrl
+        viewModel.refresh()
     }
 
     // A very basic clipboard sniffing on resume
@@ -196,14 +149,10 @@ fun MainApp() {
                 
                 NavigationDrawerItem(
                     label = { Text("所有笔记", style = MaterialTheme.typography.labelLarge) },
-                    selected = currentView == AppView.Home,
+                    selected = viewModel.currentView == AppView.Home,
                     onClick = {
-                        currentView = AppView.Home
-                        coroutineScope.launch { 
-                            drawerState.close() 
-                            isLoading = true
-                            fetchNotes(baseUrl, "") { notes = it; isLoading = false }
-                        }
+                        viewModel.setView(AppView.Home)
+                        coroutineScope.launch { drawerState.close() }
                     },
                     icon = { Icon(Icons.Default.Home, contentDescription = null) },
                     modifier = Modifier.padding(horizontal = 12.dp),
@@ -214,14 +163,10 @@ fun MainApp() {
                 
                 NavigationDrawerItem(
                     label = { Text("回收站", style = MaterialTheme.typography.labelLarge) },
-                    selected = currentView == AppView.Trash,
+                    selected = viewModel.currentView == AppView.Trash,
                     onClick = {
-                        currentView = AppView.Trash
-                        coroutineScope.launch { 
-                            drawerState.close() 
-                            isLoading = true
-                            fetchTrash(baseUrl) { notes = it; isLoading = false }
-                        }
+                        viewModel.setView(AppView.Trash)
+                        coroutineScope.launch { drawerState.close() }
                     },
                     icon = { Icon(Icons.Default.Delete, contentDescription = null) },
                     modifier = Modifier.padding(horizontal = 12.dp),
@@ -252,24 +197,16 @@ fun MainApp() {
             BackHandler { selectedNote = null }
             DetailScreen(
                 note = selectedNote!!, 
-                baseUrl = baseUrl, 
+                baseUrl = viewModel.baseUrl, 
                 onBack = { selectedNote = null },
                 onUpdateRaw = { id, newText ->
-                    coroutineScope.launch {
-                        try {
-                            val api = ApiClient.getApi(baseUrl)
-                            api.updateNoteText(id, TextUploadRequest(newText))
+                    viewModel.updateNoteText(id, newText, 
+                        onComplete = {
                             Toast.makeText(context, "更新成功，后台正重新学习此记录", Toast.LENGTH_LONG).show()
-                            if (currentView == AppView.Home) {
-                                fetchNotes(baseUrl, "") { notes = it; isLoading = false }
-                            } else {
-                                fetchTrash(baseUrl) { notes = it; isLoading = false }
-                            }
-                            selectedNote = null // Go back to list
-                        } catch (e: Exception) {
-                            Toast.makeText(context, "Fail: ${e.message}", Toast.LENGTH_SHORT).show()
-                        }
-                    }
+                            selectedNote = null
+                        },
+                        onError = { Toast.makeText(context, "Fail: $it", Toast.LENGTH_SHORT).show() }
+                    )
                 }
             )
         } else {
@@ -281,13 +218,8 @@ fun MainApp() {
                         TopAppBar(
                             title = {
                                 TextField(
-                                    value = searchQuery,
-                                    onValueChange = { 
-                                        searchQuery = it
-                                        coroutineScope.launch {
-                                            fetchNotes(baseUrl, it) { notes = it; isLoading = false }
-                                        }
-                                    },
+                                    value = viewModel.searchQuery,
+                                    onValueChange = { viewModel.search(it) },
                                     placeholder = { Text("搜索您的记录...") },
                                     colors = TextFieldDefaults.textFieldColors(
                                         containerColor = Color.Transparent,
@@ -301,10 +233,7 @@ fun MainApp() {
                             navigationIcon = {
                                 IconButton(onClick = { 
                                     isSearchingTitle = false
-                                    searchQuery = ""
-                                    coroutineScope.launch {
-                                        fetchNotes(baseUrl, "") { notes = it; isLoading = false }
-                                    }
+                                    viewModel.search("")
                                 }) {
                                     Icon(Icons.Default.ArrowBack, contentDescription = "Close Search")
                                 }
@@ -314,7 +243,7 @@ fun MainApp() {
                         TopAppBar(
                             title = { 
                                 Text(
-                                    if (currentView == AppView.Home) "Note All" else "回收站",
+                                    if (viewModel.currentView == AppView.Home) "Note All" else "回收站",
                                     modifier = Modifier.clickable { 
                                         coroutineScope.launch { drawerState.open() }
                                     }
@@ -329,7 +258,7 @@ fun MainApp() {
                                 }
                             },
                             actions = {
-                                if (currentView == AppView.Home) {
+                                if (viewModel.currentView == AppView.Home) {
                                     IconButton(onClick = { isSearchingTitle = true }) {
                                         Icon(Icons.Default.Search, contentDescription = "Search")
                                     }
@@ -339,9 +268,9 @@ fun MainApp() {
                     }
                 },
                 floatingActionButton = {
-                    if (currentView == AppView.Home) {
+                    if (viewModel.currentView == AppView.Home) {
                         FloatingActionButton(onClick = { 
-                            if (baseUrl.isNotEmpty()) {
+                            if (viewModel.baseUrl.isNotEmpty()) {
                                 showAddNoteDialog = true 
                             } else {
                                 Toast.makeText(context, "请先在设置中配置后端地址", Toast.LENGTH_SHORT).show()
@@ -355,10 +284,9 @@ fun MainApp() {
                 snackbarHost = { SnackbarHost(snackbarHostState) }
             ) { padding ->
             Box(modifier = Modifier.padding(padding).fillMaxSize().pullRefresh(pullRefreshState)) {
-                if (isLoading && !isRefreshing) {
+                if (viewModel.isLoading && !viewModel.isRefreshing) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                } else if (notes.isEmpty() && !isLoading && !isRefreshing) {
-                    // Provide a scrollable state so the user can pull-to-refresh even when empty
+                } else if (viewModel.notes.isEmpty() && !viewModel.isLoading && !viewModel.isRefreshing) {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         item {
                             Box(modifier = Modifier.fillParentMaxSize()) {
@@ -367,69 +295,39 @@ fun MainApp() {
                         }
                     }
                 } else {
-                    val deleteNote = { note: NoteItem ->
-                        coroutineScope.launch {
-                            try {
-                                val api = ApiClient.getApi(baseUrl)
-                                if (currentView == AppView.Home) {
-                                    api.deleteNote(note.id)
-                                    fetchNotes(baseUrl, searchQuery) { notes = it; isLoading = false }
-                                    
-                                    val result = snackbarHostState.showSnackbar(
-                                        message = "已移至回收站",
-                                        actionLabel = "撤销",
-                                        duration = SnackbarDuration.Short
-                                    )
-                                    if (result == SnackbarResult.ActionPerformed) {
-                                        api.restoreNote(note.id)
-                                        fetchNotes(baseUrl, searchQuery) { notes = it; isLoading = false }
-                                    }
-                                } else {
-                                    api.hardDeleteNote(note.id)
-                                    Toast.makeText(context, "已永久删除", Toast.LENGTH_SHORT).show()
-                                    fetchTrash(baseUrl) { notes = it; isLoading = false }
-                                }
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "操作失败: ${e.message}", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }
-                    
-                    val restoreNote = { noteId: Int ->
-                        coroutineScope.launch {
-                            try {
-                                val api = ApiClient.getApi(baseUrl)
-                                api.restoreNote(noteId)
-                                Toast.makeText(context, "已还原", Toast.LENGTH_SHORT).show()
-                                fetchTrash(baseUrl) { notes = it; isLoading = false }
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "还原失败: ${e.message}", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }
-
                     LazyVerticalStaggeredGrid(
                         columns = StaggeredGridCells.Fixed(1),
                         contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 80.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(notes, key = { it.id }) { note ->
+                        items(viewModel.notes, key = { it.id }) { note ->
                             val dismissState = rememberDismissState(
                                 confirmStateChange = {
                                     if (it == DismissValue.DismissedToStart) {
                                         if (note.id == activeSwipeNoteId) {
-                                            if (currentView == AppView.Trash) {
+                                            if (viewModel.currentView == AppView.Trash) {
                                                 noteToHardDelete = note
                                                 false
                                             } else {
-                                                deleteNote(note)
+                                                viewModel.deleteNote(note, 
+                                                    onComplete = {
+                                                        coroutineScope.launch {
+                                                            val result = snackbarHostState.showSnackbar(
+                                                                message = "已移至回收站",
+                                                                actionLabel = "撤销",
+                                                                duration = SnackbarDuration.Short
+                                                            )
+                                                            if (result == SnackbarResult.ActionPerformed) {
+                                                                viewModel.restoreNote(note.id, {}, {})
+                                                            }
+                                                        }
+                                                    },
+                                                    onError = { Toast.makeText(context, "操作失败: $it", Toast.LENGTH_SHORT).show() }
+                                                )
                                                 activeSwipeNoteId = null
                                                 true
                                             }
-                                        } else {
-                                            // Vibrate or show hint? Snap back for now.
-                                            false 
-                                        }
+                                        } else false
                                     } else false
                                 }
                             )
@@ -458,7 +356,7 @@ fun MainApp() {
                                     ) {
                                         if (isUnlocked) {
                                             Icon(
-                                                imageVector = if (currentView == AppView.Home) Icons.Default.Delete else Icons.Default.DeleteForever,
+                                                imageVector = if (viewModel.currentView == AppView.Home) Icons.Default.Delete else Icons.Default.DeleteForever,
                                                 contentDescription = "Delete",
                                                 tint = Color.White,
                                                 modifier = Modifier.padding(end = 16.dp)
@@ -486,9 +384,9 @@ fun MainApp() {
                                                 activeSwipeNoteId = if (activeSwipeNoteId == note.id) null else note.id
                                             }
                                         )
-                                        if (currentView == AppView.Trash) {
+                                        if (viewModel.currentView == AppView.Trash) {
                                             IconButton(
-                                                onClick = { restoreNote(note.id) },
+                                                onClick = { viewModel.restoreNote(note.id, {}, {}) },
                                                 modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
                                             ) {
                                                 Icon(Icons.Default.Restore, contentDescription = "Restore", tint = MaterialTheme.colorScheme.primary)
@@ -502,7 +400,7 @@ fun MainApp() {
                 }
 
                 PullRefreshIndicator(
-                    refreshing = isRefreshing,
+                    refreshing = viewModel.isRefreshing,
                     state = pullRefreshState,
                     modifier = Modifier.align(Alignment.TopCenter)
                 )
@@ -538,10 +436,9 @@ fun MainApp() {
                                         clipboardText = null
                                         coroutineScope.launch {
                                             try {
-                                                val api = ApiClient.getApi(baseUrl)
-                                                api.uploadText(TextUploadRequest(txt))
+                                                repository.uploadText(viewModel.baseUrl, txt)
                                                 Toast.makeText(context, "已成功收录到云端", Toast.LENGTH_SHORT).show()
-                                                fetchNotes(baseUrl, "") { notes = it; isLoading = false }
+                                                viewModel.refresh()
                                             } catch (e: Exception) {
                                                 Toast.makeText(context, "收录失败: ${e.message}", Toast.LENGTH_SHORT).show()
                                             }
@@ -570,18 +467,12 @@ fun MainApp() {
                     confirmButton = {
                         Button(
                             onClick = {
-                                val id = noteToHardDelete?.id ?: return@Button
+                                val note = noteToHardDelete ?: return@Button
                                 noteToHardDelete = null
-                                coroutineScope.launch {
-                                    try {
-                                        val api = ApiClient.getApi(baseUrl)
-                                        api.hardDeleteNote(id)
-                                        Toast.makeText(context, "已永久删除", Toast.LENGTH_SHORT).show()
-                                        fetchTrash(baseUrl) { notes = it; isLoading = false }
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, "删除失败: ${e.message}", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
+                                viewModel.deleteNote(note, 
+                                    onComplete = { Toast.makeText(context, "已永久删除", Toast.LENGTH_SHORT).show() },
+                                    onError = { Toast.makeText(context, "删除失败: $it", Toast.LENGTH_SHORT).show() }
+                                )
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                         ) { Text("确认删除") }
@@ -609,10 +500,9 @@ fun MainApp() {
                         Button(onClick = {
                             coroutineScope.launch {
                                 configManager.saveBaseUrl(tempUrl)
-                                baseUrl = tempUrl
+                                viewModel.baseUrl = tempUrl
                                 showSettings = false
-                                isLoading = true
-                                fetchNotes(baseUrl, "") { notes = it; isLoading = false }
+                                viewModel.refresh()
                             }
                         }) {
                             Text("保存并加载")
@@ -631,10 +521,9 @@ fun MainApp() {
                     onUploadText = { txt ->
                         coroutineScope.launch {
                             try {
-                                val api = ApiClient.getApi(baseUrl)
-                                api.uploadText(TextUploadRequest(txt))
+                                repository.uploadText(viewModel.baseUrl, txt)
                                 Toast.makeText(context, "已收录文字", Toast.LENGTH_SHORT).show()
-                                fetchNotes(baseUrl, "") { notes = it; isLoading = false }
+                                viewModel.refresh()
                             } catch (e: Exception) {
                                 Toast.makeText(context, "收录失败: ${e.message}", Toast.LENGTH_LONG).show()
                             }
@@ -645,7 +534,10 @@ fun MainApp() {
                             uris.forEachIndexed { index, uri ->
                                 withContext(Dispatchers.IO) {
                                     try {
-                                        val tempFile = File(context.cacheDir, "upload_temp_${System.currentTimeMillis()}_$index.png")
+                                        val tempFile = File(
+                                            context.cacheDir,
+                                            "upload_temp_${System.currentTimeMillis()}_$index.png"
+                                        )
                                         val inputStream = context.contentResolver.openInputStream(uri)
                                         val outputStream = FileOutputStream(tempFile)
                                         inputStream?.copyTo(outputStream)
@@ -655,14 +547,13 @@ fun MainApp() {
                                         val requestFile = tempFile.asRequestBody("image/*".toMediaTypeOrNull())
                                         val body = MultipartBody.Part.createFormData("file", tempFile.name, requestFile)
                                         
-                                        val api = ApiClient.getApi(baseUrl)
-                                        api.uploadImage(body)
+                                        repository.uploadImage(viewModel.baseUrl, body)
                                         tempFile.delete()
                                         
                                         withContext(Dispatchers.Main) {
                                             if (index == uris.size - 1) {
                                                 Toast.makeText(context, "所有图片 (${uris.size}) 上传成功！", Toast.LENGTH_SHORT).show()
-                                                fetchNotes(baseUrl, "") { notes = it; isLoading = false }
+                                                viewModel.refresh()
                                             }
                                         }
                                     } catch (e: Exception) {
@@ -680,330 +571,5 @@ fun MainApp() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AddNoteDialog(
-    onDismissRequest: () -> Unit,
-    onUploadText: (String) -> Unit,
-    onUploadImages: (List<Uri>) -> Unit
-) {
-    var text by remember { mutableStateOf("") }
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
-    ) { uris: List<Uri> ->
-        if (uris.isNotEmpty()) {
-            onUploadImages(uris)
-            onDismissRequest()
-        }
-    }
 
-    AlertDialog(
-        onDismissRequest = onDismissRequest,
-        title = {
-            Text(
-                "添加记录",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-            )
-        },
-        text = {
-            Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    label = { Text("输入或粘贴文本内容...") },
-                    placeholder = { Text("想写点什么？") },
-                    modifier = Modifier.fillMaxWidth().height(150.dp),
-                    shape = RoundedCornerShape(12.dp)
-                )
-                Spacer(modifier = Modifier.height(20.dp))
-                Button(
-                    onClick = { imagePickerLauncher.launch("image/*") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("从相册选择图片")
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (text.isNotBlank()) {
-                        onUploadText(text)
-                        onDismissRequest()
-                    }
-                },
-                enabled = text.isNotBlank(),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("收录文本")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismissRequest) { Text("取消") }
-        },
-        shape = RoundedCornerShape(28.dp)
-    )
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun NoteCard(note: NoteItem, isUnlocked: Boolean = false, onClick: () -> Unit, onLongClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(4.dp)
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isUnlocked) 8.dp else 2.dp),
-        border = if (isUnlocked) BorderStroke(2.dp, MaterialTheme.colorScheme.error) else null,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Column {
-            Column(modifier = Modifier.padding(16.dp)) {
-                val rawText = if (!note.aiSummary.isNullOrEmpty()) note.aiSummary else (note.ocrText ?: "无附加文案")
-                val lines = rawText.trim().split("\n")
-                val title = lines.firstOrNull() ?: ""
-                val body = if (lines.size > 1) lines.drop(1).joinToString("\n").trim() else ""
-
-                if (title.isNotEmpty()) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                }
-                
-                if (body.isNotEmpty()) {
-                    Text(
-                        text = body,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 6,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                } else if (title.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val dateStr = note.createdAt ?: ""
-                    val displayDate = try {
-                        if (dateStr.length >= 10) {
-                            val parts = dateStr.substring(0, 10).split("-")
-                            if (parts.size >= 3) {
-                                "${parts[1].toInt()}月${parts[2].toInt()}日"
-                            } else dateStr.take(10)
-                        } else dateStr
-                    } catch (e: Exception) {
-                        dateStr.take(10)
-                    }
-
-                    Text(
-                        text = displayDate,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-
-                    // Tags Area: Clips trailing tags that don't fit
-                    Row(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (!note.aiTags.isNullOrEmpty()) {
-                            note.aiTags.split(",").filter { it.isNotBlank() }.take(5).forEach { tag ->
-                                Surface(
-                                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
-                                    shape = RoundedCornerShape(4.dp)
-                                ) {
-                                    Text(
-                                        text = tag.trim(),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                        maxLines = 1
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    
-                    if (!note.status.isNullOrEmpty()) {
-                        val statusColor = when(note.status) {
-                            "analyzed" -> Color(0xFF4CAF50) // Green
-                            "processing" -> Color(0xFFFFA500) // Orange
-                            "error" -> MaterialTheme.colorScheme.error
-                            "pending" -> Color.Gray
-                            else -> MaterialTheme.colorScheme.primary
-                        }
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .background(color = statusColor, shape = CircleShape)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun DetailScreen(note: NoteItem, baseUrl: String, onBack: () -> Unit, onUpdateRaw: (Int, String) -> Unit) {
-    var rawMode by remember { mutableStateOf(false) }
-    var editableText by remember { mutableStateOf(note.ocrText ?: "") }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(if (rawMode) "RAW 模式" else "收集详情") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    if (rawMode) {
-                        TextButton(onClick = { onUpdateRaw(note.id, editableText) }) {
-                            Text("SAVE", color = MaterialTheme.colorScheme.primary)
-                        }
-                    } else {
-                        IconButton(onClick = { rawMode = true }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit RAW")
-                        }
-                    }
-                }
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
-        ) {
-            if (note.fileType?.startsWith("image/") == true && baseUrl.isNotEmpty()) {
-                val imgUrl = "$baseUrl/api/file/${note.storageId}"
-                AsyncImage(
-                    model = imgUrl,
-                    contentDescription = note.originalName,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 200.dp, max = 400.dp) // Auto shrink/expand
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            if (rawMode) {
-                // RAW 文本编辑器
-                OutlinedTextField(
-                    value = editableText,
-                    onValueChange = { editableText = it },
-                    label = { Text("底层提取文本 (修改以更新 AI)") },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 300.dp)
-                )
-            } else {
-                // 读取模式
-                Text("AI 摘要", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                Spacer(modifier = Modifier.height(4.dp))
-                // Markdown (Reliable Android rendering)
-                MarkdownDisplay(content = note.aiSummary ?: "尚无提炼 (可能正在处理中或文本太短)", isPrimary = true)
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Text("自动化标签", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = note.aiTags ?: "无标签",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-                Divider()
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text("文本溯源内容", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
-                Spacer(modifier = Modifier.height(8.dp))
-                MarkdownDisplay(content = note.ocrText ?: "空文本", isPrimary = false)
-            }
-        }
-    }
-}
-
-@Composable
-fun MarkdownDisplay(content: String, isPrimary: Boolean) {
-    val context = LocalContext.current
-    val textSize = if (isPrimary) 16f else 14f
-
-    val markwon = remember(textSize) { 
-        Markwon.builder(context)
-            .usePlugin(MarkwonInlineParserPlugin.create())
-            .usePlugin(TablePlugin.create(context))
-            .usePlugin(StrikethroughPlugin.create())
-            .usePlugin(TaskListPlugin.create(context))
-            .usePlugin(HtmlPlugin.create())
-            .build()
-    }
-    val textColor = if (isPrimary) {
-        MaterialTheme.colorScheme.onSurface
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-
-    AndroidView(
-        factory = { ctx ->
-            TextView(ctx).apply {
-                this.setTextColor(textColor.toArgb())
-                this.textSize = textSize
-            }
-        },
-        update = { textView ->
-            markwon.setMarkdown(textView, content)
-        },
-        modifier = Modifier.fillMaxWidth()
-    )
-}
-
-private suspend fun fetchNotes(baseUrl: String, query: String, onResult: (List<NoteItem>) -> Unit) {
-    try {
-        val api = ApiClient.getApi(baseUrl)
-        val response = api.searchNotes(query)
-        onResult(response.data ?: emptyList())
-    } catch (e: Exception) {
-        Log.e("NoteAll", "Fetch Notes Error", e)
-        onResult(emptyList()) // Provide fallback empty UI rather than crash
-    }
-}
-
-private suspend fun fetchTrash(baseUrl: String, onResult: (List<NoteItem>) -> Unit) {
-    try {
-        val api = ApiClient.getApi(baseUrl)
-        val response = api.getTrash()
-        onResult(response.data ?: emptyList())
-    } catch (e: Exception) {
-        Log.e("NoteAll", "Fetch Trash Error", e)
-        onResult(emptyList())
-    }
-}
+// Repository and ViewModel fetching functions moved to separate files
