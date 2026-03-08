@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 ### Added
+- Docs: 重构了工程主页 `README.md` 的视觉结构。引入了真实的 Web UI 展示截图 (`showcase.png`)，并增加了 Mermaid 流程图解，将技术细节进行折叠处理，显著提升了项目的专业感与可读性。
 - Android Client: 参考 Web 端实现了数据变化探针 (Data Poller)。通过静默同步列表并比对指纹 (id/status/summary/tags/ocr长度)，实现后台处理完成后 UI 自动捕捉并刷新状态，无需手动交互。
 - Android Client: 将探测频率设定为每 10 秒一次，在保持实时性的同时最大限度降低手机电量与流量消耗。
 - Frontend: 将 Web 端探针轮询间隔从 5 秒同步下调为 10 秒，优化后端服务器压力。
