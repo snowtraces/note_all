@@ -57,7 +57,7 @@
 *   **服务端 (Backend)**：`Golang` + `SQLite` (启用 FTS5 引擎)。高并发、单文件极致运行、极低内存消耗，配合自研单机 FS 文件服务，**屏蔽所有诸如 Redis/MinIO 的重型三方中间件部署羁绊。**
 *   **Web 前端 (Frontend)**：`React 18` + `Vite` + `TailwindCSS`。基于长短轮询数据探针 (`useDataPoller`) 达成自动静默无感局部刷新，完美分离视图渲染与阻塞型 IO 操作。
 *   **PC 客户端 (Windows)**：`Golang (Win32 API)` 纯血打造托盘后台留驻程序，双缓冲彻底消除 GUI 渲染闪烁，注册系统级全局原子热键中断拦截。
-*   **Android 客户端 (App)**：基于 `Kotlin` + 现代化 `Jetpack Compose` 构建丝滑的响应式 UI。深度挖掘 Android 原始 Intent 握手机制收编 Share Sheet 流量入口，最低向下兼容至老旧但坚固的 AGP 7.2.1 / Java 8 体系环境。
+*   **Android 客户端 (App)**：基于 `Kotlin` + 现代化 `Jetpack Compose` 构建丝滑的响应式 UI。深度挖掘 Android 原始 Intent 握手机制收编 Share Sheet 流量入口，最低向下兼容至 Android API 24 (7.0)，全面拥抱 JDK 21 高版本语法特性。
 *   **AI 萃取中台**：采用 `百度飞桨 (PaddleOCR)` 管辖边界本地的轻量物理视觉识别，对接并高度依赖 `ERNIE 文心大模型` / `DeepSeek` 等云侧大脑完成最终的高位语义抽取与推断。
 
 ---
@@ -86,7 +86,7 @@ npm run dev
 > 访问 `http://localhost:3000` 即可体验。
 
 ### 📱 Android 客户端 (Android App)
-要求环境：Android Studio (可兼容 Chipmunk 等经典版本及 JDK 8+)。
+要求环境：Android Studio Iguana 或更高版本 (推荐使用 JDK 21)。
 ```bash
 cd android_client
 # 打开工程，允许 Gradle 同步 (我们提供开箱即用的阿里云与腾讯镜像)

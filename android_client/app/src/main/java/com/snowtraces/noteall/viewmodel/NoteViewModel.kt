@@ -73,6 +73,34 @@ class NoteViewModel(private val repository: NoteRepository) : ViewModel() {
         }
     }
 
+    /**
+     * 探测器同步：静默获取数据并比对指纹，若有变化则更新 UI。
+     * 参考 Web 端实现，比对 id, status, summary, tags 和 ocr 长度。
+     */
+    fun syncNotes() {
+        if (baseUrl.isEmpty() || isRefreshing || currentView != AppView.Home) return
+        
+        viewModelScope.launch {
+            try {
+                val fresh = repository.getNotes(baseUrl, searchQuery)
+                val currentFp = getFingerprint(notes)
+                val freshFp = getFingerprint(fresh)
+                
+                if (currentFp != freshFp) {
+                    notes = fresh
+                }
+            } catch (e: Exception) {
+                // 静默失败
+            }
+        }
+    }
+
+    private fun getFingerprint(list: List<NoteItem>): String {
+        return list.joinToString(";") { r ->
+            "${r.id}|${r.status}|${r.aiSummary}|${r.aiTags}|${r.ocrText?.length ?: 0}"
+        }
+    }
+
     fun search(query: String) {
         searchQuery = query
         refresh()

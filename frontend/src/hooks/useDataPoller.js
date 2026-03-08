@@ -19,7 +19,7 @@ function fingerprint(list) {
  * @param {Function} onChanged  检测到变化时的回调
  * @param {number}   interval   轮询间隔，默认 5000ms
  */
-export function useDataPoller({ query, results, enabled, onChanged, interval = 5000 }) {
+export function useDataPoller({ query, results, enabled, onChanged, interval = 10000 }) {
   // 用 ref 持有最新值，避免闭包陈化问题
   const resultsRef = useRef(results);
   useEffect(() => { resultsRef.current = results; }, [results]);

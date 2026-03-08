@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 ### Added
+- Android Client: 参考 Web 端实现了数据变化探针 (Data Poller)。通过静默同步列表并比对指纹 (id/status/summary/tags/ocr长度)，实现后台处理完成后 UI 自动捕捉并刷新状态，无需手动交互。
+- Android Client: 将探测频率设定为每 10 秒一次，在保持实时性的同时最大限度降低手机电量与流量消耗。
+- Frontend: 将 Web 端探针轮询间隔从 5 秒同步下调为 10 秒，优化后端服务器压力。
+- Docs: 更新了 `README.md` 中的 Android 环境说明，明确项目已全面拥抱 **JDK 21**，要求 **Android Studio Iguana** 或更高版本。
 - Backend: 后台异步任务处理机制重写。引入了全局阻塞排队队列（Single-Worker 消费者模型），将 OCR 解析与 LLM 提炼任务由并发执行改为串行执行，彻底解决了在高并发场景下因外部 API 调用过快导致的 429 (Rate Limit) 限制问题。
 - Backend: 系统架构健壮性优化。为后台任务增加了 Panic 恢复机制（Recover），确保单个任务异常不会导致后端调度器崩溃；修正了部分代码拼写错误（如“异场”修正为“异常”）。
 - Backend: 引入 URL 智能剪藏引擎 (URL Fetcher)。在传入纯网址时，自动剥离广告抽取正文为 Markdown。采用 `Jina云端 API` 与 `Readability` 本地萃取双擎熔断降级架构，在遭遇知乎等强反爬 WAF 拦截时亦可静默回退物理提链，确保应用流转无崩溃死锁。

@@ -125,6 +125,17 @@ fun MainApp() {
         }
     }
 
+    // Data Poller Probe: Sync data every 5 seconds if in Home view
+    // reference: frontend/src/hooks/useDataPoller.js
+    LaunchedEffect(viewModel.baseUrl, viewModel.currentView, viewModel.searchQuery) {
+        if (viewModel.baseUrl.isEmpty() || viewModel.currentView != AppView.Home) return@LaunchedEffect
+        
+        while (true) {
+            kotlinx.coroutines.delay(10000)
+            viewModel.syncNotes()
+        }
+    }
+
     // A very basic clipboard sniffing on resume
     DisposableEffect(Unit) {
         val listener = ClipboardManager.OnPrimaryClipChangedListener {
