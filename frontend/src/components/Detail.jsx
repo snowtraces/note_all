@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save } from 'lucide-react';
+import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
 
 export default function Detail({
@@ -89,15 +89,29 @@ export default function Detail({
             <div className="flex items-center justify-between border-b border-primeAccent/20 pb-2 mb-4">
               <h2 className="text-[11px] text-primeAccent uppercase tracking-[0.2em] font-bold flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-primeAccent animate-pulse shadow-[0_0_10px_rgba(var(--color-prime-accent),0.8)]"></span> 
-                OCR 核心视觉提取文本
+                {item.original_url ? '源网页正文推断' : 'OCR 核心视觉提取文本'}
               </h2>
-              <button
-                onClick={() => setIsRawMode(!isRawMode)}
-                className="flex items-center gap-1.5 px-3 py-1 bg-white/5 hover:bg-white/10 text-silverText/80 hover:text-white transition-colors rounded-md text-[10px] font-mono border border-white/5 uppercase"
-                title={isRawMode ? "切换为 Markdown 预览" : "查看原始提取文本"}
-              >
-                {isRawMode ? <><FileText size={12} /> 预览模式</> : <><Code size={12} /> RAW 模式</>}
-              </button>
+              
+              <div className="flex items-center gap-3">
+                {item.original_url && (
+                  <a
+                    href={item.original_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1 bg-primeAccent/10 hover:bg-primeAccent/20 text-primeAccent transition-colors rounded-md text-[10px] font-mono border border-primeAccent/20 uppercase shadow-[0_0_10px_rgba(var(--color-prime-accent),0.1)]"
+                    title="直达原文"
+                  >
+                    <ExternalLink size={12} /> 直达源网址
+                  </a>
+                )}
+                <button
+                  onClick={() => setIsRawMode(!isRawMode)}
+                  className="flex items-center gap-1.5 px-3 py-1 bg-white/5 hover:bg-white/10 text-silverText/80 hover:text-white transition-colors rounded-md text-[10px] font-mono border border-white/5 uppercase"
+                  title={isRawMode ? "切换为 Markdown 预览" : "查看原始提取文本"}
+                >
+                  {isRawMode ? <><FileText size={12} /> 预览模式</> : <><Code size={12} /> RAW 模式</>}
+                </button>
+              </div>
             </div>
             
             <div className="text-white/95 text-[15px] leading-[1.8] font-light tracking-wide bg-[#111] p-6 rounded-2xl border border-primeAccent/10 selection:bg-primeAccent selection:text-black mt-2 shadow-inner">

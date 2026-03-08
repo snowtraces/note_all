@@ -14,6 +14,7 @@ data class NoteItem(
     @Json(name = "ocr_text") val ocrText: String?,
     @Json(name = "ai_summary") val aiSummary: String?,
     @Json(name = "ai_tags") val aiTags: String?,
+    @Json(name = "original_url") val originalUrl: String?,
     val status: String?
 )
 

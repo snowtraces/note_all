@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"mime/multipart"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"note_all_backend/global"
 	"note_all_backend/models"
 	"note_all_backend/pkg"
+	"note_all_backend/pkg/processor"
 
 	"gorm.io/gorm/clause"
 )
@@ -121,45 +123,111 @@ func UploadAndCreateNote(file *multipart.FileHeader) (*models.NoteItem, error) {
 }
 
 // CreateNoteFromText 直接以纯文本创建笔记，跳过 OCR，直接调用 LLM 提炼摘要与标签
+// 如果传入的是单纯的可达 URL 链接，系统会自动尝试抓取正文并解析为 Markdown。
 func CreateNoteFromText(text string) (*models.NoteItem, error) {
-	// 取文本前 30 个字符作为名称
-	runes := []rune(strings.TrimSpace(text))
-	name := string(runes)
-	if len(runes) > 30 {
-		name = string(runes[:30]) + "..."
-	}
-	if name == "" {
-		name = "文本录入"
+	text = strings.TrimSpace(text)
+
+	originalName := ""
+	isURLFetch := false
+	originalUrl := ""
+	pureContentLen := 0
+	if processor.IsURL(text) {
+		title, markdown, cLen, err := processor.FetchURLContent(text)
+		if err == nil {
+			originalName = title
+			originalUrl = text
+			text = markdown
+			pureContentLen = cLen
+			isURLFetch = true
+		} else {
+			log.Printf("[URL解析告警] %s 提取失败，降级保存纯文本: %v", text, err)
+		}
 	}
 
-	// 虚拟 storageID，不写入物理存储
+	if originalName == "" {
+		runes := []rune(text)
+		name := string(runes)
+		if len(runes) > 30 {
+			name = string(runes[:30]) + "..."
+		}
+		if name == "" {
+			name = "文本录入"
+		}
+		originalName = name
+	}
+
 	storageID := fmt.Sprintf("text_%d", time.Now().UnixNano())
 
 	note := models.NoteItem{
-		OriginalName: name,
+		OriginalName: originalName,
 		StorageID:    storageID,
 		FileType:     "text/plain",
 		FileSize:     int64(len(text)),
+		OriginalUrl:  originalUrl,
 		Status:       "pending",
+	}
+
+	if isURLFetch {
+		note.FileType = "text/markdown"
 	}
 
 	if err := global.DB.Create(&note).Error; err != nil {
 		return nil, fmt.Errorf("数据库元数据建立失败: %v", err)
 	}
 
-	// 后台异步 LLM 提炼
-	go func(nID uint, rawText string) {
-		log.Printf("[文本录入作业] 开始为数据包 (ID:%d) 唤起 LLM 提炼...\n", nID)
+	go func(nID uint, rawText string, isUrl bool, pureLen int, rawUrl string) {
+		prefix := "[文本录入作业]"
+		if isUrl {
+			prefix = "[URL剪藏作业]"
+		}
+		log.Printf("%s 开始为数据包 (ID:%d) 唤起 LLM 提炼...\n", prefix, nID)
 
-		summary, tags, err := pkg.ExtractSummaryAndTags(rawText)
+		if isUrl && pureLen < 64 {
+			log.Printf("%s 记录ID %d: 正文内容极少(%d)，跳过大模型，固定标签记录\n", prefix, nID, pureLen)
+
+			u, err := url.Parse(rawUrl)
+			domain := "未知域名"
+			businessKey := "未知主键"
+			if err == nil && u.Host != "" {
+				domain = u.Host
+				businessKey = u.Path
+				if businessKey == "" {
+					businessKey = "/"
+				}
+			}
+
+			summary := "该网页提取到的核心正文过少，可能为图片/视频站点、单页应用或遭到了防火墙拦截。建议直接点击上方标题链接在浏览器中直达阅览。"
+			tags := fmt.Sprintf("URL地址,%s,%s", domain, businessKey)
+
+			global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Updates(map[string]interface{}{
+				"ocr_text":   rawText,
+				"ai_summary": summary,
+				"ai_tags":    tags,
+				"status":     "analyzed",
+			})
+			syncTags(nID, tags)
+			return
+		}
+
+		// 为防止长网页超过大模型上限，截取前面部分给大模型看（只影响标签与摘要提炼）
+		llmInput := rawText
+		if isUrl && len([]rune(llmInput)) > 10000 {
+			llmInput = string([]rune(llmInput)[:10000]) + "..."
+		}
+
+		summary, tags, err := pkg.ExtractSummaryAndTags(llmInput)
 		if err != nil {
 			log.Printf("[大模型提炼失败降级] 记录ID %d: %v", nID, err)
-			summary = rawText
+			summary = llmInput
+			// 降级截断，避免 UI 把大长篇内容塞到列表 item 卡片上
+			if len([]rune(summary)) > 60 {
+				summary = string([]rune(summary)[:60]) + "..."
+			}
 			tags = "ai-fail"
 		}
 
 		global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Updates(map[string]interface{}{
-			"ocr_text":   rawText,
+			"ocr_text":   rawText, // DB 存入必须是原封不动的完整抓取全本与图片占位，便于 RAG
 			"ai_summary": summary,
 			"ai_tags":    tags,
 			"status":     "analyzed",
@@ -167,8 +235,8 @@ func CreateNoteFromText(text string) (*models.NoteItem, error) {
 
 		syncTags(nID, tags)
 
-		log.Printf("[文本录入作业完成] 记录ID %d: 提取精简摘要 [%s]...", nID, summary)
-	}(note.ID, text)
+		log.Printf("%s 记录ID %d: 提取精简摘要 [%s]...", prefix, nID, summary)
+	}(note.ID, text, isURLFetch, pureContentLen, originalUrl)
 
 	return &note, nil
 }

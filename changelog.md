@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 ### Added
+- Backend: 引入 URL 智能剪藏引擎 (URL Fetcher)。在传入纯网址时，自动剥离广告抽取正文为 Markdown。采用 `Jina云端 API` 与 `Readability` 本地萃取双擎熔断降级架构，在遭遇知乎等强反爬 WAF 拦截时亦可静默回退物理提链，确保应用流转无崩溃死锁。
+- Backend: 新增 URL 短文本检测与算力节流截流机制。若因防爬护盾导致抓取字数不足64字，将自动跳过 LLM 提取并赋予固定的结构化主键标签（URL地址、域名、地址业务主键），降低 Token 消耗并保留访问线索。
 - Android Client: 深度集成了 **Insight Engine (AI 智能助手)**。支持多轮 RAG (检索增强生成) 对话，能够基于用户笔记知识库进行智能答疑与知识溯源。
 - Android Client: 新增 `ChatScreen` (对话主页) 与 `ChatSessionsScreen` (历史会话管理)。支持开启新对话、查看历史上下文及删除会话。
 - Android Client: 引入 “智能引证 (Smart References)” 特性。AI 回复中会自动关联相关的笔记来源，点击可直接跳转至笔记详情。
@@ -47,6 +49,7 @@
 - PC Client: 上传通知改用 `MessageBoxTimeoutW`，3s 后自动消失，置顶显示；截图中间流程静默处理，不打扰用户。
 
 ### Fixed
+- Backend: 修复 `/api/note/text` 接口在 JSON 外层缺失 `storage_id` 导致安卓端 (Moshi) URL 分享意图抛出 `missing storage_id` 反序列化崩溃的问题，实现免发版向下兼容机制。
 - Android Client: 修复 `MainActivity.kt` 中 `NoteCard` 组件存在的 `baseUrl` 参数未使用的 Lint 警告，移除冗余代码。
 
 ### Changed

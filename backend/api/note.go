@@ -55,8 +55,9 @@ func (a *NoteApi) CreateFromText(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "文本录入成功，正在后台提炼...",
-		"data":    note,
+		"message":    "文本录入成功，正在后台提炼...",
+		"data":       note,
+		"storage_id": note.StorageID,
 	})
 }
 
@@ -550,31 +551,31 @@ func (a *NoteApi) GetChatMessages(c *gin.Context) {
 // DeleteChatSession 删除对话会话
 func (a *NoteApi) DeleteChatSession(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	err := global.DB.Transaction(func(tx *gorm.DB) error {
 		// 1. 查找该会话下的所有消息
 		var messages []models.ChatMessage
 		if err := tx.Where("chat_session_id = ?", id).Find(&messages).Error; err != nil {
 			return err
 		}
-		
+
 		// 2. 清理消息的多对多引用关系 (chat_message_references)
 		for _, msg := range messages {
 			if err := tx.Model(&msg).Association("References").Clear(); err != nil {
 				return err
 			}
 		}
-		
+
 		// 3. 删除所有消息
 		if err := tx.Where("chat_session_id = ?", id).Delete(&models.ChatMessage{}).Error; err != nil {
 			return err
 		}
-		
+
 		// 4. 删除会话 (物理删除)
 		if err := tx.Unscoped().Delete(&models.ChatSession{}, id).Error; err != nil {
 			return err
 		}
-		
+
 		return nil
 	})
 
@@ -583,7 +584,6 @@ func (a *NoteApi) DeleteChatSession(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除失败: " + err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "已删除"})
 }
-

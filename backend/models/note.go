@@ -23,10 +23,11 @@ type NoteItem struct {
 	FileSize     int64  `json:"file_size"`
 
 	// 内容解析
-	OcrText   string `gorm:"type:text" json:"ocr_text"`               // OCR原始大宗文本，不主要依赖like模糊查询，将同步到FTS5表中
-	AiSummary string `gorm:"size:1024" json:"ai_summary"`             // AI 总结的精华摘要
-	AiTags    string `gorm:"size:255" json:"ai_tags"`                 // AI 打的标签 (JSON 数组格式或者纯逗号间隔格式)
-	Status    string `gorm:"size:32;default:'pending'" json:"status"` // pending/ocred/analyzed/error
+	OcrText     string `gorm:"type:text" json:"ocr_text"`               // OCR原始大宗文本
+	AiSummary   string `gorm:"size:1024" json:"ai_summary"`             // AI 总结的精华摘要
+	AiTags      string `gorm:"size:255" json:"ai_tags"`                 // AI 打的标签
+	OriginalUrl string `gorm:"size:2048" json:"original_url"`           // [新增] 溯源网页URL
+	Status      string `gorm:"size:32;default:'pending'" json:"status"` // pending/ocred/analyzed/error
 }
 
 // NoteTag 标签-文件扁平关联表（每行代表一个文件拥有一个标签）
