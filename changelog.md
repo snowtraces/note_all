@@ -1,6 +1,6 @@
 # Changelog
 
-## [2026-03-08] Unified Build System
+## [v0.1.0] - 2026-03-08
 ### Added
 - 🚀 **根目录统一构建脚本**: 新增 `build.ps1`，整合后端、前端、PC 端及 Android 端的编译命令。
 - 📝 **README 更新**: 明确了全量构建与模块构建的使用指南。
