@@ -1,5 +1,6 @@
 # 📦 Note All (个人知识收集与检索系统)
 
+<img src="frontend/public/logo512.png" alt="Note All Logo" width="120" align="right" />
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![React](https://img.shields.io/badge/Frontend-React%2018-61DAFB?logo=react)
 ![Golang](https://img.shields.io/badge/Backend-Golang-00ADD8?logo=go)
