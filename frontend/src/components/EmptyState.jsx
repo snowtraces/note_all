@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { BrainCircuit, Tag } from 'lucide-react';
+import { BrainCircuit, Tag, Sparkles } from 'lucide-react';
 import { getTags } from '../api/noteApi';
 
-export default function EmptyState({ onTagClick }) {
+export default function EmptyState({ onTagClick, onAsk }) {
   const [tags, setTags] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [askInput, setAskInput] = useState('');
 
   useEffect(() => {
     getTags()
@@ -54,10 +55,43 @@ export default function EmptyState({ onTagClick }) {
         <div className="w-20 h-20 mb-5 rounded-3xl bg-white/[0.02] border border-white/[0.05] flex items-center justify-center shadow-2xl">
           <BrainCircuit size={36} className="text-primeAccent/30" />
         </div>
-        <h2 className="text-xl font-light tracking-wide mb-2 opacity-60 text-white">等待映射碎片记录</h2>
+        <h2 className="text-xl font-light tracking-wide mb-2 opacity-60 text-white">知识图谱待命中</h2>
         <p className="text-[12px] font-mono opacity-35 text-center leading-relaxed mb-10">
-          在左侧神经流中选择一条记忆碎片，<br />在此处展开其完整的多维度信息阵列。
+          向个人 AI 助手提问，或点击左侧碎片展开全阵列映射。
         </p>
+
+        {/* ================= Ask AI 大搜索框 ================= */}
+        <div className="w-full max-w-xl relative group mb-14">
+          <div className="absolute -inset-[1px] bg-gradient-to-r from-primeAccent/30 via-primeAccent/10 to-transparent rounded-2xl blur-md opacity-20 group-hover:opacity-40 transition-opacity duration-500"></div>
+          <div className="relative flex items-center bg-black/50 border border-white/10 rounded-2xl px-5 py-4 w-full shadow-2xl focus-within:border-primeAccent/60 focus-within:bg-black/80 transition-all duration-300">
+            <Sparkles size={20} className="text-primeAccent/70 mr-3" />
+            <input
+              type="text"
+              value={askInput}
+              onChange={(e) => setAskInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && askInput.trim()) {
+                  if (onAsk) onAsk(askInput.trim());
+                  setAskInput('');
+                }
+              }}
+              placeholder="向 AI 咨询关于你的笔记内容..."
+              className="flex-1 bg-transparent border-none outline-none text-[15px] text-white placeholder-silverText/30 font-light tracking-wide"
+            />
+            {askInput.trim() && (
+              <button 
+                onClick={() => {
+                  if (onAsk) onAsk(askInput.trim());
+                  setAskInput('');
+                }}
+                className="ml-3 bg-primeAccent/10 hover:bg-primeAccent/20 text-primeAccent px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              >
+                深思
+              </button>
+            )}
+          </div>
+        </div>
+        {/* ================================================= */}
 
         {/* 词云区 */}
         {!loading && tags.length > 0 && (

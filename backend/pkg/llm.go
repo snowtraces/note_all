@@ -122,3 +122,80 @@ func ExtractSummaryAndTags(ocrContent string) (summary string, tags string, err 
 
 	return extract.Summary, extract.Tags, nil
 }
+
+// AskAIWithContext 根据提供的上下文（相关笔记片段）与多轮对话列表，回答用户的问题
+func AskAIWithContext(messages []map[string]string, contextStr string) (string, error) {
+	fmt.Printf("[AskAI] Context length: %d\n", len(contextStr))
+
+	systemPrompt := "你是一个专注于个人知识库的智能助手，同时具备深厚的通用知识储备。你会优先基于【参考笔记上下文】来回答用户的问题，以体现出你对用户个人资料的了解；如果数据中没有直接答案，请结合由于你作为大模型本身的通用智慧来流畅地回答，无需由于缺乏引用而反复道歉。请用简洁、深刻的口吻进行回复，并支持 Markdown 格式排版。\n\n"
+	if contextStr != "" {
+		systemPrompt += "【参考笔记上下文】开始：\n" + contextStr + "\n【参考笔记上下文】结束"
+	} else {
+		systemPrompt += "（当前没有找到与问题直接相关的笔记碎片记录）"
+	}
+
+	finalMessages := []map[string]string{
+		{
+			"role":    "system",
+			"content": systemPrompt,
+		},
+	}
+	finalMessages = append(finalMessages, messages...)
+
+	payload := map[string]interface{}{
+		"model":                 global.Config.LlmModelID,
+		"messages":              finalMessages,
+		"stream":                false,
+		"temperature":           0.7,
+		"top_p":                 0.8,
+		"max_completion_tokens": 4000,
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("构建 LLM JSON payload 失败: %v", err)
+	}
+
+	req, err := http.NewRequest("POST", global.Config.LlmApiUrl, bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		return "", fmt.Errorf("构建 LLM POST 请求失败: %v", err)
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", global.Config.LlmApiToken))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 120 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("请求 ERNIE 模型 API 报错: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("ERNIE API HTTP 状态码异常: %d, Message: %s", resp.StatusCode, string(body))
+	}
+
+	var resData struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("读取响应失败: %v", err)
+	}
+
+	if err := json.Unmarshal(bodyBytes, &resData); err != nil {
+		return "", fmt.Errorf("反序列化 LLM 响应 json 失败: %v", err)
+	}
+
+	if len(resData.Choices) == 0 {
+		return "", fmt.Errorf("大模型没有返回有效的提炼结果")
+	}
+
+	return resData.Choices[0].Message.Content, nil
+}

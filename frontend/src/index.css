@@ -64,40 +64,62 @@
   background: rgba(197, 198, 199, 0.4);
 }
 
-/* OCR Markdown 区域排版：支持 GFM 表格 */
-.markdown-ocr table {
+/* 全局 Markdown 渲染排版：科技感 GFM 表格与排版 */
+.markdown-content {
+  @apply leading-relaxed;
+}
+.markdown-content table {
   width: 100%;
-  border-collapse: collapse;
-  margin: 1rem 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 1.2rem 0;
   font-size: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.2);
 }
-.markdown-ocr th,
-.markdown-ocr td {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 6px 12px;
+.markdown-content th,
+.markdown-content td {
+  padding: 10px 14px;
   text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
-.markdown-ocr th {
-  background: rgba(102, 252, 241, 0.08);
+.markdown-content tr:last-child td {
+  border-bottom: none;
+}
+.markdown-content th {
+  background: rgba(255, 255, 255, 0.04);
   color: rgba(102, 252, 241, 0.9);
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
 }
-.markdown-ocr tr:nth-child(even) td {
-  background: rgba(255, 255, 255, 0.02);
+.markdown-content td {
+  color: rgba(255, 255, 255, 0.85);
 }
-.markdown-ocr tr:hover td {
-  background: rgba(255, 255, 255, 0.04);
+.markdown-content tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.01);
 }
-.markdown-ocr p {
-  margin: 0.4em 0;
+.markdown-content tr:hover td {
+  background: rgba(102, 252, 241, 0.03);
 }
-.markdown-ocr h1, .markdown-ocr h2, .markdown-ocr h3 {
+.markdown-content p {
+  margin: 0.8em 0;
+}
+.markdown-content h1, .markdown-content h2, .markdown-content h3 {
   color: rgba(102, 252, 241, 0.8);
-  margin: 0.8em 0 0.4em;
+  margin: 1.2em 0 0.6em;
+  font-weight: 600;
 }
-.markdown-ocr code {
-  font-size: 12px;
+.markdown-content ul, .markdown-content ol {
+  @apply space-y-1.5 my-3;
+}
+.markdown-content li {
+  @apply ml-4 list-disc marker:text-primeAccent/40;
+}
+.markdown-content :not(pre) > code {
+  font-size: 11px;
+  @apply bg-white/5 px-1.5 py-0.5 rounded text-primeAccent/90 mx-0.5;
 }
 
 /* AI 总结区的简单排版 */

@@ -48,3 +48,41 @@ export const getTags = async () => {
   const data = await res.json();
   return data.data || [];
 };
+
+
+export const askAI = async (messages, sessionId = 0) => {
+  // 过滤掉多余字段，只保留后端需要的 role 和 content，防止 JSON 校验失败
+  const cleanMessages = messages.map(m => ({ role: m.role, content: m.content }));
+  const res = await fetch("/api/ask", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ messages: cleanMessages, session_id: sessionId }),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(()=>({}));
+    throw new Error(errData.error || "Ask AI failed");
+  }
+  const data = await res.json();
+  return { 
+    answer: data.data || "", 
+    session_id: data.session_id,
+    references: data.references || []
+  };
+};
+
+export const getChatSessions = async () => {
+  const res = await fetch('/api/chat/sessions');
+  const data = await res.json();
+  return data.data || [];
+};
+
+export const getChatMessages = async (id) => {
+  const res = await fetch(`/api/chat/session/${id}`);
+  const data = await res.json();
+  return data.data || [];
+};
+
+export const deleteChatSession = async (id) => {
+  const res = await fetch(`/api/chat/session/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error("Delete session failed");
+};

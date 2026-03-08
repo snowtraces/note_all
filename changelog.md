@@ -20,6 +20,7 @@
 - Docs: 新增产品规格书 `01_Product_PRD/Android_Client_PRD.md`，规范化双端开发路径。
 - Docs: 体系化重构了工程主页 `README.md`，新增了针对 Android 端的核心特性解构与独立安装使用指引。
 - Frontend: 新增探针模式（`hooks/useDataPoller.js`），每 5 秒轮询 `/api/search?q` 接口，通过对列表的 `id / status / ai_summary / ai_tags / ocr_text.length` 字段拼接生成指纹进行比对，一旦检测到任意变化（新增记录 或 OCR/摘要异步回写）则静默刷新列表，不重置用户当前选中的详情项。回收站模式下自动暂停轮询。
+- System: 移除了“漫游” (Random Flow) 功能，包括后端 `/api/notes/random` 接口及其前端 UI 入口，以简化核心交互链路。
 
 - Backend: 新增 `POST /api/note/text` 接口，接受 JSON `{text}`，跳过 OCR 直接调用 LLM 生成摘要与标签，使用 `text_<UnixNano>` 作为虚拟 StorageID，无需物理存储文件。
 - Backend: `service/note.go` 提取 `syncTags()` 公共函数，消除上传图片与文本录入两条路径间的代码重复。
@@ -48,4 +49,3 @@
 - Backend: 修改了 `note.go` 的一些 API 逻辑以适配。
 - Backend: AI 分析完成后同步写入 `note_tags` 关联记录（删旧写新）。
 - PC Client: 项目结构深度重构，引入 `internal` 目录，按职责划分为 `capture`, `config`, `hotkey`, `network`, `notifier`, `sys`, `ui` 等子包；解决包循环依赖问题；统一 Win32 接口引用。
-

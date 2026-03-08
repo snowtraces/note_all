@@ -8,9 +8,11 @@ import (
 
 	"note_all_backend/global"
 	"note_all_backend/models"
+	"note_all_backend/pkg"
 	"note_all_backend/service"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type NoteApi struct{}
@@ -375,3 +377,213 @@ func (a *NoteApi) GetTags(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"data": tags})
 }
+
+// Ask 结构体
+type AskQuery struct {
+	Messages  []map[string]string `json:"messages" binding:"required"`
+	SessionID uint                `json:"session_id"`
+}
+
+// Ask 是一个 RAG 端点：基于 FTS5 搜索当前问题，并联合上下文和多轮历史给 LLM
+func (a *NoteApi) Ask(c *gin.Context) {
+	var body AskQuery
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误，需要 {messages: []}"})
+		return
+	}
+
+	if len(body.Messages) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "空消息"})
+		return
+	}
+
+	// 找出最后一条 User 的话语提取关键词
+	query := ""
+	for i := len(body.Messages) - 1; i >= 0; i-- {
+		if body.Messages[i]["role"] == "user" {
+			query = body.Messages[i]["content"]
+			break
+		}
+	}
+
+	if strings.TrimSpace(query) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "未能在上下文中找到用户问题"})
+		return
+	}
+
+	safeKeyword := strings.ReplaceAll(query, "\"", "")
+	safeKeyword = strings.ReplaceAll(safeKeyword, "'", "")
+
+	var items []models.NoteItem
+
+	words := strings.Fields(safeKeyword)
+	needsFallback := false
+	for _, w := range words {
+		if len([]rune(w)) < 3 {
+			needsFallback = true
+			break
+		}
+	}
+
+	if needsFallback {
+		dbQuery := global.DB.Model(&models.NoteItem{})
+		for _, w := range words {
+			likeStr := "%" + w + "%"
+			dbQuery = dbQuery.Where("ocr_text LIKE ? OR original_name LIKE ? OR ai_summary LIKE ? OR ai_tags LIKE ?", likeStr, likeStr, likeStr, likeStr)
+		}
+		if err := dbQuery.Order("id DESC").Limit(8).Find(&items).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("获取关联笔记失败: %v", err)})
+			return
+		}
+		fmt.Printf("[Ask] Fallback LIKE found: %d\n", len(items))
+	} else {
+		sqlDB, err := global.DB.DB()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取DB连接失败"})
+			return
+		}
+
+		ftsSQL := fmt.Sprintf(`
+		SELECT rowid 
+		FROM note_fts 
+		WHERE note_fts MATCH '"%s"' 
+		ORDER BY rank LIMIT 8;`, safeKeyword)
+
+		rows, err := sqlDB.QueryContext(c.Request.Context(), ftsSQL)
+		if err == nil {
+			var ids []int64
+			for rows.Next() {
+				var id int64
+				if rows.Scan(&id) == nil {
+					ids = append(ids, id)
+				}
+			}
+			rows.Close()
+			if len(ids) > 0 {
+				global.DB.Where("id IN ?", ids).Find(&items)
+				fmt.Printf("[Ask] FTS found: %d\n", len(items))
+			}
+		}
+
+		// 如果 FTS 一个都没找到，可能因为分词问题，降级一次 LIKE
+		if len(items) == 0 {
+			dbQuery := global.DB.Model(&models.NoteItem{})
+			for _, w := range words {
+				likeStr := "%" + w + "%"
+				dbQuery = dbQuery.Where("ocr_text LIKE ? OR original_name LIKE ? OR ai_summary LIKE ? OR ai_tags LIKE ?", likeStr, likeStr, likeStr, likeStr)
+			}
+			dbQuery.Order("id DESC").Limit(5).Find(&items)
+			fmt.Printf("[Ask] FTS missed, second LIKE-fallback found: %d\n", len(items))
+		}
+	}
+
+	// 组装 Context
+	contextBuilder := strings.Builder{}
+	for _, item := range items {
+		// 不要塞入整个 ocr_text 如果太长的话，不过一般碎片知识可以塞入。为防止超 Token，这里可以截断 OCR 原文，或者只依赖 AiSummary。
+		text := item.OcrText
+		if len([]rune(text)) > 500 {
+			text = string([]rune(text)[:500]) + "..."
+		}
+		contextBuilder.WriteString(fmt.Sprintf("- 笔记名称：%s\n  标签：%s\n  AI摘要：%s\n  内容详情：%s\n\n", item.OriginalName, item.AiTags, item.AiSummary, text))
+	}
+
+	// 调用大模型 (传入多轮消息数组)
+	answer, err := pkg.AskAIWithContext(body.Messages, contextBuilder.String())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("AI思考失败: %v", err)})
+		return
+	}
+
+	// 持久化存储
+	sessionID := body.SessionID
+	if sessionID == 0 {
+		session := models.ChatSession{Title: query}
+		if len([]rune(session.Title)) > 30 {
+			session.Title = string([]rune(session.Title)[:30]) + "..."
+		}
+		global.DB.Create(&session)
+		sessionID = session.ID
+	}
+
+	// 记录本次交互
+	global.DB.Create(&models.ChatMessage{
+		ChatSessionID: sessionID,
+		Role:          "user",
+		Content:       query,
+	})
+	global.DB.Create(&models.ChatMessage{
+		ChatSessionID: sessionID,
+		Role:          "assistant",
+		Content:       answer,
+		References:    items,
+	})
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":       answer,
+		"session_id": sessionID,
+		"references": items,
+	})
+}
+
+// ListChatSessions 获取历史对话列表
+func (a *NoteApi) ListChatSessions(c *gin.Context) {
+	var sessions []models.ChatSession
+	if err := global.DB.Order("id DESC").Find(&sessions).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取历史对话失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": sessions})
+}
+
+// GetChatMessages 获取指定会话的所有消息
+func (a *NoteApi) GetChatMessages(c *gin.Context) {
+	id := c.Param("id")
+	var messages []models.ChatMessage
+	if err := global.DB.Preload("References").Where("chat_session_id = ?", id).Order("id ASC").Find(&messages).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取会话详情失败"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": messages})
+}
+
+// DeleteChatSession 删除对话会话
+func (a *NoteApi) DeleteChatSession(c *gin.Context) {
+	id := c.Param("id")
+	
+	err := global.DB.Transaction(func(tx *gorm.DB) error {
+		// 1. 查找该会话下的所有消息
+		var messages []models.ChatMessage
+		if err := tx.Where("chat_session_id = ?", id).Find(&messages).Error; err != nil {
+			return err
+		}
+		
+		// 2. 清理消息的多对多引用关系 (chat_message_references)
+		for _, msg := range messages {
+			if err := tx.Model(&msg).Association("References").Clear(); err != nil {
+				return err
+			}
+		}
+		
+		// 3. 删除所有消息
+		if err := tx.Where("chat_session_id = ?", id).Delete(&models.ChatMessage{}).Error; err != nil {
+			return err
+		}
+		
+		// 4. 删除会话 (物理删除)
+		if err := tx.Unscoped().Delete(&models.ChatSession{}, id).Error; err != nil {
+			return err
+		}
+		
+		return nil
+	})
+
+	if err != nil {
+		fmt.Printf("[DeleteChatSession] Error: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除失败: " + err.Error()})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{"message": "已删除"})
+}
+

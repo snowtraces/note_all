@@ -36,10 +36,30 @@ type NoteTag struct {
 	Tag    string `gorm:"size:64;not null;index;uniqueIndex:uidx_note_tag" json:"tag"`
 }
 
+// ChatSession 存储对话会话
+type ChatSession struct {
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+
+	Title string `gorm:"size:255;not null" json:"title"` // 通常是第一句提问的缩写
+}
+
+// ChatMessage 存储对话中的每一条消息
+type ChatMessage struct {
+	ID            uint       `gorm:"primaryKey" json:"id"`
+	ChatSessionID uint       `gorm:"not null;index" json:"session_id"`
+	Role          string     `gorm:"size:16;not null" json:"role"` // user/assistant
+	Content       string     `gorm:"type:text;not null" json:"content"`
+	CreatedAt     time.Time  `json:"created_at"`
+	References    []NoteItem `gorm:"many2many:chat_message_references;" json:"references"`
+}
+
 // SetupDBWithFTS 初始化数据库结构，包括建立 FTS5 虚拟表及与基础表联动的触发器
 func SetupDBWithFTS(db *gorm.DB) error {
-	// 1. 自动迁移主表 + 标签关联表
-	if err := db.AutoMigrate(&NoteItem{}, &NoteTag{}); err != nil {
+	// 1. 自动迁移主表 + 标签关联表 + 对话表
+	if err := db.AutoMigrate(&NoteItem{}, &NoteTag{}, &ChatSession{}, &ChatMessage{}); err != nil {
 		return fmt.Errorf("failed to migrate tables: %v", err)
 	}
 

@@ -44,6 +44,12 @@ func SetupRouter() *gin.Engine {
 
 		// 5. 标签接口
 		apiGroup.GET("/tags", noteApi.GetTags)
+
+		// 6. RAG 会话与每日回顾
+		apiGroup.POST("/ask", noteApi.Ask)
+		apiGroup.GET("/chat/sessions", noteApi.ListChatSessions)
+		apiGroup.GET("/chat/session/:id", noteApi.GetChatMessages)
+		apiGroup.DELETE("/chat/session/:id", noteApi.DeleteChatSession)
 	}
 
 	return r
