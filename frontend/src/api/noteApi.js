@@ -86,3 +86,20 @@ export const deleteChatSession = async (id) => {
   const res = await fetch(`/api/chat/session/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error("Delete session failed");
 };
+
+export const getSerendipity = async () => {
+  const res = await fetch('/api/serendipity');
+  if (!res.ok) throw new Error("Get serendipity failed");
+  const data = await res.json();
+  return { 
+    content: data.data || "", 
+    references: data.references || []
+  };
+};
+
+export const getRelatedNotes = async (id) => {
+  const res = await fetch(`/api/note/${id}/related`);
+  if (!res.ok) throw new Error("Get related notes failed");
+  const data = await res.json();
+  return data.data || [];
+};

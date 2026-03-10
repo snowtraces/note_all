@@ -587,3 +587,30 @@ func (a *NoteApi) DeleteChatSession(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "已删除"})
 }
+
+// Serendipity 靈感碰撞接口
+func (a *NoteApi) Serendipity(c *gin.Context) {
+	content, references, err := service.GetSerendipityReview()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取灵感失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"data":       content,
+		"references": references,
+	})
+}
+
+// RelatedNotes 获取关联笔记接口
+func (a *NoteApi) RelatedNotes(c *gin.Context) {
+	idStr := c.Param("id")
+	var id uint
+	fmt.Sscanf(idStr, "%d", &id)
+
+	items, err := service.GetRelatedNotes(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取关联信息失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": items})
+}

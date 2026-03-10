@@ -33,6 +33,7 @@
 | **剪贴板智能嗅探**：App 获焦自动识别，一键入库 | **LLM 结构化分析**：自动生成摘要，终结未命名时代 | **智能引证**：AI 回答实时溯源，确保真实可靠 |
 | **URL 智能剪藏**：穿透反爬，Markdown 自动净化 | **智能标签 (Auto-Tag)**：根据内容深度提取主题特性 | **混合检索引擎**：#标签联想、OCR文本、AI摘要并行 |
 | **Windows 全局热键**：`Alt+Q` 截图 / `Alt+Shift+Q` 闪记 | **短文本熔断策略**：精准防御垃圾信息，节约 AI 算力 | **全功能渲染**：KaTeX 公式、GFM 表格一网打尽 |
+| **浏览器剪藏扩展**：划词剪藏及扩展弹窗，补全 PC 工作流 | **VLM 多模态感知**：深度解析图像内容，实现图文融合理解 | **智能记忆拼图**：AI 串联随机碎片激发灵感<br>**隐式双链**：基于标签自动发现并串联知识点 |
 
 ---
 
@@ -91,8 +92,9 @@ graph LR
 ## 📂 项目结构
 ```text
 .
-├── backend/          # Golang 服务端核心
-├── frontend/         # React Web 界面
-├── android_client/   # Android Jetpack Compose 源码
-└── pc_client/        # Windows Win32 托盘程序
+├── backend/           # Golang 服务端核心
+├── frontend/          # React Web 界面
+├── android_client/    # Android Jetpack Compose 源码
+├── pc_client/         # Windows Win32 托盘程序
+└── browser_extension/ # Chrome/Edge 浏览器剪藏扩展
 ```

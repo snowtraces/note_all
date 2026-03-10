@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink, Link } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
+import { getRelatedNotes } from '../api/noteApi';
 
 export default function Detail({
   item,
@@ -14,11 +15,24 @@ export default function Detail({
   const [isRawMode, setIsRawMode] = useState(false);
   const [editValue, setEditValue] = useState(item?.ocr_text || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [relatedItems, setRelatedItems] = useState([]);
 
-  // 当外部 item 变化时，重新绑定 editValue
-  React.useEffect(() => {
+  // 当外部 item 变化时，重新绑定 editValue 和加载关联内容
+  useEffect(() => {
     setEditValue(item?.ocr_text || '');
+    if (item && item.id) {
+       loadRelated();
+    }
   }, [item]);
+
+  const loadRelated = async () => {
+    try {
+      const data = await getRelatedNotes(item.id);
+      setRelatedItems(data || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   if (!item) return null;
 
@@ -188,13 +202,31 @@ export default function Detail({
                   {item.created_at || item.CreatedAt ? new Date(item.created_at || item.CreatedAt).toLocaleString('zh-CN', { hour12: false }) : '未知时间'}
                 </div>
               </div>
-              <div>
-                <div className="text-[10px] text-silverText/40 uppercase mb-1 font-mono">引擎流转状态</div>
-                <span className="bg-primeAccent/10 text-primeAccent px-2 py-1 rounded text-[10px] uppercase font-mono tracking-wider border border-primeAccent/20 inline-block">
-                  {item.status}
-                </span>
-              </div>
             </div>
+            {/* 相关灵感发现 (Phase 4) */}
+            {relatedItems.length > 0 && (
+              <div className="pt-2 animate-in fade-in slide-in-from-top-2 duration-700">
+                <div className="text-[10px] text-silverText/40 uppercase mb-3 font-mono flex items-center gap-2">
+                  <Link size={10} className="text-primeAccent" /> 相关灵感发现
+                </div>
+                <div className="space-y-2">
+                  {relatedItems.map(rel => (
+                    <div 
+                      key={rel.id}
+                      onClick={() => setSelectedItem(rel)}
+                      className="p-3 bg-white/[0.03] border border-white/5 rounded-xl hover:border-primeAccent/30 hover:bg-primeAccent/5 transition-all cursor-pointer group/rel"
+                    >
+                      <div className="text-[11px] text-white/50 group-hover/rel:text-white/80 transition-colors line-clamp-2 leading-snug">
+                         {rel.ai_summary || rel.original_name}
+                      </div>
+                      <div className="mt-2 text-[9px] font-mono text-silverText/20 group-hover/rel:text-primeAccent/50 transition-colors">
+                         {new Date(rel.created_at || rel.CreatedAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -18,6 +18,9 @@ function App() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [showTrash, setShowTrash] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
+  
+  // 灵感碰撞缓存状态
+  const [serendipityData, setSerendipityData] = useState(null);
 
   const [chatHistory, setChatHistory] = useState([]); // [{role: 'user', content: ''}, {role: 'assistant', content: ''}]
   const [currentSessionId, setCurrentSessionId] = useState(0);
@@ -353,6 +356,9 @@ function App() {
               executeSearch(q);
             }}
             onAsk={executeAskAI}
+            onItemClick={setSelectedItem}
+            serendipityData={serendipityData}
+            setSerendipityData={setSerendipityData}
           />
         )}
       </div>
