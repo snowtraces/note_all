@@ -1,5 +1,34 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- **Browser Extension (浏览器剪藏扩展)**: 新增 Chrome/Edge 浏览器扩展，补全 PC 工作流中网页信息抓取的最后一环。支持以下两种采集模式：
+  - `Popup 弹窗快捷输入`：点击扩展图标即可快速录入文本或粘贴当前页面链接。
+  - `划词右键剪藏`：选中网页文本后通过右键菜单一键剪藏至 Note All，保留原始 URL 溯源。
+  - 引入 `turndown.js` + `turndown-plugin-gfm.js` 实现页面内容 HTML→Markdown 净化转换。
+- **VLM 视觉大模型深度感知 (Phase 2)**: 接入多模态大模型，对上传图片进行深度语义理解。
+  - 自动生成图片描述（Description）与内容摘要（Summary），超越纯 OCR 识别能力。
+  - VLM 产出与 PaddleOCR 提取文本融合，统一写入结构化知识库。
+  - 引入激进压缩策略（分辨率缩至 512px，JPEG 质量 60），最小化 Token 消耗与 API 成本。
+  - LLM Prompt 规范化，强制输出严格 JSON 格式 `{description, summary, tags}`。
+- **智能记忆拼图·灵感碰撞 (Phase 3 - Serendipity Review)**: 实现"灵感碰撞"功能，盘活长期沉默的碎片知识。
+  - 随机抽取多条笔记碎片，由 AI 自动串联生成启发性随笔 / 联想片段。
+  - 前端 `EmptyState` 组件新增"灵感碰撞"交互入口，支持"深思"模式切换。
+  - 布局固化处理，输入区高度稳定，不因内容区变化而抖动。
+- **自动隐式双链 (Phase 4 - Auto-Linking)**: 建立基于标签交集的关联发现机制。
+  - 碎片详情页自动检测并展示具有共同标签的相关条目，无需手动维护链接。
+  - 后端新增关联查询接口，基于 `note_tags` 标签表计算交集权重并排序返回。
+
+### Changed
+- Backend: `ExtractSummaryAndTags` 中调整 `max_completion_tokens` 参数，修复 VLM 分析接口返回截断问题。
+- Backend: 注释屏蔽 `BackfillNoteTags` 历史数据回填函数（已完成全量回填，不再需要启动时执行）。
+- Frontend: `Detail.jsx` 详情页关联笔记 UI 布局优化，修复 JSX 标签未正确闭合的编译错误。
+- Docs: `README.md` 核心特性表格补充浏览器扩展、VLM、灵感碰撞、隐式双链等新特性；项目结构树新增 `browser_extension/` 目录说明。
+- Docs: 新增 `ROADMAP.md`，记录近期开发计划与各 Phase 完成状态。
+
+---
+
 ## [v0.1.0] - 2026-03-08
 ### Added
 - 🚀 **根目录统一构建脚本**: 新增 `build.ps1`，整合后端、前端、PC 端及 Android 端的编译命令。
