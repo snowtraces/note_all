@@ -1,15 +1,24 @@
 const DEFAULT_API_URL = "http://localhost:8080/api/note/text";
+const UPLOAD_API_URL = "http://localhost:8080/api/upload";
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "note-all-clip",
     title: "发送到 Note All",
-    contexts: ["selection"]
+    contexts: ["selection", "image"]
   });
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === "note-all-clip") {
+    // 场景 A: 右键点击的是图片
+    if (info.mediaType === "image" && info.srcUrl) {
+      console.log("Clipping image from frontend:", info.srcUrl);
+      clipImageFromFrontend(info.srcUrl);
+      return;
+    }
+
+    // 场景 B: 右键点击的是选中文本
     try {
       // 1. Inject Turndown library and GFM plugin into the page
       await chrome.scripting.executeScript({
@@ -74,21 +83,65 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
       // 4. Send to Note All
       if (markdown) {
-        clipToNoteAll(markdown);
+        clipToNoteAll(markdown, "text");
       }
     } catch (err) {
       console.error("Script injection failed. Fallback to plain text.", err);
       // Fallback: If we couldn't inject script (e.g., chrome:// pages or no permission)
       if (info.selectionText) {
-        clipToNoteAll(info.selectionText);
+        clipToNoteAll(info.selectionText, "text");
       }
     }
   }
 });
 
-async function clipToNoteAll(text) {
+async function clipImageFromFrontend(srcUrl) {
+  try {
+    // 1. 在浏览器侧下载图片（利用浏览器 Cookie/Session 绕过防盗链）
+    const imageResp = await fetch(srcUrl);
+    const blob = await imageResp.blob();
+
+    // 2. 准备文件名
+    let filename = "web_image.jpg";
+    try {
+      const urlObj = new URL(srcUrl);
+      const pathParts = urlObj.pathname.split('/');
+      const lastPart = pathParts[pathParts.length - 1];
+      if (lastPart && lastPart.includes('.')) {
+        filename = lastPart;
+      }
+    } catch(e) {}
+
+    // 3. 构造 Multipart 表达
+    const formData = new FormData();
+    formData.append("file", blob, filename);
+
+    // 4. 发送到后端的上传接口
+    const settings = await chrome.storage.local.get(["uploadApiUrl"]);
+    const apiUrl = settings.uploadApiUrl || UPLOAD_API_URL;
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      body: formData
+    });
+
+    if (response.ok) {
+      console.log("Image clip successful");
+      chrome.action.setBadgeText({ text: "OK" });
+      setTimeout(() => chrome.action.setBadgeText({ text: "" }), 2000);
+    } else {
+      throw new Error(await response.text());
+    }
+  } catch (error) {
+    console.error("Image Clip Error:", error);
+    chrome.action.setBadgeText({ text: "FAIL" });
+    setTimeout(() => chrome.action.setBadgeText({ text: "" }), 2000);
+  }
+}
+
+async function clipToNoteAll(content, type = "text") {
   const settings = await chrome.storage.local.get(["apiUrl"]);
-  const apiUrl = settings.apiUrl || DEFAULT_API_URL;
+  let apiUrl = settings.apiUrl || DEFAULT_API_URL;
 
   try {
     const response = await fetch(apiUrl, {
@@ -96,7 +149,7 @@ async function clipToNoteAll(text) {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ text: text })
+      body: JSON.stringify({ text: content })
     });
 
     if (response.ok) {

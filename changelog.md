@@ -4,9 +4,10 @@
 
 ### Added
 - **ROADMAP (研发路线图)**: 完成新一轮竞品分析（参考 Readwise, Mem.ai 等），规划了语音录入、RSS 订阅、知识图谱及自定义 Prompt 等 Phase 5-8 新功能。
-- **Browser Extension (浏览器剪藏扩展)**: 新增 Chrome/Edge 浏览器扩展，补全 PC 工作流中网页信息抓取的最后一环。支持以下两种采集模式：
+- **Browser Extension (浏览器剪藏扩展)**: 新增 Chrome/Edge 浏览器扩展，补全 PC 工作流中网页信息抓取的最后一环。支持以下三种采集模式：
   - `Popup 弹窗快捷输入`：点击扩展图标即可快速录入文本或粘贴当前页面链接。
   - `划词右键剪藏`：选中网页文本后通过右键菜单一键剪藏至 Note All，保留原始 URL 溯源。
+  - `图片一键采集`：新增右键点击图片直接发送至 Note All，采用浏览器前端下载并模拟上传模式，完美规避反爬虫拦截。
   - 引入 `turndown.js` + `turndown-plugin-gfm.js` 实现页面内容 HTML→Markdown 净化转换。
 - **VLM 视觉大模型深度感知 (Phase 2)**: 接入多模态大模型，对上传图片进行深度语义理解。
   - 自动生成图片描述（Description）与内容摘要（Summary），超越纯 OCR 识别能力。
