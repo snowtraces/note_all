@@ -72,6 +72,9 @@ func SetupRouter() *gin.Engine {
 		// 9. 重新用 AI 处理 (使用当前激活模板)
 		apiGroup.POST("/note/:id/reprocess", noteApi.ReprocessNote)
 
+		// 9.5 知识图谱数据
+		apiGroup.GET("/graph", noteApi.GetGraph)
+
 		// 10. AI 处理模板管理
 		apiGroup.GET("/templates", templateApi.List)
 		apiGroup.POST("/templates", templateApi.Create)

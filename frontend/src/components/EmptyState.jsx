@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { BrainCircuit, Sparkles, RefreshCw, BookOpen } from 'lucide-react';
+import { BrainCircuit, Sparkles, RefreshCw, BookOpen, Network, Settings } from 'lucide-react';
 import { getSerendipity } from '../api/noteApi';
 import MarkdownRenderer from './MarkdownRenderer';
 
-export default function EmptyState({ onAsk, onItemClick, serendipityData, setSerendipityData }) {
+export default function EmptyState({ onAsk, onItemClick, serendipityData, setSerendipityData, setViewMode, setShowSettings }) {
   const [askInput, setAskInput] = useState('');
   
   const [serendipityLoading, setSerendipityLoading] = useState(false);
@@ -43,6 +43,29 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
         <p className="text-[11px] font-mono opacity-35 text-center leading-relaxed mb-6 tracking-widest uppercase">
           碎片随手记 · AI 即刻懂
         </p>
+
+        {/* ================= 右侧全局操作区 (知识图谱与设置) ================= */}
+        <div className="absolute top-8 right-8 flex items-center gap-3">
+            <button
+              onClick={() => {
+                  if (setViewMode) setViewMode('graph');
+              }}
+              title="进入全景知识图谱"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-silverText/80 hover:bg-primeAccent/20 hover:text-primeAccent hover:border-primeAccent/30 transition-all duration-300 shadow-sm"
+            >
+              <Network size={16} />
+              <span className="text-xs font-medium tracking-wider">图谱</span>
+            </button>
+            <button
+               onClick={() => {
+                  if (setShowSettings) setShowSettings(true);
+               }}
+               title="配置自定义 AI 模板"
+               className="flex items-center justify-center p-2 rounded-xl border bg-white/5 text-silverText/70 border-white/10 hover:bg-white/10 hover:text-white transition-all duration-300"
+            >
+               <Settings size={18} />
+            </button>
+        </div>
 
         {/* ================= Ask AI 大搜索框 ================= */}
         <div className="w-full max-w-xl relative group mb-8">

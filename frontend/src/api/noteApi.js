@@ -115,3 +115,11 @@ export const getRelatedNotes = async (id) => {
   const data = await res.json();
   return data.data || [];
 };
+
+export const getGraph = async () => {
+  const res = await fetch('/api/graph');
+  if (!res.ok) throw new Error("Get graph failed");
+  const data = await res.json();
+  return data.data || { nodes: [], links: [] };
+};
+

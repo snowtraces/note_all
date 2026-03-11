@@ -448,3 +448,81 @@ func ReprocessNoteWithTemplate(id string, templateId uint) error {
 
 	return nil
 }
+
+// GetKnowledgeGraph 吐出用于 react-force-graph-2d 渲染所需的 nodes 和 links
+func GetKnowledgeGraph() (map[string]interface{}, error) {
+	// 1. 获取所有存在且有效的 tags (属于未被逻辑删除且已解析的笔记)，以建立 Tag 节点
+	type tagCount struct {
+		Tag   string
+		Count int
+	}
+	var tags []tagCount
+	// 修改：增加 JOIN note_items 并过滤删除状态，确保只有关联了有效笔记的标签才会出现在图谱中
+	if err := global.DB.Table("note_tags").
+		Select("note_tags.tag, COUNT(note_tags.tag) as count").
+		Joins("JOIN note_items ON note_items.id = note_tags.note_id").
+		Where("note_items.deleted_at IS NULL AND note_items.status = ?", "analyzed").
+		Group("note_tags.tag").
+		Having("count > 0").
+		Scan(&tags).Error; err != nil {
+		return nil, err
+	}
+
+	// 2. 查出所有拥有标签的已解析 Note (去除了软删除的) 准备出 Note 节点
+	var notes []models.NoteItem
+	if err := global.DB.
+		Where("status = ?", "analyzed").
+		Where("ai_tags IS NOT NULL AND ai_tags != '' AND ai_tags != 'ai-fail'").
+		Find(&notes).Error; err != nil {
+		return nil, err
+	}
+
+	// 3. 构建结果集
+	nodes := make([]map[string]interface{}, 0)
+	links := make([]map[string]interface{}, 0)
+
+	// 去重 Tag Node 并加入 Nodes 列表
+	tagMap := make(map[string]bool)
+	for _, t := range tags {
+		if !tagMap[t.Tag] {
+			nodes = append(nodes, map[string]interface{}{
+				"id":    "tag_" + t.Tag,
+				"name":  t.Tag,
+				"type":  "tag",
+				"count": t.Count,
+			})
+			tagMap[t.Tag] = true
+		}
+	}
+
+	// 加入 Note Nodes 并根据逗号分隔的 Tag 构建 Links
+	for _, note := range notes {
+		nodeId := fmt.Sprintf("note_%d", note.ID)
+		nodes = append(nodes, map[string]interface{}{
+			"id":      nodeId,
+			"name":    note.OriginalName,
+			"type":    "note",
+			"note_id": note.ID,
+			"summary": note.AiSummary, // 给 Hover 用
+			"file_id": note.StorageID, // 给 Hover 图片用
+			"mime":    note.FileType,
+		})
+
+		noteKeys := strings.Split(note.AiTags, ",")
+		for _, tk := range noteKeys {
+			tk = strings.TrimSpace(tk)
+			if tk != "" && tagMap[tk] {
+				links = append(links, map[string]interface{}{
+					"source": nodeId,
+					"target": "tag_" + tk,
+					"value":  1,
+				})
+			}
+		}
+	}
+
+	return map[string]interface{}{
+		"nodes": nodes,
+		"links": links,
+	}, nil
+}

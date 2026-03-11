@@ -25,13 +25,23 @@
   - 内置了三种高频场景的预设模板：「通用抽取（默认）」、「逻辑排版」与「学习笔记」。
   - 允许随时手动切换模板对指定笔记条目发起「重新 AI 处理」，配合底层 `useDataPoller` 实现无感局部热更新。
   - 实现了新建配置时默认填入「通用抽取」提示词样板，优化了使用便捷性。
+- **全景知识图谱视觉与性能重构 (Phase 4 - Knowledge Graph)**:
+  - **沉浸式全屏体验**：重构了图谱布局架构，使其完美占满侧边栏右侧全部空间，模拟 Obsidian 的深度思考状态。
+  - **物理模拟持久化 (影子图层)**：采用 CSS 显隐控制 (`opacity`/`z-index`) 代替条件渲染，使 D3 物理引擎在后台持续运行，解决了切换视图时图谱重绘和位置丢失的痛点。
+  - **智能数据缓存 (Smart Caching)**：实现父组件级图谱数据缓存，确保视图切换时的“秒开”体验与位置记忆。
+  - **高精度尺寸自适应**：引入 `ResizeObserver` 并配合动画帧同步机制，精准捕捉布局平滑过渡后的实际尺寸，彻底消除画布边缘遮罩与黑边。
+  - **孤立标签动态清理**：优化后端图谱算法，自动过滤仅链接至“已删除笔记”的空节点，保持知识空间的整洁度。
+
 
 ### Changed
+- Frontend: 全局展示架构优化。实现了详情页 `Detail` 与图谱层 `GraphLayer` 的智能层级调度（`z-index`），解决了图谱组件遮挡底层交互导致页面无法点击的严重 Bug。
 - Frontend: 全局字体渲染栈优化，剔除了导致 Windows 下 YaHei UI Light 字体发虚的 `font-light`，显式指定 `PingFang SC` 与 `Microsoft YaHei`；大幅压紧 `Detail.jsx` 及核心交互界面的内外边距，提升了碎片的视觉信息密度。
+- Frontend: 侧边栏交互统一化。在侧边栏顶部新增“笔记列表”、“全境图谱”及“对话历史”三个显式导航入口。
+- Backend: 物理删除机制加固。`HardDelete` 接口改为事务执行，同步清理 `note_tags` 中的残留关联，确保数据库状态的一致性。
 - Backend: `ExtractSummaryAndTags` 中调整 `max_completion_tokens` 参数，修复 VLM 分析接口返回截断问题。
 - Backend: 注释屏蔽 `BackfillNoteTags` 历史数据回填函数（已完成全量回填，不再需要启动时执行）。
 - Frontend: `Detail.jsx` 详情页关联笔记 UI 布局优化，修复 JSX 标签未正确闭合的编译错误。
-- Docs: `README.md` 核心特性表格补充浏览器扩展、VLM、灵感碰撞、隐式双链等新特性；项目结构树新增 `browser_extension/` 目录说明。
+- Docs: `README.md` 核心特性表格补充浏览器扩展、VLM、灵感碰撞、隐式双链及全景图谱等新特性；项目结构树新增 `browser_extension/` 目录说明。
 - Docs: 新增 `ROADMAP.md`，记录近期开发计划与各 Phase 完成状态。
 
 ---

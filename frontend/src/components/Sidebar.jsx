@@ -1,9 +1,11 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Search, UploadCloud, BrainCircuit, X, Trash2, ArchiveRestore, Tag, PenLine, MessageSquare, History } from 'lucide-react';
+import { Search, UploadCloud, BrainCircuit, X, Trash2, ArchiveRestore, Tag, PenLine, MessageSquare, History, Network } from 'lucide-react';
 import { getTags, getChatSessions, deleteChatSession } from '../api/noteApi';
 import { Settings } from 'lucide-react';
 
 export default function Sidebar({
+  viewMode,
+  setViewMode,
   showTrash,
   setShowTrash,
   query,
@@ -22,7 +24,6 @@ export default function Sidebar({
   askLoading,
   setShowSettings
 }) {
-  const [viewMode, setViewMode] = useState('notes'); // 'notes' | 'chats'
   const [chatSessions, setChatSessions] = useState([]);
   const [sessionLoading, setSessionLoading] = useState(false);
   const [confirmingId, setConfirmingId] = useState(null);
@@ -145,9 +146,9 @@ export default function Sidebar({
 
         <div className="flex justify-between items-center mb-6">
           <h1 className={`text-2xl font-extrabold tracking-tight transition-colors ${showTrash ? 'text-red-500/80' : ''}`}>
-            {showTrash ? 'Trash ' : (viewMode === 'chats' ? 'Chat ' : 'Note ')}
-            <span className={showTrash ? 'text-red-400' : (viewMode === 'chats' ? 'text-primeAccent' : 'text-gradient')}>
-                {showTrash ? 'Bin' : (viewMode === 'chats' ? 'History' : 'All')}
+            {showTrash ? 'Trash ' : (viewMode === 'chats' ? 'Chat ' : viewMode === 'graph' ? 'Graph ' : 'Note ')}
+            <span className={showTrash ? 'text-red-400' : (viewMode === 'chats' || viewMode === 'graph' ? 'text-primeAccent' : 'text-gradient')}>
+                {showTrash ? 'Bin' : (viewMode === 'chats' ? 'History' : viewMode === 'graph' ? 'Matrix' : 'All')}
             </span>
           </h1>
 
@@ -155,11 +156,17 @@ export default function Sidebar({
             {!showTrash && (
               <>
                 <button
-                  onClick={() => {
-                      const newMode = viewMode === 'notes' ? 'chats' : 'notes';
-                      setViewMode(newMode);
-                  }}
-                  title={viewMode === 'notes' ? "查看对话历史" : "返回笔记列表"}
+                  onClick={() => setViewMode('notes')}
+                  title="笔记列表"
+                  className={`flex items-center justify-center p-2 rounded-full border transition-all duration-300 ${
+                      viewMode === 'notes' ? 'bg-primeAccent/20 border-primeAccent/30 text-primeAccent' : 'bg-white/5 border-white/10 text-silverText/70 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  <PenLine size={16} />
+                </button>
+                <button
+                  onClick={() => setViewMode('chats')}
+                  title="对话历史"
                   className={`flex items-center justify-center p-2 rounded-full border transition-all duration-300 ${
                       viewMode === 'chats' ? 'bg-primeAccent/20 border-primeAccent/30 text-primeAccent' : 'bg-white/5 border-white/10 text-silverText/70 hover:bg-white/10 hover:text-white'
                   }`}
@@ -169,17 +176,10 @@ export default function Sidebar({
               </>
             )}
             <button
-              onClick={() => setShowSettings(true)}
-              className="flex items-center justify-center p-2 rounded-full border bg-white/5 text-silverText/70 border-white/10 hover:bg-white/10 hover:text-white transition-all duration-300"
-              title="设置 / AI 模板"
-            >
-              <Settings size={16} />
-            </button>
-            <button
               onClick={() => {
                 setShowTrash(!showTrash);
                 setSelectedItem(null);
-                setViewMode('notes');
+                if (!showTrash) setViewMode('notes'); // 如果进入垃圾桶，强制不显示特殊模式
               }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all duration-300 ${
                 showTrash
@@ -285,7 +285,7 @@ export default function Sidebar({
               );
             })}
           </>
-        ) : (
+        ) : viewMode === 'chats' ? (
           <>
             {sessionLoading && chatSessions.length === 0 && (
               <div className="w-full h-32 flex flex-col items-center justify-center text-primeAccent/40 animate-pulse">
@@ -336,7 +336,13 @@ export default function Sidebar({
               </div>
             ))}
           </>
-        )}
+        ) : viewMode === 'graph' ? (
+            <div className="w-full text-center py-20 px-8 flex flex-col items-center">
+                <Network size={40} className="text-primeAccent mb-4 animate-pulse" />
+                <h3 className="text-white font-medium mb-2">进入全景知识图谱</h3>
+                <p className="text-silverText/40 text-xs">通过节点引力洞见记忆间的连结。</p>
+            </div>
+        ) : null}
       </div>
 
       {!showTrash && viewMode === 'notes' && (

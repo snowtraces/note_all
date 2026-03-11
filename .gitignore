@@ -7,6 +7,7 @@ dist/
 /backend/data/
 /backend/storage/
 *.exe
+*.exe~
 
 # Node
 node_modules/
