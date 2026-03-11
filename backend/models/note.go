@@ -40,6 +40,13 @@ type NoteTag struct {
 	Tag    string `gorm:"size:64;not null;index;uniqueIndex:uidx_note_tag" json:"tag"`
 }
 
+// NoteLink 双向链接记录表 ( [[内部链接]])
+type NoteLink struct {
+	ID       uint   `gorm:"primaryKey" json:"id"`
+	SourceID uint   `gorm:"not null;index;uniqueIndex:uidx_note_link" json:"source_id"`
+	Target   string `gorm:"size:255;not null;index;uniqueIndex:uidx_note_link" json:"target"`
+}
+
 // ChatSession 存储对话会话
 type ChatSession struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
@@ -62,8 +69,8 @@ type ChatMessage struct {
 
 // SetupDBWithFTS 初始化数据库结构，包括建立 FTS5 虚拟表及与基础表联动的触发器
 func SetupDBWithFTS(db *gorm.DB) error {
-	// 1. 自动迁移主表 + 标签关联表 + 对话表 + 提示词模板表
-	if err := db.AutoMigrate(&NoteItem{}, &NoteTag{}, &ChatSession{}, &ChatMessage{}, &PromptTemplate{}); err != nil {
+	// 1. 自动迁移主表 + 标签关联表 + NoteLink双链表 + 对话表 + 提示词模板表
+	if err := db.AutoMigrate(&NoteItem{}, &NoteTag{}, &NoteLink{}, &ChatSession{}, &ChatMessage{}, &PromptTemplate{}); err != nil {
 		return fmt.Errorf("failed to migrate tables: %v", err)
 	}
 

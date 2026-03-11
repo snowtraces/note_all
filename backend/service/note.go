@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -33,6 +34,35 @@ func syncTags(nID uint, tags string) {
 	}
 	if len(tagRecords) > 0 {
 		global.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&tagRecords)
+	}
+}
+
+var linkRegex = regexp.MustCompile(`\[\[([^\]|]+)(\|[^\]]+)?\]\]`)
+
+// syncLinks 提取并同步 Markdown 内部双向链接 [[NoteName]]
+func syncLinks(nID uint, text string) {
+	global.DB.Where("source_id = ?", nID).Delete(&models.NoteLink{})
+	if text == "" {
+		return
+	}
+	matches := linkRegex.FindAllStringSubmatch(text, -1)
+	
+	targetSet := make(map[string]bool)
+	var linkRecords []models.NoteLink
+	for _, match := range matches {
+		if len(match) > 1 {
+			target := strings.TrimSpace(match[1])
+			if target != "" && !targetSet[target] {
+				linkRecords = append(linkRecords, models.NoteLink{
+					SourceID: nID,
+					Target:   target,
+				})
+				targetSet[target] = true
+			}
+		}
+	}
+	if len(linkRecords) > 0 {
+		global.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&linkRecords)
 	}
 }
 
@@ -151,8 +181,9 @@ func UploadAndCreateNote(file *multipart.FileHeader) (*models.NoteItem, error) {
 			"status":     "analyzed",
 		})
 
-		// 5.5 同步写入标签关联表
+		// 5.5 同步写入标签关联表和双向链接图关联
 		syncTags(nID, tags)
+		syncLinks(nID, markdownText)
 
 		log.Printf("[后台作业总链完成] 记录ID %d: PaddleOCR 与 文心大模型 融合全链路结束！提取精简摘要 [%s]...", nID, summary)
 	}
@@ -279,6 +310,7 @@ func CreateNoteFromText(text string) (*models.NoteItem, error) {
 		})
 
 		syncTags(nID, tags)
+		syncLinks(nID, rawText)
 
 		log.Printf("%s 记录ID %d: 提取精简摘要 [%s]...", prefix, nID, summary)
 	}
@@ -321,6 +353,7 @@ func UpdateNoteText(id string, text string) error {
 		var noteItem models.NoteItem
 		if err := global.DB.Select("id").Where("id = ?", itemID).First(&noteItem).Error; err == nil {
 			syncTags(noteItem.ID, tags)
+			syncLinks(noteItem.ID, rawText)
 		}
 
 		log.Printf("[重新提炼作业完成] 记录ID %s: 提取新精简摘要 [%s]...", itemID, summary)
@@ -440,8 +473,9 @@ func ReprocessNoteWithTemplate(id string, templateId uint) error {
 			"status":     "analyzed",
 		})
 
-		// 同步更新关联标签
+		// 同步更新关联标签与双向链接图关联
 		syncTags(note.ID, tags)
+		syncLinks(note.ID, rawText)
 
 		log.Printf("[手动重新提炼完成] 记录ID %d, 使用模板: %s", note.ID, targetTpl.Name)
 	}
@@ -449,15 +483,14 @@ func ReprocessNoteWithTemplate(id string, templateId uint) error {
 	return nil
 }
 
-// GetKnowledgeGraph 吐出用于 react-force-graph-2d 渲染所需的 nodes 和 links
+// GetKnowledgeGraph 吐出用于 react-force-graph-2d 渲染所需的 nodes 和 links，包含双链能力
 func GetKnowledgeGraph() (map[string]interface{}, error) {
-	// 1. 获取所有存在且有效的 tags (属于未被逻辑删除且已解析的笔记)，以建立 Tag 节点
+	// 1. 获取所有存在的 tags
 	type tagCount struct {
 		Tag   string
 		Count int
 	}
 	var tags []tagCount
-	// 修改：增加 JOIN note_items 并过滤删除状态，确保只有关联了有效笔记的标签才会出现在图谱中
 	if err := global.DB.Table("note_tags").
 		Select("note_tags.tag, COUNT(note_tags.tag) as count").
 		Joins("JOIN note_items ON note_items.id = note_tags.note_id").
@@ -468,25 +501,54 @@ func GetKnowledgeGraph() (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	// 2. 查出所有拥有标签的已解析 Note (去除了软删除的) 准备出 Note 节点
+	// 2. 查出所有有效笔记 (未被逻辑删除，分析过的)
 	var notes []models.NoteItem
 	if err := global.DB.
 		Where("status = ?", "analyzed").
-		Where("ai_tags IS NOT NULL AND ai_tags != '' AND ai_tags != 'ai-fail'").
+		Where("deleted_at IS NULL").
 		Find(&notes).Error; err != nil {
 		return nil, err
 	}
 
-	// 3. 构建结果集
-	nodes := make([]map[string]interface{}, 0)
-	links := make([]map[string]interface{}, 0)
+	// 3. 查出这些笔记内的所有有效双链
+	var links []models.NoteLink
+	if err := global.DB.Joins("JOIN note_items ON note_items.id = note_links.source_id").
+		Where("note_items.deleted_at IS NULL AND note_items.status = ?", "analyzed").
+		Find(&links).Error; err != nil {
+		return nil, err
+	}
 
-	// 去重 Tag Node 并加入 Nodes 列表
+	// 4. 构建图
+	nodeList := make([]map[string]interface{}, 0)
+	linkList := make([]map[string]interface{}, 0)
+
+	// 用于快速将标题映射到内部实体节点 ID
+	noteNameToId := make(map[string]string)
+	noteIdExists := make(map[string]bool)
+
+	// (a) 将已存在的 Note 实体写入 Nodes
+	for _, note := range notes {
+		nID := fmt.Sprintf("note_%d", note.ID)
+		nodeList = append(nodeList, map[string]interface{}{
+			"id":      nID,
+			"name":    note.OriginalName, // 在 Obsidian 中，文件名为笔记绝对名
+			"type":    "note",
+			"note_id": note.ID,
+			"summary": note.AiSummary,
+			"file_id": note.StorageID,
+			"mime":    note.FileType,
+		})
+		noteNameToId[note.OriginalName] = nID
+		noteIdExists[nID] = true
+	}
+
+	// (b) Tag 节点处理（并且给他们拉一条 link）
 	tagMap := make(map[string]bool)
 	for _, t := range tags {
+		tID := "tag_" + t.Tag
 		if !tagMap[t.Tag] {
-			nodes = append(nodes, map[string]interface{}{
-				"id":    "tag_" + t.Tag,
+			nodeList = append(nodeList, map[string]interface{}{
+				"id":    tID,
 				"name":  t.Tag,
 				"type":  "tag",
 				"count": t.Count,
@@ -494,35 +556,53 @@ func GetKnowledgeGraph() (map[string]interface{}, error) {
 			tagMap[t.Tag] = true
 		}
 	}
-
-	// 加入 Note Nodes 并根据逗号分隔的 Tag 构建 Links
+	
 	for _, note := range notes {
-		nodeId := fmt.Sprintf("note_%d", note.ID)
-		nodes = append(nodes, map[string]interface{}{
-			"id":      nodeId,
-			"name":    note.OriginalName,
-			"type":    "note",
-			"note_id": note.ID,
-			"summary": note.AiSummary, // 给 Hover 用
-			"file_id": note.StorageID, // 给 Hover 图片用
-			"mime":    note.FileType,
-		})
-
+		nID := fmt.Sprintf("note_%d", note.ID)
 		noteKeys := strings.Split(note.AiTags, ",")
 		for _, tk := range noteKeys {
 			tk = strings.TrimSpace(tk)
 			if tk != "" && tagMap[tk] {
-				links = append(links, map[string]interface{}{
-					"source": nodeId,
+				linkList = append(linkList, map[string]interface{}{
+					"source": nID,
 					"target": "tag_" + tk,
+					"type":   "tag",
 					"value":  1,
 				})
 			}
 		}
 	}
 
+	// (c) 双链边计算和 Ghost Nodes 拓展
+	ghostMap := make(map[string]bool)
+	for _, link := range links {
+		sourceID := fmt.Sprintf("note_%d", link.SourceID)
+		targetID := noteNameToId[link.Target]
+
+		// 目标没在现有 Note 中找见，只能建立为幽灵节点
+		if targetID == "" {
+			targetID = "ghost_" + link.Target
+			if !ghostMap[link.Target] {
+				nodeList = append(nodeList, map[string]interface{}{
+					"id":   targetID,
+					"name": link.Target, // 未建立的笔记名
+					"type": "ghost",
+					"count": 0,
+				})
+				ghostMap[link.Target] = true
+			}
+		}
+
+		linkList = append(linkList, map[string]interface{}{
+			"source": sourceID,
+			"target": targetID,
+			"type":   "link",
+			"value":  2, // Note 之间的引用比 Note->Tag 耦合更深
+		})
+	}
+
 	return map[string]interface{}{
-		"nodes": nodes,
-		"links": links,
+		"nodes": nodeList,
+		"links": linkList,
 	}, nil
 }
