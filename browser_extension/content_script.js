@@ -163,7 +163,7 @@
       bulletListMarker: '-'
     });
 
-    // 1. 链接与图片：确保绝对路径，并清理冗余空白
+    // 1. 链接与图片：确保绝对路径，并清理冗余空白；特殊处理 emoji 图片
     turndownService.addRule('linksAndImages', {
       filter: ['a', 'img'],
       replacement: function (content, node) {
@@ -173,7 +173,12 @@
           return `[${content.trim()}](${href})`;
         } else if (node.nodeName === 'IMG') {
           const src = node.src || node.getAttribute('src');
-          const alt = node.getAttribute('alt') || '';
+          let alt = node.getAttribute('alt') || '';
+          if (src && src.includes('/emoji/')) {
+            // 如果是 emoji 的图片，则不要按照 markdown 的图片渲染，容易使页面拉长
+            // 直接返回原生的 alt 名称（即 emoji 本身），没 alt 就不显示
+            return alt;
+          }
           return src ? `![${alt}](${src})` : '';
         }
         return content;
@@ -188,7 +193,22 @@
       }
     });
 
-    // 3. 核心机制：使用标记策略保留 pre-wrap 中的文本换行
+    // 3. 将 role="link" 的 div 转换为引用块
+    turndownService.addRule('roleLinkBlockquote', {
+      filter: function (node) {
+        return node.nodeName === 'DIV' && node.getAttribute('role') === 'link';
+      },
+      replacement: function (content) {
+        content = content.replace(/^\n+|\n+$/g, '');
+        if (!content) return '';
+        // 处理正常的换行，以及我们提前注入的换行标记
+        content = content.replace(/^/gm, '> ');
+        content = content.replace(/---NOTEBR---(?!$)/g, '---NOTEBR---> ');
+        return '\n\n' + content + '\n\n';
+      }
+    });
+
+    // 4. 核心机制：使用标记策略保留 pre-wrap 中的文本换行
     // 这种方法可以绕过 Turndown 内部对文本节点空白符的强制压缩
     const BR_MARKER = '---NOTEBR---';
     const clone = element.cloneNode(true);
@@ -221,12 +241,12 @@
       turndownService.use(window.turndownPluginGfm.gfm);
     }
 
-    // 4. 执行转换并还原标记
+    // 5. 执行转换并还原标记
     let markdown = turndownService.turndown(clone);
     // 将标记替换为 Markdown 硬换行
     markdown = markdown.replace(new RegExp(BR_MARKER, 'g'), '  \n');
 
-    // 5. 修复转义不一致问题
+    // 6. 修复转义不一致问题
     // Turndown 会转义文本开头的特殊字符（如 - 变成 \-），但由于我们用了 BR_MARKER，
     // 只有文本真正的开头被转义了，后续行因未被识别为“开头”而没有转义。
     // 我们在此统一还原这些转义，使摘录内容保持原始的视觉样式。
