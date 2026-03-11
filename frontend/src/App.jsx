@@ -264,7 +264,7 @@ function App() {
                 <div className="w-8 h-8 rounded-full bg-primeAccent/20 flex items-center justify-center border border-primeAccent/30 shadow-[0_0_10px_rgba(255,215,0,0.1)]">
                   <span className="text-sm">🤖</span>
                 </div>
-                <h2 className="text-lg font-light tracking-widest text-primeAccent/90 uppercase">Insight Engine</h2>
+                <h2 className="text-lg tracking-widest text-primeAccent/90 uppercase">Insight Engine</h2>
               </div>
               <button
                 onClick={() => {

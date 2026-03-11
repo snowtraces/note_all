@@ -84,7 +84,7 @@ export default function Detail({
   return (
     <div className="w-full h-full flex flex-col animate-in fade-in zoom-in-95 duration-300">
       {/* 顶栏控制 */}
-      <div className="flex items-center justify-between p-4 px-6 border-b border-white/5 bg-[#0a0a0a] shrink-0">
+      <div className="flex items-center justify-between px-5 py-2.5 border-b border-white/5 bg-[#0a0a0a] shrink-0">
         <div className="font-medium text-white/80 tracking-wide flex items-center gap-2 text-[15px]">
           <BrainCircuit size={18} className="text-primeAccent" /> 碎片的完整映射
         </div>
@@ -125,10 +125,10 @@ export default function Detail({
       {/* 内容区 */}
       <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
         {/* 阅读主区 */}
-        <div className="flex-1 p-6 lg:p-8 overflow-y-auto custom-scrollbar lg:border-r border-white/5 bg-[#0a0a0a]">
+        <div className="flex-1 p-5 lg:p-6 overflow-y-auto custom-scrollbar lg:border-r border-white/5 bg-[#0a0a0a]">
           {/* AI 分析框架 */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-3">
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-2">
               <h3 className="text-[11px] text-silverText/50 uppercase tracking-widest font-mono flex items-center gap-2 bg-white/[0.03] inline-flex px-3 py-1 rounded-full border border-white/5">
                   <BrainCircuit size={12} /> AI 智能总结
               </h3>
@@ -164,14 +164,14 @@ export default function Detail({
                 </button>
               </div>
             </div>
-            <div className="text-silverText/90 text-[15px] leading-relaxed font-normal bg-gradient-to-b from-white/[0.04] to-transparent p-5 rounded-2xl border border-white/5 ai-summary-markdown">
+            <div className="text-silverText/90 text-[14px] leading-relaxed font-normal bg-gradient-to-b from-white/[0.04] to-transparent px-4 py-3 rounded-xl border border-white/5 ai-summary-markdown">
               <MarkdownRenderer content={item.ai_summary || "暂无相关摘要..."} />
             </div>
           </div>
 
           {/* OCR 原文提取 */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between border-b border-primeAccent/20 pb-2 mb-4">
+          <div className="mb-4">
+            <div className="flex items-center justify-between border-b border-primeAccent/20 pb-2 mb-3">
               <h2 className="text-[11px] text-primeAccent uppercase tracking-[0.2em] font-bold flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-primeAccent animate-pulse shadow-[0_0_10px_rgba(var(--color-prime-accent),0.8)]"></span> 
                 {item.original_url ? '源网页正文推断' : 'OCR 核心视觉提取文本'}
@@ -199,7 +199,7 @@ export default function Detail({
               </div>
             </div>
             
-            <div className="text-white/95 text-[15px] leading-[1.8] font-light tracking-wide bg-[#111] p-6 rounded-2xl border border-primeAccent/10 selection:bg-primeAccent selection:text-black mt-2 shadow-inner">
+            <div className="text-white/95 text-[14px] leading-[1.7] tracking-wide bg-[#111] px-5 py-4 rounded-xl border border-primeAccent/10 selection:bg-primeAccent selection:text-black mt-1 shadow-inner">
               {isRawMode ? (
                 <div className="relative group/edit">
                   <textarea 

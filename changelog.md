@@ -27,6 +27,7 @@
   - 实现了新建配置时默认填入「通用抽取」提示词样板，优化了使用便捷性。
 
 ### Changed
+- Frontend: 全局字体渲染栈优化，剔除了导致 Windows 下 YaHei UI Light 字体发虚的 `font-light`，显式指定 `PingFang SC` 与 `Microsoft YaHei`；大幅压紧 `Detail.jsx` 及核心交互界面的内外边距，提升了碎片的视觉信息密度。
 - Backend: `ExtractSummaryAndTags` 中调整 `max_completion_tokens` 参数，修复 VLM 分析接口返回截断问题。
 - Backend: 注释屏蔽 `BackfillNoteTags` 历史数据回填函数（已完成全量回填，不再需要启动时执行）。
 - Frontend: `Detail.jsx` 详情页关联笔记 UI 布局优化，修复 JSX 标签未正确闭合的编译错误。

@@ -39,7 +39,7 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
         <div className="w-12 h-12 mb-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] flex items-center justify-center shadow-xl">
           <BrainCircuit size={22} className="text-primeAccent/30" />
         </div>
-        <h2 className="text-lg font-light tracking-wide mb-1 opacity-60 text-white uppercase font-mono">Note All AI</h2>
+        <h2 className="text-lg tracking-wide mb-1 opacity-60 text-white uppercase font-mono">Note All AI</h2>
         <p className="text-[11px] font-mono opacity-35 text-center leading-relaxed mb-6 tracking-widest uppercase">
           碎片随手记 · AI 即刻懂
         </p>
@@ -60,7 +60,7 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
                 }
               }}
               placeholder="向 AI 咨询关于你的笔记内容..."
-              className="flex-1 bg-transparent border-none outline-none text-[15px] text-white placeholder-silverText/30 font-light tracking-wide"
+              className="flex-1 bg-transparent border-none outline-none text-[15px] text-white placeholder-silverText/30 tracking-wide"
             />
             {askInput.trim() && (
               <button 
@@ -114,7 +114,7 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
 
                 <div className="flex flex-col lg:flex-row gap-6 relative z-10">
                   {/* 左侧：正文推演 */}
-                  <div className="flex-1 text-[14px] leading-relaxed text-silverText/90 font-light serendipity-content">
+                  <div className="flex-1 text-[14px] leading-relaxed text-silverText/90 serendipity-content">
                     <MarkdownRenderer content={serendipity.content} />
                   </div>
                   
