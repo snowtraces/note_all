@@ -83,13 +83,16 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
       // 4. Send to Note All
       if (markdown) {
+        const footer = `\n\n---\n来源: [${tab.title || '无标题'}](${tab.url})`;
+        markdown += footer;
         clipToNoteAll(markdown, "text");
       }
     } catch (err) {
       console.error("Script injection failed. Fallback to plain text.", err);
       // Fallback: If we couldn't inject script (e.g., chrome:// pages or no permission)
       if (info.selectionText) {
-        clipToNoteAll(info.selectionText, "text");
+        const footer = `\n\n---\n来源: [${tab.title || '无标题'}](${tab.url})`;
+        clipToNoteAll(info.selectionText + footer, "text");
       }
     }
   }
@@ -97,6 +100,9 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
 async function clipImageFromFrontend(srcUrl) {
   try {
+    const result = await chrome.storage.local.get("uploadApiUrl");
+    const apiUrl = result.uploadApiUrl || UPLOAD_API_URL;
+
     // 1. 在浏览器侧下载图片（利用浏览器 Cookie/Session 绕过防盗链）
     const imageResp = await fetch(srcUrl);
     const blob = await imageResp.blob();
@@ -115,10 +121,6 @@ async function clipImageFromFrontend(srcUrl) {
     // 3. 构造 Multipart 表达
     const formData = new FormData();
     formData.append("file", blob, filename);
-
-    // 4. 发送到后端的上传接口
-    const settings = await chrome.storage.local.get(["uploadApiUrl"]);
-    const apiUrl = settings.uploadApiUrl || UPLOAD_API_URL;
 
     const response = await fetch(apiUrl, {
       method: "POST",
@@ -139,10 +141,28 @@ async function clipImageFromFrontend(srcUrl) {
   }
 }
 
-async function clipToNoteAll(content, type = "text") {
-  const settings = await chrome.storage.local.get(["apiUrl"]);
-  let apiUrl = settings.apiUrl || DEFAULT_API_URL;
 
+// Message listener for content script requests
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('Note All: Received message from content script', message);
+  
+  if (message.action === 'clipText') {
+    const footer = `\n\n---\n来源: [${message.title || '无标题'}](${message.url})`;
+    const contentWithFooter = message.content + footer;
+    
+    clipToNoteAll(contentWithFooter, "text").then(success => {
+      sendResponse({ status: success ? 'success' : 'error' });
+    });
+    return true; // Keep message channel open for async response
+  }
+});
+
+async function clipToNoteAll(content, type = "text") {
+  const result = await chrome.storage.local.get("apiUrl");
+  const apiUrl = result.apiUrl || DEFAULT_API_URL;
+
+  console.log('Note All: Sending data to API', apiUrl);
   try {
     const response = await fetch(apiUrl, {
       method: "POST",
@@ -153,18 +173,21 @@ async function clipToNoteAll(content, type = "text") {
     });
 
     if (response.ok) {
-      console.log("Clip successful");
-      // Optional: Show notification
+      console.log("Note All: Clip successful");
       chrome.action.setBadgeText({ text: "OK" });
       setTimeout(() => chrome.action.setBadgeText({ text: "" }), 2000);
+      return true;
     } else {
-      console.error("Clip failed:", await response.text());
+      const errorText = await response.text();
+      console.error("Note All: Clip failed with status:", response.status, errorText);
       chrome.action.setBadgeText({ text: "ERR" });
       setTimeout(() => chrome.action.setBadgeText({ text: "" }), 2000);
+      return false;
     }
   } catch (error) {
-    console.error("Request Error:", error);
+    console.error("Note All: Request Error:", error);
     chrome.action.setBadgeText({ text: "FAIL" });
     setTimeout(() => chrome.action.setBadgeText({ text: "" }), 2000);
+    return false;
   }
 }
