@@ -130,8 +130,9 @@ func UploadAndCreateNote(file *multipart.FileHeader) (*models.NoteItem, error) {
 			summary = vlmSummary
 			tags = vlmTags
 		} else {
+			activeTpl, _ := models.GetActiveTemplate(global.DB)
 			llmInput := markdownText
-			summaryStr, tagsStr, err := pkg.ExtractSummaryAndTags(llmInput)
+			summaryStr, tagsStr, err := pkg.ExtractSummaryAndTags(llmInput, activeTpl.SystemPrompt)
 			if err != nil {
 				log.Printf("[大模型提炼失败降级] 记录ID %d: %v", nID, err)
 				summary = llmInput // 原文兜底
@@ -258,7 +259,8 @@ func CreateNoteFromText(text string) (*models.NoteItem, error) {
 			llmInput = string([]rune(llmInput)[:10000]) + "..."
 		}
 
-		summary, tags, err := pkg.ExtractSummaryAndTags(llmInput)
+		activeTpl, _ := models.GetActiveTemplate(global.DB)
+		summary, tags, err := pkg.ExtractSummaryAndTags(llmInput, activeTpl.SystemPrompt)
 		if err != nil {
 			log.Printf("[大模型提炼失败降级] 记录ID %d: %v", nID, err)
 			summary = llmInput
@@ -301,7 +303,8 @@ func UpdateNoteText(id string, text string) error {
 	global.WorkerChan <- func() {
 		log.Printf("[重新提炼作业] 开始为数据包 (ID:%s) 唤起 LLM 更新提炼...\n", itemID)
 
-		summary, tags, err := pkg.ExtractSummaryAndTags(rawText)
+		activeTpl, _ := models.GetActiveTemplate(global.DB)
+		summary, tags, err := pkg.ExtractSummaryAndTags(rawText, activeTpl.SystemPrompt)
 		if err != nil {
 			log.Printf("[重新提炼大模型失败降级] 记录ID %s: %v", itemID, err)
 			summary = rawText
@@ -396,4 +399,52 @@ func GetRelatedNotes(id uint) ([]models.NoteItem, error) {
 	}
 
 	return relatedItems, nil
+}
+
+// ReprocessNoteWithTemplate 强制重新对给定的笔记ID执行AI处理（使用当前指定模板，如果如果未指定则使用激活模板）
+func ReprocessNoteWithTemplate(id string, templateId uint) error {
+	var note models.NoteItem
+	if err := global.DB.First(&note, id).Error; err != nil {
+		return err
+	}
+
+	// 先将状态标记为分析中
+	if err := global.DB.Model(&models.NoteItem{}).Where("id = ?", id).Update("status", "pending").Error; err != nil {
+		return err
+	}
+
+	global.WorkerChan <- func() {
+		log.Printf("[手动使用模板重新提炼] 开始处理记录 (ID:%d)...\n", note.ID)
+
+		var targetTpl models.PromptTemplate
+		if templateId > 0 {
+			global.DB.First(&targetTpl, templateId)
+		} else {
+			targetTpl, _ = models.GetActiveTemplate(global.DB)
+		}
+
+		rawText := note.OcrText
+
+		// 调用大模型
+		summary, tags, err := pkg.ExtractSummaryAndTags(rawText, targetTpl.SystemPrompt)
+		if err != nil {
+			log.Printf("[手动重新提炼失败] 记录ID %d: %v", note.ID, err)
+			summary = rawText
+			tags = "ai-fail"
+		}
+
+		// 更新记录
+		global.DB.Model(&models.NoteItem{}).Where("id = ?", note.ID).Updates(map[string]interface{}{
+			"ai_summary": summary,
+			"ai_tags":    tags,
+			"status":     "analyzed",
+		})
+
+		// 同步更新关联标签
+		syncTags(note.ID, tags)
+
+		log.Printf("[手动重新提炼完成] 记录ID %d, 使用模板: %s", note.ID, targetTpl.Name)
+	}
+
+	return nil
 }

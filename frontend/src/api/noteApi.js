@@ -97,6 +97,18 @@ export const getSerendipity = async () => {
   };
 };
 
+export const reprocessNote = async (id, templateId) => {
+    let url = `/api/note/${id}/reprocess`;
+    if (templateId) {
+        url += `?template_id=${templateId}`;
+    }
+    const res = await fetch(url, {
+        method: 'POST'
+    });
+    if (!res.ok) throw new Error('Reprocess failed');
+    return res.json();
+};
+
 export const getRelatedNotes = async (id) => {
   const res = await fetch(`/api/note/${id}/related`);
   if (!res.ok) throw new Error("Get related notes failed");

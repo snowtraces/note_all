@@ -30,6 +30,7 @@ func SetupRouter() *gin.Engine {
 
 	apiGroup := r.Group("/api")
 	noteApi := new(api.NoteApi)
+	templateApi := new(api.TemplateApi)
 
 	{
 		// 1. 上传文件生成新解析工单
@@ -67,6 +68,16 @@ func SetupRouter() *gin.Engine {
 
 		// 8. 相关灵感关联 (Phase 4)
 		apiGroup.GET("/note/:id/related", noteApi.RelatedNotes)
+
+		// 9. 重新用 AI 处理 (使用当前激活模板)
+		apiGroup.POST("/note/:id/reprocess", noteApi.ReprocessNote)
+
+		// 10. AI 处理模板管理
+		apiGroup.GET("/templates", templateApi.List)
+		apiGroup.POST("/templates", templateApi.Create)
+		apiGroup.PUT("/templates/:id", templateApi.Update)
+		apiGroup.DELETE("/templates/:id", templateApi.Delete)
+		apiGroup.POST("/templates/:id/active", templateApi.SetActive)
 	}
 
 	return r

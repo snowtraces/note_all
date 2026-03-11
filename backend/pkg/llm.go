@@ -183,19 +183,21 @@ func DescribeImageVlm(imageBytes []byte, mimeType string) (string, string, strin
 
 // ExtractSummaryAndTags 是一套专用于清洗和归纳 OCR 碎片文本（大模型提炼师）的功能
 // 会强求大模型按标准 JSON 的格式返回以方便结构化持久落库
-func ExtractSummaryAndTags(ocrContent string) (summary string, tags string, err error) {
+func ExtractSummaryAndTags(ocrContent string, customPrompt string) (summary string, tags string, err error) {
 	if len(ocrContent) == 0 {
 		return "", "", fmt.Errorf("OCR文本为空，无需提取摘要")
 	}
 
 	// 1. 构建 System 级大模型提纯要求 (Prompt Engineering)
-	// 使用强制 JSON 规范与严格的不多废话指令，保障服务端的健壮反序列化。
-	systemPrompt := "你是一个精干的知识库文本提炼助理。用户会给你一段从图片/截图中OCR扫描出来的杂乱文字。\n" +
-		"请你做两件事：\n" +
-		"1. 用不超过50个字的简练句子概括核心内容（若输入源文本少于50字，摘要直接等同于输入源文本）。\n" +
-		"2. 提取最具有分类意义的1-5个词语作为标签(Tags)，使用中英半角逗号分隔。\n\n" +
-		"你必须严格只输出以下格式的JSON内容，不允许有任何额外的Markdown包裹（譬如无需带有反引号的代码块标识）和闲聊句子：\n" +
-		`{"summary":"你的概括结论","tags":"标签1,标签2,标签3"}`
+	systemPrompt := customPrompt
+	if systemPrompt == "" {
+		systemPrompt = "你是一个精干的知识库文本提炼助理。用户会给你一段从图片/截图中OCR扫描出来的杂乱文字。\n" +
+			"请你做两件事：\n" +
+			"1. 用不超过50个字的简练句子概括核心内容（若输入源文本少于50字，摘要直接等同于输入源文本）。\n" +
+			"2. 提取最具有分类意义的1-5个词语作为标签(Tags)，使用中英半角逗号分隔。\n\n" +
+			"你必须严格只输出以下格式的JSON内容，不允许有任何额外的Markdown包裹（譬如无需带有反引号的代码块标识）和闲聊句子：\n" +
+			`{"summary":"你的概括结论","tags":"标签1,标签2,标签3"}`
+	}
 
 	// 2. 组装符合 OpenAI 规范的请求体
 	payload := map[string]interface{}{

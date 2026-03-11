@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 
 	"note_all_backend/global"
@@ -614,3 +615,25 @@ func (a *NoteApi) RelatedNotes(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"data": items})
 }
+
+// ReprocessNote 手动触发对单条笔记重新提取（使用当前激活的AI模板）
+func (a *NoteApi) ReprocessNote(c *gin.Context) {
+	id := c.Param("id")
+	
+	templateIdStr := c.Query("template_id")
+	var templateId uint = 0
+	if templateIdStr != "" {
+		if idParsed, err := strconv.ParseUint(templateIdStr, 10, 32); err == nil {
+			templateId = uint(idParsed)
+		}
+	}
+
+	err := service.ReprocessNoteWithTemplate(id, templateId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "重新处理失败: " + err.Error()})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{"message": "已触发后台重新提炼分析"})
+}
+

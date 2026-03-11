@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Search, UploadCloud, BrainCircuit, X, Trash2, ArchiveRestore, Tag, PenLine, MessageSquare, History } from 'lucide-react';
 import { getTags, getChatSessions, deleteChatSession } from '../api/noteApi';
+import { Settings } from 'lucide-react';
 
 export default function Sidebar({
   showTrash,
@@ -18,7 +19,8 @@ export default function Sidebar({
   handleAskAI,
   loadChatSession,
   currentSessionId,
-  askLoading
+  askLoading,
+  setShowSettings
 }) {
   const [viewMode, setViewMode] = useState('notes'); // 'notes' | 'chats'
   const [chatSessions, setChatSessions] = useState([]);
@@ -166,6 +168,13 @@ export default function Sidebar({
                 </button>
               </>
             )}
+            <button
+              onClick={() => setShowSettings(true)}
+              className="flex items-center justify-center p-2 rounded-full border bg-white/5 text-silverText/70 border-white/10 hover:bg-white/10 hover:text-white transition-all duration-300"
+              title="设置 / AI 模板"
+            >
+              <Settings size={16} />
+            </button>
             <button
               onClick={() => {
                 setShowTrash(!showTrash);

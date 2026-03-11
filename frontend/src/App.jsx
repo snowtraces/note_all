@@ -9,6 +9,7 @@ import Detail from './components/Detail';
 import EmptyState from './components/EmptyState';
 import Lightbox from './components/Lightbox';
 import MarkdownRenderer from './components/MarkdownRenderer';
+import SettingsModal from './components/SettingsModal';
 
 function App() {
   const [query, setQuery] = useState('');
@@ -18,6 +19,7 @@ function App() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [showTrash, setShowTrash] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
   
   // 灵感碰撞缓存状态
   const [serendipityData, setSerendipityData] = useState(null);
@@ -36,7 +38,20 @@ function App() {
     query,
     results,
     enabled: !showTrash,
-    onChanged: (fresh) => setResults(fresh),
+    onChanged: (fresh) => {
+      setResults(fresh);
+      setSelectedItem(prev => {
+        if (!prev) return prev;
+        const updated = fresh.find(item => item.id === prev.id);
+        // 如果能找到更新项，且有发生实质的字段变化（简单比较一下 ai_summary/ai_tags 即可，或者直接全部覆盖），就同步更新
+        if (updated) {
+          // 只在关键字段发发生变化时更新，避免无谓的重渲染破坏输入状态，或者如果内容确实变化了直接返回 updated。
+          // 安全起见，只要有 updated，就用更新的值合并进去，确保状态和详情一致。
+          return { ...prev, ...updated };
+        }
+        return prev;
+      });
+    },
     interval: 5000,
   });
 
@@ -226,6 +241,7 @@ function App() {
         loadChatSession={loadChatSession}
         currentSessionId={currentSessionId}
         askLoading={askLoading}
+        setShowSettings={setShowSettings}
       />
 
       {/* 右侧面板 */}
@@ -364,6 +380,7 @@ function App() {
       </div>
 
       <Lightbox src={previewImage} onClose={() => setPreviewImage(null)} />
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   );
 }
