@@ -218,16 +218,54 @@
         const style = window.getComputedStyle(orig);
         const isPre = style && (style.whiteSpace.includes('pre') || style.whiteSpace.includes('break-spaces'));
         
+        let clnIndex = 0;
         for (let i = 0; i < orig.childNodes.length; i++) {
           const oChild = orig.childNodes[i];
-          const cChild = cln.childNodes[i];
-          if (!cChild) continue;
+          const cChild = cln.childNodes[clnIndex];
+          if (!cChild) break;
 
-          if (oChild.nodeType === 3 && isPre) { // Text node in pre-wrap
-            cChild.nodeValue = cChild.nodeValue.replace(/\n/g, BR_MARKER);
+          if (oChild.nodeType === 3) {
+            if (isPre) {
+              cChild.nodeValue = cChild.nodeValue.replace(/\n/g, BR_MARKER);
+            }
           } else if (oChild.nodeType === 1) {
-            processPreWrap(oChild, cChild);
+            let nextCChild = cChild;
+            const cStyle = window.getComputedStyle(oChild);
+            let isInline = false;
+            let isFlexRowChild = false;
+            
+            if (cStyle) {
+              const display = cStyle.display;
+              if (display === 'inline' || display === 'inline-block' || display === 'inline-flex') {
+                isInline = true;
+              } 
+              if (style && (style.display === 'flex' || style.display === 'inline-flex') && style.flexDirection.includes('row')) {
+                isInline = true;
+                isFlexRowChild = true;
+              }
+            }
+            
+            // 将 block 元素伪装成 span，让 Turndown 认为它是内联元素
+            if (isInline) {
+              const blockTags = ['DIV', 'P', 'LI', 'UL', 'OL', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'ARTICLE', 'SECTION', 'ASIDE', 'NAV', 'HEADER', 'FOOTER'];
+              if (blockTags.includes(cChild.nodeName)) {
+                const span = document.createElement('span');
+                Array.from(cChild.attributes).forEach(attr => span.setAttribute(attr.name, attr.value));
+                while(cChild.firstChild) span.appendChild(cChild.firstChild);
+                cChild.parentNode.replaceChild(span, cChild);
+                nextCChild = span;
+              }
+            }
+            
+            processPreWrap(oChild, nextCChild);
+            
+            // 为 flex row 子元素之间增加一个空格，防止文本挤在一起
+            if (isFlexRowChild && i < orig.childNodes.length - 1) {
+              nextCChild.parentNode.insertBefore(document.createTextNode(' '), nextCChild.nextSibling);
+              clnIndex++;
+            }
           }
+          clnIndex++;
         }
       }
     };
