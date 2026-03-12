@@ -208,7 +208,17 @@
       }
     });
 
-    // 4. 核心机制：使用标记策略保留 pre-wrap 中的文本换行
+    // 4. 强制将所有 <pre> 转换为 fenced 代码块（解决有些 pre 块没用 ``` 包裹的问题）
+    turndownService.addRule('fencedCodeBlock', {
+      filter: 'pre',
+      replacement: function (content) {
+        // 如果已经是代码块格式了，就不要重复包装
+        if (content.trim().startsWith('```')) return '\n\n' + content.trim() + '\n\n';
+        return '\n\n```\n' + content.trim() + '\n```\n\n';
+      }
+    });
+
+    // 5. 核心机制：使用标记策略保留 pre-wrap 中的文本换行
     // 这种方法可以绕过 Turndown 内部对文本节点空白符的强制压缩
     const BR_MARKER = '---NOTEBR---';
     const clone = element.cloneNode(true);
@@ -226,6 +236,7 @@
 
           if (oChild.nodeType === 3) {
             if (isPre) {
+              // 无论是否在代码块中，只要是 pre-wrap 样式，都使用标记保留换行
               cChild.nodeValue = cChild.nodeValue.replace(/\n/g, BR_MARKER);
             }
           } else if (oChild.nodeType === 1) {
@@ -281,14 +292,13 @@
 
     // 5. 执行转换并还原标记
     let markdown = turndownService.turndown(clone);
-    // 将标记替换为 Markdown 硬换行
-    markdown = markdown.replace(new RegExp(BR_MARKER, 'g'), '  \n');
+    // 将标记替换为换行符
+    // 注意：在代码块外，Markdown 通常需要两个空格+换行来表示硬换行，
+    // 但在代码块内，简单的 \n 即可。为了兼容性，我们统一先换回 \n。
+    markdown = markdown.replace(new RegExp(BR_MARKER, 'g'), '\n');
 
-    // 6. 修复转义不一致问题
-    // Turndown 会转义文本开头的特殊字符（如 - 变成 \-），但由于我们用了 BR_MARKER，
-    // 只有文本真正的开头被转义了，后续行因未被识别为“开头”而没有转义。
-    // 我们在此统一还原这些转义，使摘录内容保持原始的视觉样式。
-    return markdown.replace(/\\([-\*\+\#\>\!])/g, '$1');
+    // 6. 修复转义问题：还原被 Turndown 自动转义的常用字符，确保代码块和正文中的视觉一致性
+    return markdown.replace(/\\([-\*\+\#\>\!\_\[\]\(\)\`\.])/g, '$1');
   }
 
   sendButton.addEventListener('click', (e) => {
