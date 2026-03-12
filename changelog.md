@@ -3,7 +3,7 @@
 ## [Unreleased]
 
 ### Added
-- **ROADMAP (研发路线图)**: 完成新一轮竞品分析（参考 Readwise, Mem.ai 等），规划了语音录入、RSS 订阅、知识图谱及自定义 Prompt 等 Phase 5-8 新功能。
+- **ROADMAP (研发路线图)**: 完成新一轮竞品分析（参考 Readwise, Mem.ai, Heptabase 等），规划并补充了语音录入、RSS 订阅、知识图谱、自定义 Prompt 以及新增的 **视觉思考白板 (Canvas)**、**AI 主动反射 (Reflection)** 与 **多维动态视图 (Views)** 等 Phase 5-11 核心功能路径。
 - **Browser Extension (浏览器剪藏扩展)**: 新增 Chrome/Edge 浏览器扩展，补全 PC 工作流中网页信息抓取的最后一环。支持以下三种采集模式：
   - `Popup 弹窗快捷输入`：点击扩展图标即可快速录入文本或粘贴当前页面链接。
   - `划词右键剪藏`：选中网页文本后通过右键菜单一键剪藏至 Note All，保留原始 URL 溯源。
