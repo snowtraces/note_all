@@ -1,6 +1,10 @@
 # Changelog
 
 ## [Unreleased]
+### Removed
+- **Android Client**: 彻底砍掉语音识别功能。移除了主界面底部的语音录入中心悬浮按钮，并将 “Ai Chat” 与 “新增” 按钮重新布局为双按钮平衡布局。
+- **Android Client**: 清理了不再使用的麦克风图标、圆角形状及相关的 Toast 提示逻辑，保持代码库整洁。
+- **Backend**: 经核查后端已确认清理 ASR 相关逻辑，系统回归轻量化设计。
 
 ### Added
 - **ROADMAP (研发路线图)**: 完成新一轮竞品分析（参考 Readwise, Mem.ai, Heptabase 等），规划并补充了语音录入、RSS 订阅、知识图谱、自定义 Prompt 以及新增的 **视觉思考白板 (Canvas)**、**AI 主动反射 (Reflection)** 与 **多维动态视图 (Views)** 等 Phase 5-11 核心功能路径。

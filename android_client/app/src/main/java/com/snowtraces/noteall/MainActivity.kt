@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -43,6 +44,7 @@ import com.snowtraces.noteall.model.AppView
 import com.snowtraces.noteall.network.NoteItem
 import com.snowtraces.noteall.ui.components.AddNoteDialog
 import com.snowtraces.noteall.ui.components.NoteCard
+import com.snowtraces.noteall.ui.components.FloatingBottomBar
 import com.snowtraces.noteall.ui.screens.DetailScreen
 import com.snowtraces.noteall.viewmodel.ChatViewModel
 import com.snowtraces.noteall.ui.screens.ChatScreen
@@ -105,6 +107,8 @@ fun MainApp() {
     var noteToHardDelete by remember { mutableStateOf<NoteItem?>(null) }
     var activeSwipeNoteId by remember { mutableStateOf<Int?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
+
+
 
     LaunchedEffect(Unit) {
         val savedBaseUrl = configManager.baseUrlFlow.first()
@@ -334,18 +338,20 @@ fun MainApp() {
                 },
                 floatingActionButton = {
                     if (viewModel.currentView == AppView.Home) {
-                        FloatingActionButton(onClick = { 
-                            if (viewModel.baseUrl.isNotEmpty()) {
-                                showAddNoteDialog = true 
-                            } else {
-                                Toast.makeText(context, "请先在设置中配置后端地址", Toast.LENGTH_SHORT).show()
-                                showSettings = true
+                        FloatingBottomBar(
+                            onChatClick = { viewModel.setView(AppView.ChatSessions) },
+                            onAddClick = {
+                                if (viewModel.baseUrl.isNotEmpty()) {
+                                    showAddNoteDialog = true 
+                                } else {
+                                    Toast.makeText(context, "请先在设置中配置后端地址", Toast.LENGTH_SHORT).show()
+                                    showSettings = true
+                                }
                             }
-                        }) {
-                            Icon(Icons.Default.Add, contentDescription = "Add")
-                        }
+                        )
                     }
                 },
+                floatingActionButtonPosition = FabPosition.Center,
                 snackbarHost = { SnackbarHost(snackbarHostState) }
             ) { padding ->
             Box(modifier = Modifier.padding(padding).fillMaxSize().pullRefresh(pullRefreshState)) {
@@ -519,6 +525,7 @@ fun MainApp() {
                         }
                     }
                 }
+
             }
         }
             
@@ -655,10 +662,12 @@ fun MainApp() {
                     }
                 )
             }
+
             }
         }
     }
 }
+
 
 
 // Repository and ViewModel fetching functions moved to separate files
