@@ -9,6 +9,8 @@ import Detail from './components/Detail';
 import EmptyState from './components/EmptyState';
 import Lightbox from './components/Lightbox';
 import MarkdownRenderer from './components/MarkdownRenderer';
+import SettingsModal from './components/SettingsModal';
+import GraphView from './components/GraphView';
 
 function App() {
   const [query, setQuery] = useState('');
@@ -18,10 +20,18 @@ function App() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [showTrash, setShowTrash] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  
+  // Persist graph data to avoid re-fetching
+  const [cachedGraphData, setCachedGraphData] = useState(null);
+
+  // 灵感碰撞缓存状态
+  const [serendipityData, setSerendipityData] = useState(null);
 
   const [chatHistory, setChatHistory] = useState([]); // [{role: 'user', content: ''}, {role: 'assistant', content: ''}]
   const [currentSessionId, setCurrentSessionId] = useState(0);
   const [askLoading, setAskLoading] = useState(false);
+  const [viewMode, setViewMode] = useState('notes'); // App level viewMode to show Graph full screen
   const chatEndRef = useRef(null);
 
   useEffect(() => {
@@ -33,7 +43,20 @@ function App() {
     query,
     results,
     enabled: !showTrash,
-    onChanged: (fresh) => setResults(fresh),
+    onChanged: (fresh) => {
+      setResults(fresh);
+      setSelectedItem(prev => {
+        if (!prev) return prev;
+        const updated = fresh.find(item => item.id === prev.id);
+        // 如果能找到更新项，且有发生实质的字段变化（简单比较一下 ai_summary/ai_tags 即可，或者直接全部覆盖），就同步更新
+        if (updated) {
+          // 只在关键字段发发生变化时更新，避免无谓的重渲染破坏输入状态，或者如果内容确实变化了直接返回 updated。
+          // 安全起见，只要有 updated，就用更新的值合并进去，确保状态和详情一致。
+          return { ...prev, ...updated };
+        }
+        return prev;
+      });
+    },
     interval: 5000,
   });
 
@@ -48,6 +71,7 @@ function App() {
     setSelectedItem(null);
     setChatHistory([]);
     setCurrentSessionId(0);
+    setViewMode('notes');
   }, [showTrash]);
 
   // 全局键盘事件监听
@@ -92,6 +116,7 @@ function App() {
   const executeAskAI = async (q) => {
     if (!q.trim()) return;
     setSelectedItem(null);
+    setViewMode('chats');
 
     // 构建新的历史记录
     const newUserMsg = { role: 'user', content: q };
@@ -114,10 +139,12 @@ function App() {
     if (!id) {
       setChatHistory([]);
       setCurrentSessionId(0);
+      setViewMode('notes');
       return;
     }
     setLoading(true);
     setSelectedItem(null);
+    setViewMode('chats');
     try {
       const messages = await getChatMessages(id);
       setChatHistory(messages.map(m => ({ role: m.role, content: m.content, references: m.references })));
@@ -207,6 +234,8 @@ function App() {
   return (
     <div className="h-screen w-full flex bg-[#0a0a0a] text-white overflow-hidden font-sans">
       <Sidebar
+        viewMode={viewMode}
+        setViewMode={setViewMode}
         showTrash={showTrash}
         setShowTrash={setShowTrash}
         query={query}
@@ -223,141 +252,165 @@ function App() {
         loadChatSession={loadChatSession}
         currentSessionId={currentSessionId}
         askLoading={askLoading}
+        setShowSettings={setShowSettings}
       />
 
       {/* 右侧面板 */}
       <div className="flex-1 flex flex-col bg-[#050505] relative overflow-hidden">
-        {selectedItem ? (
-          <Detail
-            item={selectedItem}
-            showTrash={showTrash}
-            handleRestore={handleRestore}
-            handleDelete={handleDelete}
-            setSelectedItem={setSelectedItem}
-            setPreviewImage={setPreviewImage}
-            handleUpdateText={handleUpdateText}
-          />
-        ) : (chatHistory.length > 0) ? (
-          <div className="w-full h-full flex flex-col bg-[#080808]">
-            {/* 顶栏 */}
-            <div className="flex items-center justify-between px-10 py-5 border-b border-white/5 bg-[#080808]/80 backdrop-blur shrink-0 z-20">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-primeAccent/20 flex items-center justify-center border border-primeAccent/30 shadow-[0_0_10px_rgba(255,215,0,0.1)]">
-                  <span className="text-sm">🤖</span>
-                </div>
-                <h2 className="text-lg font-light tracking-widest text-primeAccent/90 uppercase">Insight Engine</h2>
-              </div>
-              <button
-                onClick={() => {
-                  setChatHistory([]);
-                  setCurrentSessionId(0);
-                }}
-                className="text-[11px] font-mono text-silverText/40 hover:text-white transition-colors"
-              >
-                CLOSE SESSION [ESC]
-              </button>
-            </div>
+        {selectedItem && (
+          <div className="absolute inset-0 z-50 bg-[#050505]">
+            <Detail
+              item={selectedItem}
+              showTrash={showTrash}
+              handleRestore={handleRestore}
+              handleDelete={handleDelete}
+              setSelectedItem={setSelectedItem}
+              setPreviewImage={setPreviewImage}
+              handleUpdateText={handleUpdateText}
+            />
+          </div>
+        )}
 
-            {/* 对话流 */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-10">
-              <div className="max-w-3xl mx-auto flex flex-col gap-10">
-                {chatHistory.map((chat, idx) => (
-                  <div key={idx} className={`flex flex-col ${chat.role === 'user' ? 'items-end' : 'items-start'}`}>
-                    <div className={`rounded-2xl px-4 leading-relaxed text-[14px] shadow-sm ${chat.role === 'user'
-                      ? 'bg-primeAccent/10 border border-primeAccent/20 text-white/90 rounded-tr-none min-w-[20px] max-w-[80%]'
-                      : 'bg-white/[0.03] border border-white/5 text-silverText/90 rounded-tl-none max-w-[90%]'
-                      }`}>
-                      <MarkdownRenderer content={chat.content} />
+        {/* Global Graph Layer - Hidden or Shown based on viewMode to prevent Re-layout/Redraw */}
+        <div className={`absolute inset-0 transition-opacity duration-300 ${viewMode === 'graph' && !selectedItem ? 'z-40 opacity-100 pointer-events-auto' : '-z-10 opacity-0 pointer-events-none'}`}>
+           <GraphView 
+              active={viewMode === 'graph' && !selectedItem}
+              onNodeClick={setSelectedItem} 
+              onClose={() => setViewMode('notes')} 
+              data={cachedGraphData}
+              onDataLoad={setCachedGraphData}
+           />
+        </div>
 
-                      {chat.references && chat.references.length > 0 && (
-                        <div className="mt-6 pt-4 border-t border-white/5">
-                          <div className="flex items-center gap-1.5 text-[10px] text-silverText/30 uppercase font-mono mb-3 tracking-widest">
-                            <BookOpen size={10} /> 智能引证
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            {chat.references.map(ref => (
-                              <div
-                                key={ref.id}
-                                onClick={() => setSelectedItem(ref)}
-                                className="flex items-center gap-3 p-2 rounded-lg bg-white/[0.02] border border-white/5 hover:bg-white/5 hover:border-primeAccent/20 transition-all cursor-pointer"
-                              >
-                                {ref.file_type?.includes('image') ? (
-                                  <div className="w-10 h-10 rounded border border-white/10 overflow-hidden shrink-0 bg-black/40">
-                                    <img src={`/api/file/${ref.storage_id}`} className="w-full h-full object-cover" alt="" />
-                                  </div>
-                                ) : (
-                                  <div className="w-10 h-10 rounded border border-white/10 flex items-center justify-center shrink-0 bg-white/5 text-white/20">
-                                    <BookOpen size={14} />
-                                  </div>
-                                )}
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center justify-between gap-2 mb-1">
-                                    <div className="flex flex-wrap gap-1 max-h-[16px] overflow-hidden">
-                                      {(ref.ai_tags || "").split(',').slice(0, 2).map((t, i) => t.trim() && (
-                                        <span key={i} className="text-[9px] bg-primeAccent/10 text-primeAccent/70 px-1 rounded">#{t.trim()}</span>
-                                      ))}
-                                    </div>
-                                    <span className="text-[9px] text-silverText/20 font-mono shrink-0">
-                                      {new Date(ref.created_at).toLocaleDateString('zh-CN', {month:'2-digit', day:'2-digit'})}
-                                    </span>
-                                  </div>
-                                  <div className="text-[11px] text-white/70 leading-snug line-clamp-2">{ref.ai_summary || '碎片内容细节...'}</div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+        {!selectedItem && viewMode !== 'graph' && (
+          chatHistory.length > 0 && viewMode === 'chats' ? (
+            <div className="w-full h-full flex flex-col bg-[#080808]">
+              {/* 顶栏 */}
+              <div className="flex items-center justify-between px-10 py-5 border-b border-white/5 bg-[#080808]/80 backdrop-blur shrink-0 z-20">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primeAccent/20 flex items-center justify-center border border-primeAccent/30 shadow-[0_0_10px_rgba(255,215,0,0.1)]">
+                    <span className="text-sm">🤖</span>
                   </div>
-                ))}
+                  <h2 className="text-lg tracking-widest text-primeAccent/90 uppercase">Insight Engine</h2>
+                </div>
+                <button
+                  onClick={() => {
+                    setChatHistory([]);
+                    setCurrentSessionId(0);
+                  }}
+                  className="text-[11px] font-mono text-silverText/40 hover:text-white transition-colors"
+                >
+                  CLOSE SESSION [ESC]
+                </button>
+              </div>
 
-                {askLoading && (
-                  <div className="flex items-start">
-                    <div className="bg-white/[0.02] border border-white/5 rounded-2xl rounded-tl-none px-6 py-4 animate-pulse">
-                      <div className="flex gap-1.5 items-center">
-                        <div className="w-1.5 h-1.5 rounded-full bg-primeAccent/40"></div>
-                        <div className="w-1.5 h-1.5 rounded-full bg-primeAccent/40"></div>
-                        <div className="w-1.5 h-1.5 rounded-full bg-primeAccent/40"></div>
+              {/* 对话流 */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-10">
+                <div className="max-w-3xl mx-auto flex flex-col gap-10">
+                  {chatHistory.map((chat, idx) => (
+                    <div key={idx} className={`flex flex-col ${chat.role === 'user' ? 'items-end' : 'items-start'}`}>
+                      <div className={`rounded-2xl px-4 leading-relaxed text-[14px] shadow-sm ${chat.role === 'user'
+                        ? 'bg-primeAccent/10 border border-primeAccent/20 text-white/90 rounded-tr-none min-w-[20px] max-w-[80%]'
+                        : 'bg-white/[0.03] border border-white/5 text-silverText/90 rounded-tl-none max-w-[90%]'
+                        }`}>
+                        <MarkdownRenderer content={chat.content} />
+
+                        {chat.references && chat.references.length > 0 && (
+                          <div className="mt-6 pt-4 border-t border-white/5">
+                            <div className="flex items-center gap-1.5 text-[10px] text-silverText/30 uppercase font-mono mb-3 tracking-widest">
+                              <BookOpen size={10} /> 智能引证
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              {chat.references.map(ref => (
+                                <div
+                                  key={ref.id}
+                                  onClick={() => setSelectedItem(ref)}
+                                  className="flex items-center gap-3 p-2 rounded-lg bg-white/[0.02] border border-white/5 hover:bg-white/5 hover:border-primeAccent/20 transition-all cursor-pointer"
+                                >
+                                  {ref.file_type?.includes('image') ? (
+                                    <div className="w-10 h-10 rounded border border-white/10 overflow-hidden shrink-0 bg-black/40">
+                                      <img src={`/api/file/${ref.storage_id}`} className="w-full h-full object-cover" alt="" />
+                                    </div>
+                                  ) : (
+                                    <div className="w-10 h-10 rounded border border-white/10 flex items-center justify-center shrink-0 bg-white/5 text-white/20">
+                                      <BookOpen size={14} />
+                                    </div>
+                                  )}
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between gap-2 mb-1">
+                                      <div className="flex flex-wrap gap-1 max-h-[16px] overflow-hidden">
+                                        {(ref.ai_tags || "").split(',').slice(0, 2).map((t, i) => t.trim() && (
+                                          <span key={i} className="text-[9px] bg-primeAccent/10 text-primeAccent/70 px-1 rounded">#{t.trim()}</span>
+                                        ))}
+                                      </div>
+                                      <span className="text-[9px] text-silverText/20 font-mono shrink-0">
+                                        {new Date(ref.created_at).toLocaleDateString('zh-CN', {month:'2-digit', day:'2-digit'})}
+                                      </span>
+                                    </div>
+                                    <div className="text-[11px] text-white/70 leading-snug line-clamp-2">{ref.ai_summary || '碎片内容细节...'}</div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
-                )}
-                <div ref={chatEndRef} />
-              </div>
-            </div>
+                  ))}
 
-            {/* 底部追问输入框 */}
-            <div className="p-8 pb-12 shrink-0 bg-gradient-to-t from-[#080808] via-[#080808] to-transparent">
-              <div className="max-w-3xl mx-auto relative">
-                <input
-                  type="text"
-                  placeholder="继续追问 AI..."
-                  disabled={askLoading}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && e.target.value.trim()) {
-                      executeAskAI(e.target.value.trim());
-                      e.target.value = '';
-                    }
-                  }}
-                  className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-6 py-4 text-sm text-white/90 placeholder-white/20 focus:outline-none focus:border-primeAccent/50 focus:bg-white/[0.05] transition-all"
-                />
+                  {askLoading && (
+                    <div className="flex items-start">
+                      <div className="bg-white/[0.02] border border-white/5 rounded-2xl rounded-tl-none px-6 py-4 animate-pulse">
+                        <div className="flex gap-1.5 items-center">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primeAccent/40"></div>
+                          <div className="w-1.5 h-1.5 rounded-full bg-primeAccent/40"></div>
+                          <div className="w-1.5 h-1.5 rounded-full bg-primeAccent/40"></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+              </div>
+
+              {/* 底部追问输入框 */}
+              <div className="p-8 pb-12 shrink-0 bg-gradient-to-t from-[#080808] via-[#080808] to-transparent">
+                <div className="max-w-3xl mx-auto relative">
+                  <input
+                    type="text"
+                    placeholder="继续追问 AI..."
+                    disabled={askLoading}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && e.target.value.trim()) {
+                        executeAskAI(e.target.value.trim());
+                        e.target.value = '';
+                      }
+                    }}
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-6 py-4 text-sm text-white/90 placeholder-white/20 focus:outline-none focus:border-primeAccent/50 focus:bg-white/[0.05] transition-all"
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        ) : (
-          <EmptyState
-            onTagClick={(tag) => {
-              const q = `#${tag}`;
-              setQuery(q);
-              executeSearch(q);
-            }}
-            onAsk={executeAskAI}
-          />
+          ) : (
+            <EmptyState
+              onTagClick={(tag) => {
+                const q = `#${tag}`;
+                setQuery(q);
+                executeSearch(q);
+              }}
+              onAsk={executeAskAI}
+              onItemClick={setSelectedItem}
+              serendipityData={serendipityData}
+              setSerendipityData={setSerendipityData}
+              setViewMode={setViewMode}
+              setShowSettings={setShowSettings}
+            />
+          )
         )}
       </div>
 
       <Lightbox src={previewImage} onClose={() => setPreviewImage(null)} />
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   );
 }

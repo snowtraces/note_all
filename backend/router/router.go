@@ -11,6 +11,17 @@ import (
 // SetupRouter 组装与注册系统所有 API 路由
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
+	// CORS 中间件
+	r.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PATCH")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+		c.Next()
+	})
 
 	// 心跳检测接口
 	r.GET("/ping", func(c *gin.Context) {
@@ -19,6 +30,7 @@ func SetupRouter() *gin.Engine {
 
 	apiGroup := r.Group("/api")
 	noteApi := new(api.NoteApi)
+	templateApi := new(api.TemplateApi)
 
 	{
 		// 1. 上传文件生成新解析工单
@@ -50,6 +62,25 @@ func SetupRouter() *gin.Engine {
 		apiGroup.GET("/chat/sessions", noteApi.ListChatSessions)
 		apiGroup.GET("/chat/session/:id", noteApi.GetChatMessages)
 		apiGroup.DELETE("/chat/session/:id", noteApi.DeleteChatSession)
+
+		// 7. 灵感与拼图 (Phase 3)
+		apiGroup.GET("/serendipity", noteApi.Serendipity)
+
+		// 8. 相关灵感关联 (Phase 4)
+		apiGroup.GET("/note/:id/related", noteApi.RelatedNotes)
+
+		// 9. 重新用 AI 处理 (使用当前激活模板)
+		apiGroup.POST("/note/:id/reprocess", noteApi.ReprocessNote)
+
+		// 9.5 知识图谱数据
+		apiGroup.GET("/graph", noteApi.GetGraph)
+
+		// 10. AI 处理模板管理
+		apiGroup.GET("/templates", templateApi.List)
+		apiGroup.POST("/templates", templateApi.Create)
+		apiGroup.PUT("/templates/:id", templateApi.Update)
+		apiGroup.DELETE("/templates/:id", templateApi.Delete)
+		apiGroup.POST("/templates/:id/active", templateApi.SetActive)
 	}
 
 	return r

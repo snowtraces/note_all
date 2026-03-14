@@ -14,7 +14,7 @@ module.exports = {
         silverText: '#c5c6c7',    // 白银字符，防刺眼
       },
       fontFamily: {
-        sans: ['"Inter"', 'system-ui', 'sans-serif'], // 理工科极简美学排版
+        sans: ['"Inter"', 'system-ui', '"PingFang SC"', '"Microsoft YaHei"', 'sans-serif'], // 理工科极简美学排版
       },
     },
   },

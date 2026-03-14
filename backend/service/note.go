@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -33,6 +34,35 @@ func syncTags(nID uint, tags string) {
 	}
 	if len(tagRecords) > 0 {
 		global.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&tagRecords)
+	}
+}
+
+var linkRegex = regexp.MustCompile(`\[\[([^\]|]+)(\|[^\]]+)?\]\]`)
+
+// syncLinks 提取并同步 Markdown 内部双向链接 [[NoteName]]
+func syncLinks(nID uint, text string) {
+	global.DB.Where("source_id = ?", nID).Delete(&models.NoteLink{})
+	if text == "" {
+		return
+	}
+	matches := linkRegex.FindAllStringSubmatch(text, -1)
+	
+	targetSet := make(map[string]bool)
+	var linkRecords []models.NoteLink
+	for _, match := range matches {
+		if len(match) > 1 {
+			target := strings.TrimSpace(match[1])
+			if target != "" && !targetSet[target] {
+				linkRecords = append(linkRecords, models.NoteLink{
+					SourceID: nID,
+					Target:   target,
+				})
+				targetSet[target] = true
+			}
+		}
+	}
+	if len(linkRecords) > 0 {
+		global.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&linkRecords)
 	}
 }
 
@@ -99,13 +129,48 @@ func UploadAndCreateNote(file *multipart.FileHeader) (*models.NoteItem, error) {
 			return
 		}
 
-		// 5.3 唤起百度千帆 AI（文心大模型 ERNIE）进行“提炼归纳”与“提取标签”
-		summary, tags, err := pkg.ExtractSummaryAndTags(markdownText)
-		if err != nil {
-			log.Printf("[大模型提炼失败降级] 记录ID %d: %v", nID, err)
-			// 模型调用不顺畅时不应阻塞整交流，降级退守 ocred 原文本记录
-			summary = markdownText // 原文兜底
-			tags = "ai-fail"
+		validText := strings.TrimSpace(markdownText)
+
+		// 5.2.5 [新功能优化] 图片尝试OCR，如果未返回实质内容再进行多模态理解（VLM 兜底）
+		vlmTriggered := false
+		vlmSummary := ""
+		vlmTags := ""
+		vlmDescription := ""
+
+		if strings.HasPrefix(note.FileType, "image/") && validText == "" {
+			desc, summaryStr, tagsStr, vlmErr := pkg.DescribeImageVlm(fileBlob, note.FileType)
+			if vlmErr == nil && desc != "" {
+				vlmDescription = desc
+				vlmSummary = summaryStr
+				vlmTags = tagsStr
+				vlmTriggered = true
+				log.Printf("[OCR内容为空] 触发VLM识别兜底成功, 记录ID %d: 图片视觉描述、摘要及标签已同步生成", nID)
+			} else {
+				log.Printf("[VLM 识别失败] 记录ID %d: %v", nID, vlmErr)
+			}
+		}
+
+		// 5.3 唤起大模型进行“提炼归纳”与“提取标签”
+		summary := ""
+		tags := ""
+
+		if vlmTriggered {
+			// 直接使用 VLM 一并生成的描述、摘要和标签，免去二次调用 LLM
+			markdownText = vlmDescription
+			summary = vlmSummary
+			tags = vlmTags
+		} else {
+			activeTpl, _ := models.GetActiveTemplate(global.DB)
+			llmInput := markdownText
+			summaryStr, tagsStr, err := pkg.ExtractSummaryAndTags(llmInput, activeTpl.SystemPrompt)
+			if err != nil {
+				log.Printf("[大模型提炼失败降级] 记录ID %d: %v", nID, err)
+				summary = llmInput // 原文兜底
+				tags = "ai-fail"
+			} else {
+				summary = summaryStr
+				tags = tagsStr
+			}
 		}
 
 		// 5.4 数据最终态更新
@@ -116,8 +181,9 @@ func UploadAndCreateNote(file *multipart.FileHeader) (*models.NoteItem, error) {
 			"status":     "analyzed",
 		})
 
-		// 5.5 同步写入标签关联表
+		// 5.5 同步写入标签关联表和双向链接图关联
 		syncTags(nID, tags)
+		syncLinks(nID, markdownText)
 
 		log.Printf("[后台作业总链完成] 记录ID %d: PaddleOCR 与 文心大模型 融合全链路结束！提取精简摘要 [%s]...", nID, summary)
 	}
@@ -224,7 +290,8 @@ func CreateNoteFromText(text string) (*models.NoteItem, error) {
 			llmInput = string([]rune(llmInput)[:10000]) + "..."
 		}
 
-		summary, tags, err := pkg.ExtractSummaryAndTags(llmInput)
+		activeTpl, _ := models.GetActiveTemplate(global.DB)
+		summary, tags, err := pkg.ExtractSummaryAndTags(llmInput, activeTpl.SystemPrompt)
 		if err != nil {
 			log.Printf("[大模型提炼失败降级] 记录ID %d: %v", nID, err)
 			summary = llmInput
@@ -243,6 +310,7 @@ func CreateNoteFromText(text string) (*models.NoteItem, error) {
 		})
 
 		syncTags(nID, tags)
+		syncLinks(nID, rawText)
 
 		log.Printf("%s 记录ID %d: 提取精简摘要 [%s]...", prefix, nID, summary)
 	}
@@ -267,7 +335,8 @@ func UpdateNoteText(id string, text string) error {
 	global.WorkerChan <- func() {
 		log.Printf("[重新提炼作业] 开始为数据包 (ID:%s) 唤起 LLM 更新提炼...\n", itemID)
 
-		summary, tags, err := pkg.ExtractSummaryAndTags(rawText)
+		activeTpl, _ := models.GetActiveTemplate(global.DB)
+		summary, tags, err := pkg.ExtractSummaryAndTags(rawText, activeTpl.SystemPrompt)
 		if err != nil {
 			log.Printf("[重新提炼大模型失败降级] 记录ID %s: %v", itemID, err)
 			summary = rawText
@@ -284,10 +353,256 @@ func UpdateNoteText(id string, text string) error {
 		var noteItem models.NoteItem
 		if err := global.DB.Select("id").Where("id = ?", itemID).First(&noteItem).Error; err == nil {
 			syncTags(noteItem.ID, tags)
+			syncLinks(noteItem.ID, rawText)
 		}
 
 		log.Printf("[重新提炼作业完成] 记录ID %s: 提取新精简摘要 [%s]...", itemID, summary)
 	}
 
 	return nil
+}
+
+// GetSerendipityReview 随机抽取若干碎片进行灵感碰撞
+func GetSerendipityReview() (string, []models.NoteItem, error) {
+	var items []models.NoteItem
+	// SQLite 特有的随机排序写法: ORDER BY RANDOM()
+	err := global.DB.Where("status = ?", "analyzed").Order("RANDOM()").Limit(3).Find(&items).Error
+	if err != nil {
+		return "", nil, err
+	}
+
+	if len(items) < 2 {
+		return "库中笔记碎片太少（需至少 2 条已分析完成的碎片），暂时无法开启灵感碰撞。快去多录入一些信息并静待 AI 分析吧！", items, nil
+	}
+
+	// 组装 Context
+	var context strings.Builder
+	for i, item := range items {
+		context.WriteString(fmt.Sprintf("%d. 【%s】: %s\n", i+1, item.OriginalName, item.AiSummary))
+	}
+
+	prompt := "你是一个知识连接助理（灵感激发器）。以下是用户数据库中随机抽取的 3 条碎片概括：\n\n" +
+		context.String() + "\n" +
+		"请你做两件事：\n" +
+		"1. 撰写一段富有哲理性或灵感启发性的短文（约 80 字），将这三者以某种意想不到的角度串联在一起，帮用户开启思维火花。\n" +
+		"2. 别太啰嗦，直接进入正题。\n\n" +
+		"请用温暖、理性的语感创作。"
+
+	// 调用大模型 (复用 AskAI 核心逻辑，传空消息数组表明只传 System/User 复合 Prompt)
+	answer, err := pkg.AskAIWithContext([]map[string]string{
+		{"role": "user", "content": prompt},
+	}, "")
+	if err != nil {
+		return "", items, err
+	}
+
+	return answer, items, nil
+}
+
+// GetRelatedNotes 根据当前笔记的标签，自动寻找相似的关联笔记
+func GetRelatedNotes(id uint) ([]models.NoteItem, error) {
+	var currentNote models.NoteItem
+	if err := global.DB.Preload("Tags").First(&currentNote, id).Error; err != nil {
+		return nil, err
+	}
+
+	if len(currentNote.Tags) == 0 {
+		return []models.NoteItem{}, nil
+	}
+
+	// 提取当前笔记的所有标签
+	tagNames := make([]string, len(currentNote.Tags))
+	for i, t := range currentNote.Tags {
+		tagNames[i] = t.Tag
+	}
+
+	var relatedItems []models.NoteItem
+	// 查询拥有相同标签的其他笔记（去重并在数据库层完成）
+	err := global.DB.Table("note_items").
+		Joins("JOIN note_tags ON note_tags.note_id = note_items.id").
+		Where("note_tags.tag IN ? AND note_items.id <> ?", tagNames, id).
+		Where("note_items.deleted_at IS NULL").
+		Group("note_items.id").
+		Order("COUNT(note_tags.tag) DESC, note_items.id DESC").
+		Limit(5).
+		Find(&relatedItems).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return relatedItems, nil
+}
+
+// ReprocessNoteWithTemplate 强制重新对给定的笔记ID执行AI处理（使用当前指定模板，如果如果未指定则使用激活模板）
+func ReprocessNoteWithTemplate(id string, templateId uint) error {
+	var note models.NoteItem
+	if err := global.DB.First(&note, id).Error; err != nil {
+		return err
+	}
+
+	// 先将状态标记为分析中
+	if err := global.DB.Model(&models.NoteItem{}).Where("id = ?", id).Update("status", "pending").Error; err != nil {
+		return err
+	}
+
+	global.WorkerChan <- func() {
+		log.Printf("[手动使用模板重新提炼] 开始处理记录 (ID:%d)...\n", note.ID)
+
+		var targetTpl models.PromptTemplate
+		if templateId > 0 {
+			global.DB.First(&targetTpl, templateId)
+		} else {
+			targetTpl, _ = models.GetActiveTemplate(global.DB)
+		}
+
+		rawText := note.OcrText
+
+		// 调用大模型
+		summary, tags, err := pkg.ExtractSummaryAndTags(rawText, targetTpl.SystemPrompt)
+		if err != nil {
+			log.Printf("[手动重新提炼失败] 记录ID %d: %v", note.ID, err)
+			summary = rawText
+			tags = "ai-fail"
+		}
+
+		// 更新记录
+		global.DB.Model(&models.NoteItem{}).Where("id = ?", note.ID).Updates(map[string]interface{}{
+			"ai_summary": summary,
+			"ai_tags":    tags,
+			"status":     "analyzed",
+		})
+
+		// 同步更新关联标签与双向链接图关联
+		syncTags(note.ID, tags)
+		syncLinks(note.ID, rawText)
+
+		log.Printf("[手动重新提炼完成] 记录ID %d, 使用模板: %s", note.ID, targetTpl.Name)
+	}
+
+	return nil
+}
+
+// GetKnowledgeGraph 吐出用于 react-force-graph-2d 渲染所需的 nodes 和 links，包含双链能力
+func GetKnowledgeGraph() (map[string]interface{}, error) {
+	// 1. 获取所有存在的 tags
+	type tagCount struct {
+		Tag   string
+		Count int
+	}
+	var tags []tagCount
+	if err := global.DB.Table("note_tags").
+		Select("note_tags.tag, COUNT(note_tags.tag) as count").
+		Joins("JOIN note_items ON note_items.id = note_tags.note_id").
+		Where("note_items.deleted_at IS NULL AND note_items.status = ?", "analyzed").
+		Group("note_tags.tag").
+		Having("count > 0").
+		Scan(&tags).Error; err != nil {
+		return nil, err
+	}
+
+	// 2. 查出所有有效笔记 (未被逻辑删除，分析过的)
+	var notes []models.NoteItem
+	if err := global.DB.
+		Where("status = ?", "analyzed").
+		Where("deleted_at IS NULL").
+		Find(&notes).Error; err != nil {
+		return nil, err
+	}
+
+	// 3. 查出这些笔记内的所有有效双链
+	var links []models.NoteLink
+	if err := global.DB.Joins("JOIN note_items ON note_items.id = note_links.source_id").
+		Where("note_items.deleted_at IS NULL AND note_items.status = ?", "analyzed").
+		Find(&links).Error; err != nil {
+		return nil, err
+	}
+
+	// 4. 构建图
+	nodeList := make([]map[string]interface{}, 0)
+	linkList := make([]map[string]interface{}, 0)
+
+	// 用于快速将标题映射到内部实体节点 ID
+	noteNameToId := make(map[string]string)
+	noteIdExists := make(map[string]bool)
+
+	// (a) 将已存在的 Note 实体写入 Nodes
+	for _, note := range notes {
+		nID := fmt.Sprintf("note_%d", note.ID)
+		nodeList = append(nodeList, map[string]interface{}{
+			"id":      nID,
+			"name":    note.OriginalName, // 在 Obsidian 中，文件名为笔记绝对名
+			"type":    "note",
+			"note_id": note.ID,
+			"summary": note.AiSummary,
+			"file_id": note.StorageID,
+			"mime":    note.FileType,
+		})
+		noteNameToId[note.OriginalName] = nID
+		noteIdExists[nID] = true
+	}
+
+	// (b) Tag 节点处理（并且给他们拉一条 link）
+	tagMap := make(map[string]bool)
+	for _, t := range tags {
+		tID := "tag_" + t.Tag
+		if !tagMap[t.Tag] {
+			nodeList = append(nodeList, map[string]interface{}{
+				"id":    tID,
+				"name":  t.Tag,
+				"type":  "tag",
+				"count": t.Count,
+			})
+			tagMap[t.Tag] = true
+		}
+	}
+	
+	for _, note := range notes {
+		nID := fmt.Sprintf("note_%d", note.ID)
+		noteKeys := strings.Split(note.AiTags, ",")
+		for _, tk := range noteKeys {
+			tk = strings.TrimSpace(tk)
+			if tk != "" && tagMap[tk] {
+				linkList = append(linkList, map[string]interface{}{
+					"source": nID,
+					"target": "tag_" + tk,
+					"type":   "tag",
+					"value":  1,
+				})
+			}
+		}
+	}
+
+	// (c) 双链边计算和 Ghost Nodes 拓展
+	ghostMap := make(map[string]bool)
+	for _, link := range links {
+		sourceID := fmt.Sprintf("note_%d", link.SourceID)
+		targetID := noteNameToId[link.Target]
+
+		// 目标没在现有 Note 中找见，只能建立为幽灵节点
+		if targetID == "" {
+			targetID = "ghost_" + link.Target
+			if !ghostMap[link.Target] {
+				nodeList = append(nodeList, map[string]interface{}{
+					"id":   targetID,
+					"name": link.Target, // 未建立的笔记名
+					"type": "ghost",
+					"count": 0,
+				})
+				ghostMap[link.Target] = true
+			}
+		}
+
+		linkList = append(linkList, map[string]interface{}{
+			"source": sourceID,
+			"target": targetID,
+			"type":   "link",
+			"value":  2, // Note 之间的引用比 Note->Tag 耦合更深
+		})
+	}
+
+	return map[string]interface{}{
+		"nodes": nodeList,
+		"links": linkList,
+	}, nil
 }

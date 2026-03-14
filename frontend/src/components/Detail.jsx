@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
-import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink, Link } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
+import { getRelatedNotes, reprocessNote } from '../api/noteApi';
+import { getTemplates } from '../api/templateApi';
+import { RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
 
 export default function Detail({
   item,
@@ -14,11 +17,44 @@ export default function Detail({
   const [isRawMode, setIsRawMode] = useState(false);
   const [editValue, setEditValue] = useState(item?.ocr_text || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [isReprocessing, setIsReprocessing] = useState(false);
+  const [relatedItems, setRelatedItems] = useState([]);
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [reprocessStatus, setReprocessStatus] = useState(null); // { type: 'success' | 'error', msg: string }
 
-  // 当外部 item 变化时，重新绑定 editValue
-  React.useEffect(() => {
+  // 当外部 item 变化时，重新绑定 editValue 和加载关联内容
+  useEffect(() => {
     setEditValue(item?.ocr_text || '');
+    setReprocessStatus(null);
+    if (item && item.id) {
+       loadRelated();
+    }
   }, [item]);
+
+  useEffect(() => {
+    loadTemplates();
+  }, []);
+
+  const loadTemplates = async () => {
+    try {
+      const data = await getTemplates();
+      setTemplates(data || []);
+      const active = data.find(t => t.is_active);
+      if (active) setSelectedTemplateId(active.id);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const loadRelated = async () => {
+    try {
+      const data = await getRelatedNotes(item.id);
+      setRelatedItems(data || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   if (!item) return null;
 
@@ -29,10 +65,26 @@ export default function Detail({
     setIsSaving(false);
   };
 
+  const handleReprocess = async () => {
+    if (!item) return;
+    setIsReprocessing(true);
+    setReprocessStatus(null);
+    try {
+      await reprocessNote(item.id, selectedTemplateId);
+      setReprocessStatus({ type: 'success', msg: '已触发处理，请稍候片刻等待 AI 更新...' });
+      setTimeout(() => setReprocessStatus(null), 5000);
+    } catch (e) {
+      console.error(e);
+      setReprocessStatus({ type: 'error', msg: '重新处理失败: ' + e.message });
+      setTimeout(() => setReprocessStatus(null), 5000);
+    }
+    setIsReprocessing(false);
+  };
+
   return (
     <div className="w-full h-full flex flex-col animate-in fade-in zoom-in-95 duration-300">
       {/* 顶栏控制 */}
-      <div className="flex items-center justify-between p-4 px-6 border-b border-white/5 bg-[#0a0a0a] shrink-0">
+      <div className="flex items-center justify-between px-5 py-2.5 border-b border-white/5 bg-[#0a0a0a] shrink-0">
         <div className="font-medium text-white/80 tracking-wide flex items-center gap-2 text-[15px]">
           <BrainCircuit size={18} className="text-primeAccent" /> 碎片的完整映射
         </div>
@@ -73,20 +125,53 @@ export default function Detail({
       {/* 内容区 */}
       <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
         {/* 阅读主区 */}
-        <div className="flex-1 p-6 lg:p-8 overflow-y-auto custom-scrollbar lg:border-r border-white/5 bg-[#0a0a0a]">
+        <div className="flex-1 p-5 lg:p-6 overflow-y-auto custom-scrollbar lg:border-r border-white/5 bg-[#0a0a0a]">
           {/* AI 分析框架 */}
-          <div className="mb-8">
-            <h3 className="text-[11px] text-silverText/50 mb-3 uppercase tracking-widest font-mono flex items-center gap-2 bg-white/[0.03] inline-flex px-3 py-1 rounded-full border border-white/5">
-                <BrainCircuit size={12} /> AI 智能总结
-            </h3>
-            <div className="text-silverText/90 text-[15px] leading-relaxed font-normal bg-gradient-to-b from-white/[0.04] to-transparent p-5 rounded-2xl border border-white/5 ai-summary-markdown">
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-[11px] text-silverText/50 uppercase tracking-widest font-mono flex items-center gap-2 bg-white/[0.03] inline-flex px-3 py-1 rounded-full border border-white/5">
+                  <BrainCircuit size={12} /> AI 智能总结
+              </h3>
+              <div className="flex items-center gap-2">
+                {reprocessStatus && (
+                  <span className={`text-[11px] font-mono flex items-center gap-1 ${
+                    reprocessStatus.type === 'success' ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {reprocessStatus.type === 'success' ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                    {reprocessStatus.msg}
+                  </span>
+                )}
+                
+                <select 
+                  value={selectedTemplateId} 
+                  onChange={(e) => setSelectedTemplateId(e.target.value)}
+                  disabled={isReprocessing}
+                  className="bg-black/30 border border-white/10 text-silverText/80 text-[11px] rounded px-2 py-1 outline-none focus:border-primeAccent/30"
+                >
+                  <option value="" className="bg-[#1a1a1a] text-white/90">(默认激活模板)</option>
+                  {templates.map(t => (
+                    <option key={t.id} value={t.id} className="bg-[#1a1a1a] text-white/90">{t.name} {t.is_active ? '(激活)' : ''}</option>
+                  ))}
+                </select>
+
+                <button
+                  onClick={handleReprocess}
+                  disabled={isReprocessing}
+                  className="flex items-center gap-1.5 px-3 py-1 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 transition-all rounded text-[10px] uppercase font-bold disabled:opacity-50"
+                >
+                  <RefreshCw size={12} className={isReprocessing ? 'animate-spin' : ''} />
+                  {isReprocessing ? '处理中...' : '重新 AI 处理'}
+                </button>
+              </div>
+            </div>
+            <div className="text-silverText/90 text-[14px] leading-relaxed font-normal bg-gradient-to-b from-white/[0.04] to-transparent px-4 py-3 rounded-xl border border-white/5 ai-summary-markdown">
               <MarkdownRenderer content={item.ai_summary || "暂无相关摘要..."} />
             </div>
           </div>
 
           {/* OCR 原文提取 */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between border-b border-primeAccent/20 pb-2 mb-4">
+          <div className="mb-4">
+            <div className="flex items-center justify-between border-b border-primeAccent/20 pb-2 mb-3">
               <h2 className="text-[11px] text-primeAccent uppercase tracking-[0.2em] font-bold flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-primeAccent animate-pulse shadow-[0_0_10px_rgba(var(--color-prime-accent),0.8)]"></span> 
                 {item.original_url ? '源网页正文推断' : 'OCR 核心视觉提取文本'}
@@ -114,7 +199,7 @@ export default function Detail({
               </div>
             </div>
             
-            <div className="text-white/95 text-[15px] leading-[1.8] font-light tracking-wide bg-[#111] p-6 rounded-2xl border border-primeAccent/10 selection:bg-primeAccent selection:text-black mt-2 shadow-inner">
+            <div className="text-white/95 text-[14px] leading-[1.7] tracking-wide bg-[#111] px-5 py-4 rounded-xl border border-primeAccent/10 selection:bg-primeAccent selection:text-black mt-1 shadow-inner">
               {isRawMode ? (
                 <div className="relative group/edit">
                   <textarea 
@@ -188,13 +273,31 @@ export default function Detail({
                   {item.created_at || item.CreatedAt ? new Date(item.created_at || item.CreatedAt).toLocaleString('zh-CN', { hour12: false }) : '未知时间'}
                 </div>
               </div>
-              <div>
-                <div className="text-[10px] text-silverText/40 uppercase mb-1 font-mono">引擎流转状态</div>
-                <span className="bg-primeAccent/10 text-primeAccent px-2 py-1 rounded text-[10px] uppercase font-mono tracking-wider border border-primeAccent/20 inline-block">
-                  {item.status}
-                </span>
-              </div>
             </div>
+            {/* 相关灵感发现 (Phase 4) */}
+            {relatedItems.length > 0 && (
+              <div className="pt-2 animate-in fade-in slide-in-from-top-2 duration-700">
+                <div className="text-[10px] text-silverText/40 uppercase mb-3 font-mono flex items-center gap-2">
+                  <Link size={10} className="text-primeAccent" /> 相关灵感发现
+                </div>
+                <div className="space-y-2">
+                  {relatedItems.map(rel => (
+                    <div 
+                      key={rel.id}
+                      onClick={() => setSelectedItem(rel)}
+                      className="p-3 bg-white/[0.03] border border-white/5 rounded-xl hover:border-primeAccent/30 hover:bg-primeAccent/5 transition-all cursor-pointer group/rel"
+                    >
+                      <div className="text-[11px] text-white/50 group-hover/rel:text-white/80 transition-colors line-clamp-2 leading-snug">
+                         {rel.ai_summary || rel.original_name}
+                      </div>
+                      <div className="mt-2 text-[9px] font-mono text-silverText/20 group-hover/rel:text-primeAccent/50 transition-colors">
+                         {new Date(rel.created_at || rel.CreatedAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

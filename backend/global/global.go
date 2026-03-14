@@ -21,6 +21,7 @@ type AppConfig struct {
 	LlmApiUrl    string `json:"llm_api_url"`
 	LlmApiToken  string `json:"llm_api_token"`
 	LlmModelID   string `json:"llm_model_id"`
+	VlmModelID   string `json:"vlm_model_id"` // 视觉大模型 ID
 	PaddleApiUrl string `json:"paddle_api_url"`
 	PaddleToken  string `json:"paddle_token"`
 }

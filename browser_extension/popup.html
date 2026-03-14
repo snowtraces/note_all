@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Note All Clipper</title>
+  <style>
+    :root {
+      --primary-color: #3b82f6;
+      --bg-color: #ffffff;
+      --text-color: #1f2937;
+      --secondary-text: #6b7280;
+      --border-color: #e5e7eb;
+    }
+
+    body {
+      width: 320px;
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .logo {
+      width: 32px;
+      height: 32px;
+      background: var(--primary-color);
+      border-radius: 8px;
+    }
+
+    .title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-color);
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: var(--secondary-text);
+      margin-top: 2px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--secondary-text);
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 14px;
+      box-sizing: border-box;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, textarea:focus {
+      border-color: var(--primary-color);
+    }
+
+    textarea {
+      height: 120px;
+      resize: none;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    button {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: 0.2s opacity;
+    }
+
+    .btn-primary {
+      background-color: var(--primary-color);
+      color: white;
+    }
+
+    .btn-secondary {
+      background-color: transparent;
+      color: var(--secondary-text);
+      padding: 8px;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .status {
+      margin-top: 12px;
+      font-size: 12px;
+      text-align: center;
+      min-height: 18px;
+    }
+
+    .status-success { color: #10b981; }
+    .status-error { color: #ef4444; }
+
+    #settings-view { display: none; }
+  </style>
+</head>
+<body>
+  <div id="main-view">
+    <div class="header">
+      <div class="logo"></div>
+      <div>
+        <div class="title">Note All</div>
+        <div class="subtitle">碎片随手记，AI 即刻懂</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="note-content">记录内容</label>
+      <textarea id="note-content" placeholder="输入灵感、粘贴链接或代码..."></textarea>
+    </div>
+
+    <div class="actions">
+      <button id="show-settings" class="btn-secondary">⚙️ 设置</button>
+      <button id="save-note" class="btn-primary">保存笔记</button>
+    </div>
+
+    <div id="status-msg" class="status"></div>
+  </div>
+
+  <div id="settings-view">
+    <div class="header">
+      <div class="title">扩展设置</div>
+    </div>
+    <div class="form-group">
+      <label for="api-url">API 地址</label>
+      <input type="text" id="api-url" placeholder="http://localhost:8080/api/note/text">
+    </div>
+    <div class="actions">
+      <button id="back-to-main" class="btn-secondary">返回</button>
+      <button id="save-settings" class="btn-primary">保存设置</button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

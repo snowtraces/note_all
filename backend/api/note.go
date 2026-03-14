@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 
 	"note_all_backend/global"
@@ -285,14 +286,26 @@ func (a *NoteApi) Restore(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "已从回收站恢复"})
 }
 
-// HardDelete 永久销毁（物理删除数据库记录与存储，这里演示简单物理删数据库即可触发关联）
+// HardDelete 永久销毁（物理删除数据库记录与存储）
 func (a *NoteApi) HardDelete(c *gin.Context) {
 	id := c.Param("id")
-	if err := global.DB.Unscoped().Delete(&models.NoteItem{}, id).Error; err != nil {
+	err := global.DB.Transaction(func(tx *gorm.DB) error {
+		// 1. 物理删除标签关联
+		if err := tx.Unscoped().Where("note_id = ?", id).Delete(&models.NoteTag{}).Error; err != nil {
+			return err
+		}
+		// 2. 物理删除主记录
+		if err := tx.Unscoped().Delete(&models.NoteItem{}, id).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "永久删除失败: " + err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "已永久销毁此记录"})
+	c.JSON(http.StatusOK, gin.H{"message": "已永久销毁此记录及关联标签"})
 }
 
 // Trash 获取回收站内的逻辑删除记录
@@ -587,3 +600,62 @@ func (a *NoteApi) DeleteChatSession(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "已删除"})
 }
+
+// Serendipity 靈感碰撞接口
+func (a *NoteApi) Serendipity(c *gin.Context) {
+	content, references, err := service.GetSerendipityReview()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取灵感失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"data":       content,
+		"references": references,
+	})
+}
+
+// RelatedNotes 获取关联笔记接口
+func (a *NoteApi) RelatedNotes(c *gin.Context) {
+	idStr := c.Param("id")
+	var id uint
+	fmt.Sscanf(idStr, "%d", &id)
+
+	items, err := service.GetRelatedNotes(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取关联信息失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": items})
+}
+
+// ReprocessNote 手动触发对单条笔记重新提取（使用当前激活的AI模板）
+func (a *NoteApi) ReprocessNote(c *gin.Context) {
+	id := c.Param("id")
+	
+	templateIdStr := c.Query("template_id")
+	var templateId uint = 0
+	if templateIdStr != "" {
+		if idParsed, err := strconv.ParseUint(templateIdStr, 10, 32); err == nil {
+			templateId = uint(idParsed)
+		}
+	}
+
+	err := service.ReprocessNoteWithTemplate(id, templateId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "重新处理失败: " + err.Error()})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{"message": "已触发后台重新提炼分析"})
+}
+
+// GetGraph 获取用于渲染知识图谱的网络节点与边关系数据
+func (a *NoteApi) GetGraph(c *gin.Context) {
+	data, err := service.GetKnowledgeGraph()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取知识图谱失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": data})
+}
+

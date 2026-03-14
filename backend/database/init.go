@@ -44,7 +44,7 @@ func InitSystem() {
 	global.DB = db
 	log.Println("SQLite 与 FTS5 全文索引模型初始化完毕。")
 
-	// 回填历史 note_items 中的 ai_tags 到 note_tags 关联表（幂等，可重复运行）
+	/* 历史标签回填 (功能已完成，注释掉)
 	go func() {
 		if err := models.BackfillNoteTags(db); err != nil {
 			log.Printf("[BackfillNoteTags] 历史标签回填失败: %v", err)
@@ -52,6 +52,7 @@ func InitSystem() {
 			log.Println("[BackfillNoteTags] 历史标签数据回填完成。")
 		}
 	}()
+	*/
 
 	// 2. 初始化自研分布式存储系统
 	storageDataPath := filepath.Join(".", "storage_data")

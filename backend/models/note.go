@@ -2,11 +2,11 @@ package models
 
 import (
 	"fmt"
-	"strings"
+	// "strings"
 	"time"
 
 	"gorm.io/gorm"
-	gormClause "gorm.io/gorm/clause"
+	// gormClause "gorm.io/gorm/clause"
 )
 
 // NoteItem 存储记录的核心结构
@@ -28,6 +28,9 @@ type NoteItem struct {
 	AiTags      string `gorm:"size:255" json:"ai_tags"`                 // AI 打的标签
 	OriginalUrl string `gorm:"size:2048" json:"original_url"`           // [新增] 溯源网页URL
 	Status      string `gorm:"size:32;default:'pending'" json:"status"` // pending/ocred/analyzed/error
+
+	// 关联
+	Tags []NoteTag `gorm:"foreignKey:NoteID" json:"tags"`
 }
 
 // NoteTag 标签-文件扁平关联表（每行代表一个文件拥有一个标签）
@@ -35,6 +38,13 @@ type NoteTag struct {
 	ID     uint   `gorm:"primaryKey" json:"id"`
 	NoteID uint   `gorm:"not null;index;uniqueIndex:uidx_note_tag" json:"note_id"`
 	Tag    string `gorm:"size:64;not null;index;uniqueIndex:uidx_note_tag" json:"tag"`
+}
+
+// NoteLink 双向链接记录表 ( [[内部链接]])
+type NoteLink struct {
+	ID       uint   `gorm:"primaryKey" json:"id"`
+	SourceID uint   `gorm:"not null;index;uniqueIndex:uidx_note_link" json:"source_id"`
+	Target   string `gorm:"size:255;not null;index;uniqueIndex:uidx_note_link" json:"target"`
 }
 
 // ChatSession 存储对话会话
@@ -59,9 +69,14 @@ type ChatMessage struct {
 
 // SetupDBWithFTS 初始化数据库结构，包括建立 FTS5 虚拟表及与基础表联动的触发器
 func SetupDBWithFTS(db *gorm.DB) error {
-	// 1. 自动迁移主表 + 标签关联表 + 对话表
-	if err := db.AutoMigrate(&NoteItem{}, &NoteTag{}, &ChatSession{}, &ChatMessage{}); err != nil {
+	// 1. 自动迁移主表 + 标签关联表 + NoteLink双链表 + 对话表 + 提示词模板表
+	if err := db.AutoMigrate(&NoteItem{}, &NoteTag{}, &NoteLink{}, &ChatSession{}, &ChatMessage{}, &PromptTemplate{}); err != nil {
 		return fmt.Errorf("failed to migrate tables: %v", err)
+	}
+
+	// 1.5 初始化预设模板
+	if err := InitTemplates(db); err != nil {
+		return fmt.Errorf("failed to init templates: %v", err)
 	}
 
 	// 2. 建立 FTS5 虚拟表 (仅在不存在时建立)。注意：SQLite FTS5 原生支持简单的词法分词器，
@@ -120,6 +135,7 @@ func SetupDBWithFTS(db *gorm.DB) error {
 	return nil
 }
 
+/* 历史标签数据回填任务已完成。
 // BackfillNoteTags 将历史 note_items 中已有的 ai_tags 同步写入 note_tags 关联表。
 // 幂等：依赖 (note_id, tag) 唯一索引，重复运行不会产生脏数据。
 func BackfillNoteTags(db *gorm.DB) error {
@@ -155,3 +171,4 @@ func BackfillNoteTags(db *gorm.DB) error {
 	}
 	return nil
 }
+*/
