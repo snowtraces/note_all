@@ -157,25 +157,14 @@ func DescribeImageVlm(imageBytes []byte, mimeType string) (string, string, strin
 	}
 
 	content := resData.Choices[0].Message.Content
-
 	var extract struct {
 		Desc    string `json:"desc"`
 		Summary string `json:"summary"`
 		Tags    string `json:"tags"`
 	}
 
-	err = json.Unmarshal([]byte(content), &extract)
-	if err != nil {
-		// 容错策略：尝试使用正则强行拽出中间的 JSON 实体
-		re := regexp.MustCompile(`(?s)\{.*\}`)
-		cleanJSON := re.FindString(content)
-		if cleanJSON == "" {
-			return content, "未提取到摘要", "ai-fail", fmt.Errorf("VLM 模型未严格返回 JSON, parser err: %v 原文: %s", err, content)
-		}
-
-		if errRetry := json.Unmarshal([]byte(cleanJSON), &extract); errRetry != nil {
-			return content, "未提取到摘要", "ai-fail", fmt.Errorf("VLM 正则清洗后仍无法解析 JSON: %v", errRetry)
-		}
+	if err := parseSmartJSON(content, &extract); err != nil {
+		return content, "未提取到摘要", "ai-fail", err
 	}
 
 	return extract.Desc, extract.Summary, extract.Tags, nil
@@ -185,7 +174,8 @@ func DescribeImageVlm(imageBytes []byte, mimeType string) (string, string, strin
 // 会强求大模型按标准 JSON 的格式返回以方便结构化持久落库
 func ExtractSummaryAndTags(ocrContent string, customPrompt string) (summary string, tags string, err error) {
 	if len(ocrContent) == 0 {
-		return "", "", fmt.Errorf("OCR文本为空，无需提取摘要")
+		// 文本为空时不报错，返回空结果，由调用方决定是否进行 VLM 兜底
+		return "", "", nil
 	}
 
 	// 1. 构建 System 级大模型提纯要求 (Prompt Engineering)
@@ -277,21 +267,33 @@ func ExtractSummaryAndTags(ocrContent string, customPrompt string) (summary stri
 		Tags    string `json:"tags"`
 	}
 
-	err = json.Unmarshal([]byte(content), &extract)
-	if err != nil {
-		// 容错策略：大语模型有时还是会吐出带有 ```json 的 Markdown 包裹，使用正则强行拽出中间的 JSON 实体
-		re := regexp.MustCompile(`(?s)\{.*\}`)
-		cleanJSON := re.FindString(content)
-		if cleanJSON == "" {
-			return content, "ai-fail", fmt.Errorf("模型未严格返回 JSON, parser err: %v 原文: %s", err, content)
-		}
-
-		if errRetry := json.Unmarshal([]byte(cleanJSON), &extract); errRetry != nil {
-			return content, "ai-fail", fmt.Errorf("正则清洗后仍无法解析 JSON: %v", errRetry)
-		}
+	if err := parseSmartJSON(content, &extract); err != nil {
+		return content, "ai-fail", err
 	}
 
 	return extract.Summary, extract.Tags, nil
+}
+
+// parseSmartJSON 是一个内部辅助函数，由于大模型有时会吐出带有 Markdown 包裹的内容，
+// 甚至在 JSON 前后有寒暄，本函数通过正则强行提取 JSON 主体并反序列化。
+func parseSmartJSON[T any](content string, v *T) error {
+	// 尝试直接解析
+	if err := json.Unmarshal([]byte(content), v); err == nil {
+		return nil
+	}
+
+	// 如果直接解析失败，尝试使用正则提取
+	re := regexp.MustCompile(`(?s)\{.*\}`)
+	cleanJSON := re.FindString(content)
+	if cleanJSON == "" {
+		return fmt.Errorf("无法从模型输出中找到 JSON 结构")
+	}
+
+	if err := json.Unmarshal([]byte(cleanJSON), v); err != nil {
+		return fmt.Errorf("正则提取的内容依然无法解析为 JSON: %v", err)
+	}
+
+	return nil
 }
 
 // AskAIWithContext 根据提供的上下文（相关笔记片段）与多轮对话列表，回答用户的问题

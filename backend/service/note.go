@@ -66,6 +66,101 @@ func syncLinks(nID uint, text string) {
 	}
 }
 
+// performFullAnalysis 封装了 OCR -> VLM 兜底 -> LLM 提炼的全链路逻辑
+func performFullAnalysis(nID uint, templateID uint) {
+	log.Printf("[AI全链路作业] 开始为数据包 (ID:%d) 启动识别与提炼...\n", nID)
+
+	var note models.NoteItem
+	if err := global.DB.First(&note, nID).Error; err != nil {
+		log.Printf("[AI 异常] 无法获取记录 %d: %v", nID, err)
+		return
+	}
+
+	markdownText := note.OcrText
+	summary := ""
+	tags := ""
+
+	// 1. 如果是图片且目前没有实质文本内容，尝试识别（OCR -> VLM）
+	if strings.HasPrefix(note.FileType, "image/") && strings.TrimSpace(markdownText) == "" {
+		fileReader, err := global.Storage.Open(note.StorageID)
+		if err != nil {
+			log.Printf("[AI 异常] 无法触达存储获取源文件: %v", err)
+			global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Update("status", "error")
+			return
+		}
+		fileBlob, err := io.ReadAll(fileReader)
+		fileReader.Close()
+		if err != nil {
+			log.Printf("[AI 异常] 文件读取异常: %v", err)
+			global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Update("status", "error")
+			return
+		}
+
+		// 1.1 尝试 OCR
+		ext := filepath.Ext(note.OriginalName)
+		ocrResult, err := pkg.ExtractTextFromImage(fileBlob, ext)
+		if err == nil && strings.TrimSpace(ocrResult) != "" {
+			markdownText = ocrResult
+			log.Printf("[AI 作业] OCR 识别成功, 记录ID %d", nID)
+		} else {
+			// 1.2 OCR 无结果或报错，触发 VLM 兜底
+			log.Printf("[AI 作业] OCR 无文字或失败 (err: %v)，尝试 VLM 视觉兜底, 记录ID %d", err, nID)
+			desc, summaryStr, tagsStr, vlmErr := pkg.DescribeImageVlm(fileBlob, note.FileType)
+			if vlmErr == nil && desc != "" {
+				markdownText = desc
+				summary = summaryStr
+				tags = tagsStr
+				log.Printf("[AI 作业] VLM 视觉感知成功, 记录ID %d (Summary: %s)", nID, summary)
+			} else {
+				log.Printf("[AI 作业] VLM 识别亦失败: %v", vlmErr)
+			}
+		}
+	}
+
+	// 2. 如果 Summary 和 Tags 还没被 VLM 直接生成，则调用 LLM 进行提炼
+	if summary == "" || tags == "" || tags == "ai-fail" {
+		var targetTpl models.PromptTemplate
+		if templateID > 0 {
+			global.DB.First(&targetTpl, templateID)
+		} else {
+			targetTpl, _ = models.GetActiveTemplate(global.DB)
+		}
+
+		if strings.TrimSpace(markdownText) != "" {
+			s, t, err := pkg.ExtractSummaryAndTags(markdownText, targetTpl.SystemPrompt)
+			if err != nil {
+				log.Printf("[AI 作业] LLM 提炼失败: %v", err)
+				summary = markdownText // 原文兜底
+				if len([]rune(summary)) > 60 {
+					summary = string([]rune(summary)[:60]) + "..."
+				}
+				tags = "ai-fail"
+			} else {
+				summary = s
+				tags = t
+			}
+		} else {
+			if summary == "" {
+				summary = "暂无内容提取 (空文件或识别失败)"
+			}
+			if tags == "" {
+				tags = "ai-fail"
+			}
+		}
+	}
+
+	global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Updates(map[string]interface{}{
+		"ocr_text":   markdownText,
+		"ai_summary": summary,
+		"ai_tags":    tags,
+		"status":     "analyzed",
+	})
+
+	syncTags(nID, tags)
+	syncLinks(nID, markdownText)
+	log.Printf("[AI全链路作业完成] 记录ID %d: 提取摘要 [%s]...", nID, summary)
+}
+
 // UploadAndCreateNote 处理复杂的文件落盘与 DB 生成主线逻辑
 func UploadAndCreateNote(file *multipart.FileHeader) (*models.NoteItem, error) {
 	// 1. 读取 HTTP 表单文件的原始流
@@ -98,94 +193,9 @@ func UploadAndCreateNote(file *multipart.FileHeader) (*models.NoteItem, error) {
 
 	// 5. 将任务发送到后台队列进行阻塞排队处理，避免并发过高触发 OCR/LLM 接口限流 (429)
 	nID := note.ID
-	sID := note.StorageID
-	originalName := note.OriginalName
 
 	global.WorkerChan <- func() {
-		log.Printf("[后台作业] 开始为数据包 (ID:%d) 唤起 OCR 识别...\n", nID)
-
-		// 5.1 从存储里扒出二进制字节，供 paddle API 发送
-		fileReader, err := global.Storage.Open(sID)
-		if err != nil {
-			log.Printf("[OCR 异常] 无法触达存储获取源文件: %v", err)
-			return
-		}
-
-		fileBlob, err := io.ReadAll(fileReader)
-		if err != nil {
-			fileReader.Close()
-			log.Printf("[OCR 异常] 文件分块读取碎片异常: %v", err)
-			return
-		}
-		fileReader.Close()
-
-		// 5.2 发送 Base64 提取 OCR 及排版信息
-		ext := filepath.Ext(originalName)
-		markdownText, err := pkg.ExtractTextFromImage(fileBlob, ext)
-
-		if err != nil {
-			log.Printf("[OCR 解析失败] 记录ID %d: %v", nID, err)
-			global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Update("status", "error")
-			return
-		}
-
-		validText := strings.TrimSpace(markdownText)
-
-		// 5.2.5 [新功能优化] 图片尝试OCR，如果未返回实质内容再进行多模态理解（VLM 兜底）
-		vlmTriggered := false
-		vlmSummary := ""
-		vlmTags := ""
-		vlmDescription := ""
-
-		if strings.HasPrefix(note.FileType, "image/") && validText == "" {
-			desc, summaryStr, tagsStr, vlmErr := pkg.DescribeImageVlm(fileBlob, note.FileType)
-			if vlmErr == nil && desc != "" {
-				vlmDescription = desc
-				vlmSummary = summaryStr
-				vlmTags = tagsStr
-				vlmTriggered = true
-				log.Printf("[OCR内容为空] 触发VLM识别兜底成功, 记录ID %d: 图片视觉描述、摘要及标签已同步生成", nID)
-			} else {
-				log.Printf("[VLM 识别失败] 记录ID %d: %v", nID, vlmErr)
-			}
-		}
-
-		// 5.3 唤起大模型进行“提炼归纳”与“提取标签”
-		summary := ""
-		tags := ""
-
-		if vlmTriggered {
-			// 直接使用 VLM 一并生成的描述、摘要和标签，免去二次调用 LLM
-			markdownText = vlmDescription
-			summary = vlmSummary
-			tags = vlmTags
-		} else {
-			activeTpl, _ := models.GetActiveTemplate(global.DB)
-			llmInput := markdownText
-			summaryStr, tagsStr, err := pkg.ExtractSummaryAndTags(llmInput, activeTpl.SystemPrompt)
-			if err != nil {
-				log.Printf("[大模型提炼失败降级] 记录ID %d: %v", nID, err)
-				summary = llmInput // 原文兜底
-				tags = "ai-fail"
-			} else {
-				summary = summaryStr
-				tags = tagsStr
-			}
-		}
-
-		// 5.4 数据最终态更新
-		global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Updates(map[string]interface{}{
-			"ocr_text":   markdownText,
-			"ai_summary": summary,
-			"ai_tags":    tags,
-			"status":     "analyzed",
-		})
-
-		// 5.5 同步写入标签关联表和双向链接图关联
-		syncTags(nID, tags)
-		syncLinks(nID, markdownText)
-
-		log.Printf("[后台作业总链完成] 记录ID %d: PaddleOCR 与 文心大模型 融合全链路结束！提取精简摘要 [%s]...", nID, summary)
+		performFullAnalysis(nID, 0)
 	}
 
 	return &note, nil
@@ -320,7 +330,13 @@ func CreateNoteFromText(text string) (*models.NoteItem, error) {
 
 // UpdateNoteText 更新已有碎片的 OCR 文本，并触发后台重新提炼 LLM 摘要和标签任务
 func UpdateNoteText(id string, text string) error {
-	// 先更新原文，避免页面刷新还能看到老数据，标记为状态分析中
+	// 1. 先查询原笔记信息
+	var note models.NoteItem
+	if err := global.DB.First(&note, id).Error; err != nil {
+		return fmt.Errorf("笔记不存在: %v", err)
+	}
+
+	// 2. 先更新原文，避免页面刷新还能看到老数据，标记为状态分析中
 	if err := global.DB.Model(&models.NoteItem{}).Where("id = ?", id).Updates(map[string]interface{}{
 		"ocr_text": text,
 		"status":   "pending",
@@ -328,11 +344,18 @@ func UpdateNoteText(id string, text string) error {
 		return fmt.Errorf("原文写入失败: %v", err)
 	}
 
-	// 开户后段协程跑昂贵的 LLM API 更新逻辑
+	// 3. 异步分析
 	itemID := id
 	rawText := text
 
 	global.WorkerChan <- func() {
+		// 如果是图片且文字被清空了，则触发全链路识别（含 VLM 兜底）
+		if strings.HasPrefix(note.FileType, "image/") && strings.TrimSpace(rawText) == "" {
+			log.Printf("[重新识别作业] 图片文本被清空，触发全链路重识别 (ID:%s)...\n", itemID)
+			performFullAnalysis(note.ID, 0)
+			return
+		}
+
 		log.Printf("[重新提炼作业] 开始为数据包 (ID:%s) 唤起 LLM 更新提炼...\n", itemID)
 
 		activeTpl, _ := models.GetActiveTemplate(global.DB)
@@ -447,37 +470,7 @@ func ReprocessNoteWithTemplate(id string, templateId uint) error {
 	}
 
 	global.WorkerChan <- func() {
-		log.Printf("[手动使用模板重新提炼] 开始处理记录 (ID:%d)...\n", note.ID)
-
-		var targetTpl models.PromptTemplate
-		if templateId > 0 {
-			global.DB.First(&targetTpl, templateId)
-		} else {
-			targetTpl, _ = models.GetActiveTemplate(global.DB)
-		}
-
-		rawText := note.OcrText
-
-		// 调用大模型
-		summary, tags, err := pkg.ExtractSummaryAndTags(rawText, targetTpl.SystemPrompt)
-		if err != nil {
-			log.Printf("[手动重新提炼失败] 记录ID %d: %v", note.ID, err)
-			summary = rawText
-			tags = "ai-fail"
-		}
-
-		// 更新记录
-		global.DB.Model(&models.NoteItem{}).Where("id = ?", note.ID).Updates(map[string]interface{}{
-			"ai_summary": summary,
-			"ai_tags":    tags,
-			"status":     "analyzed",
-		})
-
-		// 同步更新关联标签与双向链接图关联
-		syncTags(note.ID, tags)
-		syncLinks(note.ID, rawText)
-
-		log.Printf("[手动重新提炼完成] 记录ID %d, 使用模板: %s", note.ID, targetTpl.Name)
+		performFullAnalysis(note.ID, templateId)
 	}
 
 	return nil
