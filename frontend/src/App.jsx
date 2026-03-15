@@ -439,6 +439,7 @@ function App() {
               setSerendipityData={setSerendipityData}
               setViewMode={setViewMode}
               setShowSettings={setShowSettings}
+              labBasket={labBasket}
             />
           )
         )}

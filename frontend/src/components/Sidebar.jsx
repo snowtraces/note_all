@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Search, UploadCloud, BrainCircuit, X, Trash2, ArchiveRestore, Tag, PenLine, MessageSquare, History, Network, FlaskConical, Beaker, Zap } from 'lucide-react';
+import { Search, UploadCloud, BrainCircuit, X, Trash2, ArrowLeft, Tag, Library, MessageSquare, PenLine, History, Network, FlaskConical, Beaker, Zap } from 'lucide-react';
 import { getTags, getChatSessions, deleteChatSession } from '../api/noteApi';
 import { Settings } from 'lucide-react';
 
@@ -29,7 +29,7 @@ export default function Sidebar({
   const [chatSessions, setChatSessions] = useState([]);
   const [sessionLoading, setSessionLoading] = useState(false);
   const [confirmingId, setConfirmingId] = useState(null);
-  
+
   const fileInputRef = useRef(null);
   const dropdownRef = useRef(null);
   const textareaRef = useRef(null);
@@ -94,11 +94,11 @@ export default function Sidebar({
       setTimeout(() => setConfirmingId(prev => prev === id ? null : prev), 3000);
       return;
     }
-    
+
     // 第二次点击，执行删除
     console.log("Confirmed. Calling deleteChatSession API for:", id);
     setConfirmingId(null);
-    
+
     (async () => {
       try {
         await deleteChatSession(id);
@@ -127,9 +127,8 @@ export default function Sidebar({
     return (
       <>
         {tags.slice(0, 3).map((tag, idx) => (
-          <span key={idx} className={`px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${
-            isSelected ? 'bg-primeAccent/20 text-primeAccent' : 'bg-white/10 text-silverText/90'
-          }`}>
+          <span key={idx} className={`px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${isSelected ? 'bg-primeAccent/20 text-primeAccent' : 'bg-white/10 text-silverText/90'
+            }`}>
             #{tag.trim()}
           </span>
         ))}
@@ -150,7 +149,7 @@ export default function Sidebar({
           <h1 className={`text-2xl font-extrabold tracking-tight transition-colors ${showTrash ? 'text-red-500/80' : ''}`}>
             {showTrash ? 'Trash ' : (viewMode === 'chats' ? 'Chat ' : viewMode === 'graph' ? 'Graph ' : 'Note ')}
             <span className={showTrash ? 'text-red-400' : (viewMode === 'chats' || viewMode === 'graph' ? 'text-primeAccent' : 'text-gradient')}>
-                {showTrash ? 'Bin' : (viewMode === 'chats' ? 'History' : viewMode === 'graph' ? 'Matrix' : 'All')}
+              {showTrash ? 'Bin' : (viewMode === 'chats' ? 'History' : viewMode === 'graph' ? 'Matrix' : 'All')}
             </span>
           </h1>
 
@@ -160,34 +159,18 @@ export default function Sidebar({
                 <button
                   onClick={() => setViewMode('notes')}
                   title="笔记列表"
-                  className={`flex items-center justify-center p-2 rounded-full border transition-all duration-300 ${
-                      viewMode === 'notes' ? 'bg-primeAccent/20 border-primeAccent/30 text-primeAccent' : 'bg-white/5 border-white/10 text-silverText/70 hover:bg-white/10 hover:text-white'
-                  }`}
+                  className={`flex items-center justify-center p-2 rounded-full border transition-all duration-300 ${viewMode === 'notes' ? 'bg-primeAccent/20 border-primeAccent/30 text-primeAccent' : 'bg-white/5 border-white/10 text-silverText/70 hover:bg-white/10 hover:text-white'
+                    }`}
                 >
-                  <PenLine size={16} />
+                  <Library size={16} />
                 </button>
                 <button
                   onClick={() => setViewMode('chats')}
                   title="对话历史"
-                  className={`flex items-center justify-center p-2 rounded-full border transition-all duration-300 ${
-                      viewMode === 'chats' ? 'bg-primeAccent/20 border-primeAccent/30 text-primeAccent' : 'bg-white/5 border-white/10 text-silverText/70 hover:bg-white/10 hover:text-white'
-                  }`}
+                  className={`flex items-center justify-center p-2 rounded-full border transition-all duration-300 ${viewMode === 'chats' ? 'bg-primeAccent/20 border-primeAccent/30 text-primeAccent' : 'bg-white/5 border-white/10 text-silverText/70 hover:bg-white/10 hover:text-white'
+                    }`}
                 >
-                  <History size={16} />
-                </button>
-                <button
-                  onClick={() => setViewMode('lab')}
-                  title="知识实验室"
-                  className={`flex items-center justify-center p-2 rounded-full border transition-all duration-300 relative ${
-                      viewMode === 'lab' ? 'bg-primeAccent/20 border-primeAccent/30 text-primeAccent' : 'bg-white/5 border-white/10 text-silverText/70 hover:bg-white/10 hover:text-white'
-                  }`}
-                >
-                  <FlaskConical size={16} />
-                  {labBasket?.length > 0 && (
-                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primeAccent text-[8px] font-bold text-black ring-2 ring-[#111]">
-                       {labBasket.length}
-                    </span>
-                  )}
+                  <MessageSquare size={16} />
                 </button>
               </>
             )}
@@ -197,13 +180,12 @@ export default function Sidebar({
                 setSelectedItem(null);
                 if (!showTrash) setViewMode('notes'); // 如果进入垃圾桶，强制不显示特殊模式
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all duration-300 ${
-                showTrash
-                  ? 'bg-red-500/20 text-red-400 border-red-500/30'
-                  : 'bg-white/5 text-silverText/70 border-white/10 hover:bg-white/10 hover:text-white'
-              }`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all duration-300 ${showTrash
+                ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                : 'bg-white/5 text-silverText/70 border-white/10 hover:bg-white/10 hover:text-white'
+                }`}
             >
-              {showTrash ? <ArchiveRestore size={14} /> : <Trash2 size={14} />}
+              {showTrash ? <ArrowLeft size={14} /> : <Trash2 size={14} />}
               <span className="text-[12px] font-medium tracking-wide">{showTrash ? '退出' : '垃圾篓'}</span>
             </button>
           </div>
@@ -236,23 +218,22 @@ export default function Sidebar({
                 if (e.key === 'Escape') setShowTagDrop(false);
               }}
               placeholder={showTrash ? "回收站不支持搜索" : "搜索... 输入 #标签 或 ?提问"}
-              className={`w-full bg-black/40 border py-3 pl-12 pr-10 text-[15px] rounded-xl text-white placeholder-silverText/40 focus:outline-none transition-all ${
-                showTrash ? 'border-white/10 opacity-50' : 'border-white/10 focus:border-primeAccent/50'
-              }`}
+              className={`w-full bg-black/40 border py-3 pl-12 pr-10 text-[15px] rounded-xl text-white placeholder-silverText/40 focus:outline-none transition-all ${showTrash ? 'border-white/10 opacity-50' : 'border-white/10 focus:border-primeAccent/50'
+                }`}
             />
             {query && (
               <X size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-silverText/40 cursor-pointer hover:text-white" onClick={() => { setQuery(''); handleSearch(''); }} />
             )}
-            
+
             {showTagDrop && filteredTags.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a1a] border border-primeAccent/20 rounded-xl shadow-2xl overflow-hidden z-50 max-h-56 overflow-y-auto custom-scrollbar">
-                   {filteredTags.map((t, idx) => (
-                       <button key={t.tag} onClick={() => selectTag(t.tag)} className={`w-full text-left px-4 py-3 flex justify-between items-center transition-colors ${idx === activeIndex ? 'bg-primeAccent/10' : 'hover:bg-primeAccent/5'}`}>
-                           <span className="text-[13px] text-white/80"><span className="text-primeAccent/60">#</span>{t.tag}</span>
-                           <span className="text-[10px] text-silverText/30 font-mono">{t.count}</span>
-                       </button>
-                   ))}
-                </div>
+              <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a1a] border border-primeAccent/20 rounded-xl shadow-2xl overflow-hidden z-50 max-h-56 overflow-y-auto custom-scrollbar">
+                {filteredTags.map((t, idx) => (
+                  <button key={t.tag} onClick={() => selectTag(t.tag)} className={`w-full text-left px-4 py-3 flex justify-between items-center transition-colors ${idx === activeIndex ? 'bg-primeAccent/10' : 'hover:bg-primeAccent/5'}`}>
+                    <span className="text-[13px] text-white/80"><span className="text-primeAccent/60">#</span>{t.tag}</span>
+                    <span className="text-[10px] text-silverText/30 font-mono">{t.count}</span>
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         )}
@@ -278,41 +259,39 @@ export default function Sidebar({
                 <div
                   key={item.id}
                   onClick={() => setSelectedItem(item)}
-                  className={`p-4 rounded-xl transition-all duration-300 flex flex-col min-w-0 border-l-[3px] cursor-pointer ${
-                    isSelected
-                      ? 'bg-primeAccent/10 border-l-primeAccent shadow-lg shadow-primeAccent/10'
-                      : 'bg-white/[0.03] border-l-transparent hover:bg-white/[0.06] hover:border-l-primeAccent/50 border border-white/5 text-white/90'
-                } group`}
-              >
-                <div className="flex justify-between items-start mb-2 relative">
-                  <div className="flex flex-wrap gap-1.5 max-h-[44px] overflow-hidden">
-                    {renderTags(item.ai_tags, item.id, isSelected)}
-                  </div>
-                    <div className="flex items-center gap-2">
-                    {item.parents && item.parents.length > 0 && (
-                      <Zap size={10} className="text-primeAccent fill-primeAccent/20 animate-pulse" title="合成生成的知识笔记" />
-                    )}
-                    <div className="text-silverText/40 text-[10px] font-mono flex-shrink-0">
-                      {item.created_at || item.CreatedAt
-                        ? new Date(item.created_at || item.CreatedAt).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
-                        : '刚刚'}
+                  className={`p-4 rounded-xl transition-all duration-300 flex flex-col min-w-0 border-l-[3px] cursor-pointer ${isSelected
+                    ? 'bg-primeAccent/10 border-l-primeAccent shadow-lg shadow-primeAccent/10'
+                    : 'bg-white/[0.03] border-l-transparent hover:bg-white/[0.06] hover:border-l-primeAccent/50 border border-white/5 text-white/90'
+                    } group`}
+                >
+                  <div className="flex justify-between items-start mb-2 relative">
+                    <div className="flex flex-wrap gap-1.5 max-h-[44px] overflow-hidden">
+                      {renderTags(item.ai_tags, item.id, isSelected)}
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleLabItem(item.id);
-                      }}
-                      title={labBasket?.includes(item.id) ? "从实验室移除" : "加入实验室素材"}
-                      className={`p-1.5 rounded-lg transition-all ${
-                        labBasket?.includes(item.id)
+                    <div className="flex items-center gap-2">
+                      {item.parents && item.parents.length > 0 && (
+                        <Zap size={10} className="text-primeAccent fill-primeAccent/20 animate-pulse" title="合成生成的知识笔记" />
+                      )}
+                      <div className="text-silverText/40 text-[10px] font-mono flex-shrink-0">
+                        {item.created_at || item.CreatedAt
+                          ? new Date(item.created_at || item.CreatedAt).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+                          : '刚刚'}
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleLabItem(item.id);
+                        }}
+                        title={labBasket?.includes(item.id) ? "从实验室移除" : "加入实验室素材"}
+                        className={`p-1.5 rounded-lg transition-all ${labBasket?.includes(item.id)
                           ? 'bg-primeAccent text-black scale-110 shadow-lg shadow-primeAccent/40'
                           : 'bg-white/5 text-white/20 hover:text-primeAccent hover:bg-primeAccent/10 opacity-0 group-hover:opacity-100'
-                      }`}
-                    >
-                      <Beaker size={12} />
-                    </button>
+                          }`}
+                      >
+                        <Beaker size={12} />
+                      </button>
+                    </div>
                   </div>
-                </div>
                   <div className="text-white/80 text-[13px] leading-relaxed font-normal line-clamp-3">
                     {item.ai_summary || "暂无相关摘要..."}
                   </div>
@@ -328,9 +307,9 @@ export default function Sidebar({
               </div>
             )}
             {!sessionLoading && chatSessions.length === 0 && (
-                <div className="w-full text-center py-20 px-8">
-                    <p className="text-silverText/30 text-xs">暂无历史对话记录</p>
-                </div>
+              <div className="w-full text-center py-20 px-8">
+                <p className="text-silverText/30 text-xs">暂无历史对话记录</p>
+              </div>
             )}
             {chatSessions.map((session) => (
               <div
@@ -345,24 +324,23 @@ export default function Sidebar({
                 <div className="flex items-center gap-2 mb-2">
                   <MessageSquare size={12} className="text-primeAccent/50" />
                   <span className="text-[10px] text-silverText/30 font-mono">
-                    {new Date(session.created_at).toLocaleDateString('zh-CN', {month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'})}
+                    {new Date(session.created_at).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
                 <h3 className="text-[13px] text-white/70 group-hover:text-white line-clamp-2 leading-relaxed">
                   {session.title || '无标题对话'}
                 </h3>
-                <button 
+                <button
                   type="button"
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     handleDeleteSession(session.id);
                   }}
-                  className={`absolute bottom-4 right-4 p-2 transition-all z-20 rounded-lg flex items-center gap-1 ${
-                    confirmingId === session.id 
-                      ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' 
-                      : 'text-white/0 group-hover:text-red-500/50 hover:text-red-500 hover:bg-red-500/10'
-                  }`}
+                  className={`absolute bottom-4 right-4 p-2 transition-all z-20 rounded-lg flex items-center gap-1 ${confirmingId === session.id
+                    ? 'bg-red-500 text-white shadow-lg shadow-red-500/20'
+                    : 'text-white/0 group-hover:text-red-500/50 hover:text-red-500 hover:bg-red-500/10'
+                    }`}
                   title={confirmingId === session.id ? "再次点击确认删除" : "删除对话"}
                 >
                   {confirmingId === session.id && <span className="text-[10px] font-bold px-1 animate-pulse uppercase">Sure?</span>}
@@ -372,18 +350,18 @@ export default function Sidebar({
             ))}
           </>
         ) : viewMode === 'graph' ? (
-            <div className="w-full text-center py-20 px-8 flex flex-col items-center">
-                <Network size={40} className="text-primeAccent mb-4 animate-pulse" />
-                <h3 className="text-white font-medium mb-2">进入全景知识图谱</h3>
-                <p className="text-silverText/40 text-xs">通过节点引力洞见记忆间的连结。</p>
-            </div>
+          <div className="w-full text-center py-20 px-8 flex flex-col items-center">
+            <Network size={40} className="text-primeAccent mb-4 animate-pulse" />
+            <h3 className="text-white font-medium mb-2">进入全景知识图谱</h3>
+            <p className="text-silverText/40 text-xs">通过节点引力洞见记忆间的连结。</p>
+          </div>
         ) : null}
       </div>
 
       {!showTrash && viewMode === 'notes' && (
         <div className="p-4 border-t border-white/5 bg-[#111] shrink-0">
           <input type="file" ref={fileInputRef} onChange={handleUpload} className="hidden" />
-          
+
           {showTextInput && (
             <div className="mb-3 flex flex-col gap-2">
               <textarea

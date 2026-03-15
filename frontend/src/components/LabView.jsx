@@ -108,7 +108,7 @@ export default function LabView({ basket, allNotes, onClose, onSaveSuccess, remo
                 </div>
 
                 {/* Column 2: Alchemical Controls (35%) */}
-                <div className="flex-1 flex flex-col p-8 border-r border-white/5 bg-[#050505] overflow-y-auto custom-scrollbar">
+                <div className="flex-1 flex flex-col p-8 border-r border-white/5 bg-[#050505] overflow-y-auto custom-scrollbar min-w-0">
                     <div className="max-w-xl mx-auto w-full flex flex-col gap-8">
                         <div>
                             <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
@@ -140,6 +140,54 @@ export default function LabView({ basket, allNotes, onClose, onSaveSuccess, remo
                                 className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-silverText/60 hover:border-primeAccent/30 hover:text-primeAccent transition-all text-left"
                             >
                                 ⚖️ 对比分析模式
+                            </button>
+                            <button 
+                                onClick={() => setPrompt("请从这些碎片中提取出最具价值的核心观点和结论，以精炼的格式呈现。")}
+                                className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-silverText/60 hover:border-primeAccent/30 hover:text-primeAccent transition-all text-left"
+                            >
+                                💡 核心洞察模式
+                            </button>
+                            <button 
+                                onClick={() => setPrompt("请分析这些内容中提到的潜在任务、行动项或下一步建议，整理成一份清晰的执行清单。")}
+                                className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-silverText/60 hover:border-primeAccent/30 hover:text-primeAccent transition-all text-left"
+                            >
+                                🚀 行动清单模式
+                            </button>
+                            <button 
+                                onClick={() => setPrompt("请将这些碎片的内容整理成一个结构化的思维大纲，突出层级关系，方便我理解整体框架。")}
+                                className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-silverText/60 hover:border-primeAccent/30 hover:text-primeAccent transition-all text-left"
+                            >
+                                🌳 思维大纲模式
+                            </button>
+                            <button 
+                                onClick={() => setPrompt("请将这些零散的素材改写成一篇具有逻辑性和吸引力的短文，适合作为博客或工作总结。")}
+                                className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-silverText/60 hover:border-primeAccent/30 hover:text-primeAccent transition-all text-left"
+                            >
+                                🎨 创意改写模式
+                            </button>
+                            <button 
+                                onClick={() => setPrompt("请识别出其中的所有物品、链接或计划，整理成一份清晰的购物清单或待办事项表。")}
+                                className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-silverText/60 hover:border-primeAccent/30 hover:text-primeAccent transition-all text-left"
+                            >
+                                🛒 购物/待办清单
+                            </button>
+                            <button 
+                                onClick={() => setPrompt("请提取出这些票据或截图中的关键数据（日期、金额、商户、项目），整理成规范的表格或收支明细报告。")}
+                                className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-silverText/60 hover:border-primeAccent/30 hover:text-primeAccent transition-all text-left"
+                            >
+                                🧾 票据/支出统计
+                            </button>
+                            <button 
+                                onClick={() => setPrompt("请将这些会议摘要、录音提取或笔记片段，整理成一份正式的会议纪要（包含参与人、讨论要点、决策事项）。")}
+                                className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-silverText/60 hover:border-primeAccent/30 hover:text-primeAccent transition-all text-left"
+                            >
+                                👥 会议/访谈纪要
+                            </button>
+                            <button 
+                                onClick={() => setPrompt("请从这些技术片段或截图中提取出核心代码逻辑、环境配置或操作步骤，整理成一份规范的技术实现文档。")}
+                                className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-silverText/60 hover:border-primeAccent/30 hover:text-primeAccent transition-all text-left"
+                            >
+                                💻 技术/代码文档
                             </button>
                         </div>
 
@@ -174,7 +222,7 @@ export default function LabView({ basket, allNotes, onClose, onSaveSuccess, remo
                 </div>
 
                 {/* Column 3: The Golden Result (35%) */}
-                <div className="flex-1 flex flex-col bg-[#080808]">
+                <div className="flex-1 flex flex-col bg-[#080808] min-w-0">
                     {result ? (
                         <div className="flex-1 flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-4 duration-700">
                            <div className="p-8 pb-4 shrink-0 border-b border-white/5">
@@ -208,8 +256,8 @@ export default function LabView({ basket, allNotes, onClose, onSaveSuccess, remo
                                 </div>
                                 <h1 className="text-2xl font-black text-white leading-tight">{result.title}</h1>
                            </div>
-                           <div className="flex-1 overflow-y-auto p-8 pt-6 custom-scrollbar">
-                                <div className="prose prose-invert max-w-none">
+                           <div className="flex-1 overflow-y-auto p-8 pt-6 custom-scrollbar min-w-0">
+                                <div className="prose prose-invert max-w-none break-words">
                                     <MarkdownRenderer content={result.content} />
                                 </div>
                            </div>
