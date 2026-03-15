@@ -45,14 +45,16 @@ func SetupRouter() *gin.Engine {
 		// 3. FTS5 分词极速高亮检索（支持 # 标签模式）
 		apiGroup.GET("/search", noteApi.Search)
 
-		// 4. 回收站机制 (逻辑删除与恢复)
-		apiGroup.DELETE("/note/:id", noteApi.SoftDelete)
-		apiGroup.POST("/note/:id/restore", noteApi.Restore)
+		// 4. 详细内容查询与更新
+		apiGroup.PATCH("/note/:id/text", noteApi.UpdateText)
+		apiGroup.PATCH("/note/batch/archive", noteApi.BatchArchive)
+		apiGroup.GET("/note/:id/related", noteApi.RelatedNotes)
 		apiGroup.DELETE("/note/:id/hard", noteApi.HardDelete)
 		apiGroup.GET("/trash", noteApi.Trash)
 
-		// 4.5 更新已有文本碎片内容
-		apiGroup.PATCH("/note/:id/text", noteApi.UpdateText)
+		// 4. 回收站机制 (逻辑删除与恢复)
+		apiGroup.DELETE("/note/:id", noteApi.SoftDelete)
+		apiGroup.POST("/note/:id/restore", noteApi.Restore)
 
 		// 5. 标签接口
 		apiGroup.GET("/tags", noteApi.GetTags)
@@ -66,11 +68,11 @@ func SetupRouter() *gin.Engine {
 		// 7. 灵感与拼图 (Phase 3)
 		apiGroup.GET("/serendipity", noteApi.Serendipity)
 
-		// 8. 相关灵感关联 (Phase 4)
-		apiGroup.GET("/note/:id/related", noteApi.RelatedNotes)
-
 		// 9. 重新用 AI 处理 (使用当前激活模板)
 		apiGroup.POST("/note/:id/reprocess", noteApi.ReprocessNote)
+
+		// 9.1 知识合成 (Knowledge Lab)
+		apiGroup.POST("/note/synthesize", noteApi.Synthesize)
 
 		// 9.5 知识图谱数据
 		apiGroup.GET("/graph", noteApi.GetGraph)

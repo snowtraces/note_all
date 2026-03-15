@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink, Link } from 'lucide-react';
+import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink, Link, Zap } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
 import { getRelatedNotes, reprocessNote } from '../api/noteApi';
 import { getTemplates } from '../api/templateApi';
@@ -124,7 +124,6 @@ export default function Detail({
 
       {/* 内容区 */}
       <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
-        {/* 阅读主区 */}
         <div className="flex-1 p-5 lg:p-6 overflow-y-auto custom-scrollbar lg:border-r border-white/5 bg-[#0a0a0a]">
           {/* AI 分析框架 */}
           <div className="mb-5">
@@ -292,6 +291,28 @@ export default function Detail({
                       </div>
                       <div className="mt-2 text-[9px] font-mono text-silverText/20 group-hover/rel:text-primeAccent/50 transition-colors">
                          {new Date(rel.created_at || rel.CreatedAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 溯源谱系 (Lineage) - 移动到右侧栏底部 */}
+            {item.parents && item.parents.length > 0 && (
+              <div className="pt-4 mt-2 border-t border-white/5 animate-in fade-in slide-in-from-bottom-2 duration-700">
+                <div className="text-[10px] text-silverText/40 uppercase mb-3 font-mono flex items-center gap-2">
+                  <Zap size={10} className="text-primeAccent" /> 知识合成谱系 (Sources)
+                </div>
+                <div className="space-y-2">
+                  {item.parents.map(p => (
+                    <div 
+                      key={p.id}
+                      onClick={() => setSelectedItem(p)}
+                      className="p-3 bg-primeAccent/5 border border-primeAccent/10 hover:border-primeAccent/30 transition-all rounded-xl cursor-pointer group/node"
+                    >
+                      <div className="text-[11px] text-silverText/70 group-hover/node:text-white transition-colors line-clamp-2 leading-relaxed">
+                          {p.ai_summary || p.original_name || '未命名片段'}
                       </div>
                     </div>
                   ))}

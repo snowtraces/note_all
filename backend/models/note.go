@@ -28,9 +28,11 @@ type NoteItem struct {
 	AiTags      string `gorm:"size:255" json:"ai_tags"`                 // AI 打的标签
 	OriginalUrl string `gorm:"size:2048" json:"original_url"`           // [新增] 溯源网页URL
 	Status      string `gorm:"size:32;default:'pending'" json:"status"` // pending/ocred/analyzed/error
+	IsArchived  bool   `gorm:"default:false;index" json:"is_archived"`  // [新增] 是否归档
 
 	// 关联
-	Tags []NoteTag `gorm:"foreignKey:NoteID" json:"tags"`
+	Tags    []NoteTag  `gorm:"foreignKey:NoteID" json:"tags"`
+	Parents []NoteItem `gorm:"many2many:note_relations;joinForeignKey:NoteID;joinReferences:ParentID" json:"parents"`
 }
 
 // NoteTag 标签-文件扁平关联表（每行代表一个文件拥有一个标签）

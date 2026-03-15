@@ -123,3 +123,26 @@ export const getGraph = async () => {
   return data.data || { nodes: [], links: [] };
 };
 
+export const synthesizeNotes = async (ids, prompt) => {
+  const res = await fetch("/api/note/synthesize", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids, prompt }),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || "Synthesis failed");
+  }
+  const data = await res.json();
+  return data.data;
+};
+
+export const batchArchiveNotes = async (ids, archive = true) => {
+  const res = await fetch("/api/note/batch/archive", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids, archive }),
+  });
+  if (!res.ok) throw new Error("Batch archive failed");
+};
+

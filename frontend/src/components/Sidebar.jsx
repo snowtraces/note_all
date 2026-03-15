@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Search, UploadCloud, BrainCircuit, X, Trash2, ArchiveRestore, Tag, PenLine, MessageSquare, History, Network } from 'lucide-react';
+import { Search, UploadCloud, BrainCircuit, X, Trash2, ArchiveRestore, Tag, PenLine, MessageSquare, History, Network, FlaskConical, Beaker, Zap } from 'lucide-react';
 import { getTags, getChatSessions, deleteChatSession } from '../api/noteApi';
 import { Settings } from 'lucide-react';
 
@@ -22,7 +22,9 @@ export default function Sidebar({
   loadChatSession,
   currentSessionId,
   askLoading,
-  setShowSettings
+  setShowSettings,
+  labBasket,
+  toggleLabItem
 }) {
   const [chatSessions, setChatSessions] = useState([]);
   const [sessionLoading, setSessionLoading] = useState(false);
@@ -173,6 +175,20 @@ export default function Sidebar({
                 >
                   <History size={16} />
                 </button>
+                <button
+                  onClick={() => setViewMode('lab')}
+                  title="知识实验室"
+                  className={`flex items-center justify-center p-2 rounded-full border transition-all duration-300 relative ${
+                      viewMode === 'lab' ? 'bg-primeAccent/20 border-primeAccent/30 text-primeAccent' : 'bg-white/5 border-white/10 text-silverText/70 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  <FlaskConical size={16} />
+                  {labBasket?.length > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primeAccent text-[8px] font-bold text-black ring-2 ring-[#111]">
+                       {labBasket.length}
+                    </span>
+                  )}
+                </button>
               </>
             )}
             <button
@@ -266,18 +282,37 @@ export default function Sidebar({
                     isSelected
                       ? 'bg-primeAccent/10 border-l-primeAccent shadow-lg shadow-primeAccent/10'
                       : 'bg-white/[0.03] border-l-transparent hover:bg-white/[0.06] hover:border-l-primeAccent/50 border border-white/5 text-white/90'
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex flex-wrap gap-1.5 max-h-[44px] overflow-hidden">
-                      {renderTags(item.ai_tags, item.id, isSelected)}
-                    </div>
-                    <div className="text-silverText/40 text-[10px] font-mono ml-2 flex-shrink-0">
+                } group`}
+              >
+                <div className="flex justify-between items-start mb-2 relative">
+                  <div className="flex flex-wrap gap-1.5 max-h-[44px] overflow-hidden">
+                    {renderTags(item.ai_tags, item.id, isSelected)}
+                  </div>
+                    <div className="flex items-center gap-2">
+                    {item.parents && item.parents.length > 0 && (
+                      <Zap size={10} className="text-primeAccent fill-primeAccent/20 animate-pulse" title="合成生成的知识笔记" />
+                    )}
+                    <div className="text-silverText/40 text-[10px] font-mono flex-shrink-0">
                       {item.created_at || item.CreatedAt
                         ? new Date(item.created_at || item.CreatedAt).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
                         : '刚刚'}
                     </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleLabItem(item.id);
+                      }}
+                      title={labBasket?.includes(item.id) ? "从实验室移除" : "加入实验室素材"}
+                      className={`p-1.5 rounded-lg transition-all ${
+                        labBasket?.includes(item.id)
+                          ? 'bg-primeAccent text-black scale-110 shadow-lg shadow-primeAccent/40'
+                          : 'bg-white/5 text-white/20 hover:text-primeAccent hover:bg-primeAccent/10 opacity-0 group-hover:opacity-100'
+                      }`}
+                    >
+                      <Beaker size={12} />
+                    </button>
                   </div>
+                </div>
                   <div className="text-white/80 text-[13px] leading-relaxed font-normal line-clamp-3">
                     {item.ai_summary || "暂无相关摘要..."}
                   </div>

@@ -119,6 +119,7 @@ func (a *NoteApi) Search(c *gin.Context) {
 		var items []models.NoteItem
 		err := global.DB.Joins("JOIN note_tags ON note_tags.note_id = note_items.id").
 			Where("note_tags.tag = ?", tagName).
+			Where("note_items.is_archived = ?", false).
 			Order("note_items.id DESC").
 			Limit(50).
 			Find(&items).Error
@@ -138,8 +139,8 @@ func (a *NoteApi) Search(c *gin.Context) {
 	safeKeyword = strings.ReplaceAll(safeKeyword, "'", "")
 	if strings.TrimSpace(safeKeyword) == "" {
 		var items []models.NoteItem
-		// 默认拉取最新创建的数据
-		if err := global.DB.Order("id DESC").Limit(30).Find(&items).Error; err != nil {
+		// 默认拉取最新创建的数据 (且未归档)
+		if err := global.DB.Preload("Parents").Where("is_archived = ?", false).Order("id DESC").Limit(30).Find(&items).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取默认列表失败"})
 			return
 		}
@@ -171,7 +172,7 @@ func (a *NoteApi) Search(c *gin.Context) {
 			dbQuery = dbQuery.Where("ocr_text LIKE ? OR original_name LIKE ? OR ai_summary LIKE ? OR ai_tags LIKE ?", likeStr, likeStr, likeStr, likeStr)
 		}
 		var items []models.NoteItem
-		if err := dbQuery.Order("id DESC").Limit(50).Find(&items).Error; err != nil {
+		if err := dbQuery.Preload("Parents").Where("is_archived = ?", false).Order("id DESC").Limit(50).Find(&items).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("获取笔记详情失败: %v", err)})
 			return
 		}
@@ -248,7 +249,8 @@ func (a *NoteApi) Search(c *gin.Context) {
 		idxMap[uint(h.Rowid)] = i
 	}
 	var items []models.NoteItem
-	if err = global.DB.Where("id IN ?", ids).Find(&items).Error; err != nil {
+	// 搜索时允许搜到归档内容
+	if err = global.DB.Preload("Parents").Where("id IN ?", ids).Find(&items).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("获取笔记详情失败: %v", err)})
 		return
 	}
@@ -317,6 +319,27 @@ func (a *NoteApi) Trash(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": items})
+}
+
+// BatchArchive 批量归档或取消归档
+func (a *NoteApi) BatchArchive(c *gin.Context) {
+	var body struct {
+		IDs     []uint `json:"ids" binding:"required"`
+		Archive bool   `json:"archive"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
+		return
+	}
+
+	if err := global.DB.Model(&models.NoteItem{}).
+		Where("id IN ?", body.IDs).
+		Update("is_archived", body.Archive).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "归档失败: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "操作成功"})
 }
 
 // generateSnippet 在内存中模拟 FTS5 的 snippet 高亮
@@ -657,5 +680,28 @@ func (a *NoteApi) GetGraph(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": data})
+}
+
+// Synthesize 聚合多个素材为新的知识笔记
+func (a *NoteApi) Synthesize(c *gin.Context) {
+	var body struct {
+		IDs    []uint `json:"ids" binding:"required"`
+		Prompt string `json:"prompt"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误，需要 ids []uint"})
+		return
+	}
+
+	note, err := service.SynthesizeNotes(body.IDs, body.Prompt)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "聚合失败: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "聚合合成成功",
+		"data":    note,
+	})
 }
 

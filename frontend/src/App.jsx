@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import 'katex/dist/katex.min.css';
 import './index.css';
-import { Search, BrainCircuit, X, MessageSquare, BookOpen } from 'lucide-react';
-import { getTrash, searchNotes, deleteNote, restoreNote, uploadNote, createTextNote, updateNoteText, askAI, getChatMessages } from './api/noteApi';
+import { Search, BrainCircuit, X, MessageSquare, BookOpen, FlaskConical } from 'lucide-react';
+import { getTrash, searchNotes, deleteNote, restoreNote, uploadNote, createTextNote, updateNoteText, askAI, getChatMessages, batchArchiveNotes } from './api/noteApi';
 import { useDataPoller } from './hooks/useDataPoller';
 import Sidebar from './components/Sidebar';
 import Detail from './components/Detail';
@@ -11,6 +11,7 @@ import Lightbox from './components/Lightbox';
 import MarkdownRenderer from './components/MarkdownRenderer';
 import SettingsModal from './components/SettingsModal';
 import GraphView from './components/GraphView';
+import LabView from './components/LabView';
 
 function App() {
   const [query, setQuery] = useState('');
@@ -32,6 +33,7 @@ function App() {
   const [currentSessionId, setCurrentSessionId] = useState(0);
   const [askLoading, setAskLoading] = useState(false);
   const [viewMode, setViewMode] = useState('notes'); // App level viewMode to show Graph full screen
+  const [labBasket, setLabBasket] = useState([]); // 暂存待聚合的碎片 IDs
   const chatEndRef = useRef(null);
 
   useEffect(() => {
@@ -231,6 +233,19 @@ function App() {
     }
   };
 
+  const toggleLabItem = (id) => {
+    setLabBasket(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(i => i !== id);
+      }
+      return [...prev, id];
+    });
+  };
+
+  const removeFromLabItem = (id) => {
+    setLabBasket(prev => prev.filter(i => i !== id));
+  };
+
   return (
     <div className="h-screen w-full flex bg-[#0a0a0a] text-white overflow-hidden font-sans">
       <Sidebar
@@ -253,6 +268,8 @@ function App() {
         currentSessionId={currentSessionId}
         askLoading={askLoading}
         setShowSettings={setShowSettings}
+        labBasket={labBasket}
+        toggleLabItem={toggleLabItem}
       />
 
       {/* 右侧面板 */}
@@ -279,6 +296,24 @@ function App() {
               onClose={() => setViewMode('notes')} 
               data={cachedGraphData}
               onDataLoad={setCachedGraphData}
+           />
+        </div>
+
+        {/* Knowledge Lab Layer */}
+        <div className={`absolute inset-0 transition-opacity duration-300 ${viewMode === 'lab' && !selectedItem ? 'z-40 opacity-100 pointer-events-auto' : '-z-10 opacity-0 pointer-events-none'}`}>
+           <LabView 
+              basket={labBasket}
+              allNotes={results}
+              onClose={() => setViewMode('notes')}
+              removeFromBasket={removeFromLabItem}
+              onSaveSuccess={async (sourceIds, shouldArchive) => {
+                if (shouldArchive && sourceIds.length > 0) {
+                   try { await batchArchiveNotes(sourceIds, true); } catch(e) { console.error(e); }
+                }
+                setLabBasket([]);
+                setViewMode('notes');
+                executeSearch(query);
+              }}
            />
         </div>
 

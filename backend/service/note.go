@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"encoding/json"
 
 	"note_all_backend/global"
 	"note_all_backend/models"
@@ -389,7 +390,8 @@ func UpdateNoteText(id string, text string) error {
 func GetSerendipityReview() (string, []models.NoteItem, error) {
 	var items []models.NoteItem
 	// SQLite 特有的随机排序写法: ORDER BY RANDOM()
-	err := global.DB.Where("status = ?", "analyzed").Order("RANDOM()").Limit(3).Find(&items).Error
+	// 灵感碰撞只从活跃笔记中选取
+	err := global.DB.Where("status = ? AND is_archived = ?", "analyzed", false).Order("RANDOM()").Limit(3).Find(&items).Error
 	if err != nil {
 		return "", nil, err
 	}
@@ -443,7 +445,7 @@ func GetRelatedNotes(id uint) ([]models.NoteItem, error) {
 	// 查询拥有相同标签的其他笔记（去重并在数据库层完成）
 	err := global.DB.Table("note_items").
 		Joins("JOIN note_tags ON note_tags.note_id = note_items.id").
-		Where("note_tags.tag IN ? AND note_items.id <> ?", tagNames, id).
+		Where("note_tags.tag IN ? AND note_items.id <> ? AND note_items.is_archived = ?", tagNames, id, false).
 		Where("note_items.deleted_at IS NULL").
 		Group("note_items.id").
 		Order("COUNT(note_tags.tag) DESC, note_items.id DESC").
@@ -487,7 +489,7 @@ func GetKnowledgeGraph() (map[string]interface{}, error) {
 	if err := global.DB.Table("note_tags").
 		Select("note_tags.tag, COUNT(note_tags.tag) as count").
 		Joins("JOIN note_items ON note_items.id = note_tags.note_id").
-		Where("note_items.deleted_at IS NULL AND note_items.status = ?", "analyzed").
+		Where("note_items.deleted_at IS NULL AND note_items.status = ? AND note_items.is_archived = ?", "analyzed", false).
 		Group("note_tags.tag").
 		Having("count > 0").
 		Scan(&tags).Error; err != nil {
@@ -497,7 +499,7 @@ func GetKnowledgeGraph() (map[string]interface{}, error) {
 	// 2. 查出所有有效笔记 (未被逻辑删除，分析过的)
 	var notes []models.NoteItem
 	if err := global.DB.
-		Where("status = ?", "analyzed").
+		Where("status = ? AND is_archived = ?", "analyzed", false).
 		Where("deleted_at IS NULL").
 		Find(&notes).Error; err != nil {
 		return nil, err
@@ -506,7 +508,7 @@ func GetKnowledgeGraph() (map[string]interface{}, error) {
 	// 3. 查出这些笔记内的所有有效双链
 	var links []models.NoteLink
 	if err := global.DB.Joins("JOIN note_items ON note_items.id = note_links.source_id").
-		Where("note_items.deleted_at IS NULL AND note_items.status = ?", "analyzed").
+		Where("note_items.deleted_at IS NULL AND note_items.status = ? AND note_items.is_archived = ?", "analyzed", false).
 		Find(&links).Error; err != nil {
 		return nil, err
 	}
@@ -598,4 +600,94 @@ func GetKnowledgeGraph() (map[string]interface{}, error) {
 		"nodes": nodeList,
 		"links": linkList,
 	}, nil
+}
+
+// SynthesizeNotes 将多个笔记碎片整合汇总成新的知识note
+func SynthesizeNotes(ids []uint, customPrompt string) (*models.NoteItem, error) {
+	// 1. 获取所有源素材
+	var items []models.NoteItem
+	if err := global.DB.Where("id IN ?", ids).Find(&items).Error; err != nil {
+		return nil, err
+	}
+	if len(items) == 0 {
+		return nil, fmt.Errorf("没有找到有效的素材碎片")
+	}
+
+	// 2. 构造 Context 文字背景
+	var context strings.Builder
+	for i, item := range items {
+		text := item.OcrText
+		if len([]rune(text)) > 2000 {
+			text = string([]rune(text)[:2000]) + "..."
+		}
+		context.WriteString(fmt.Sprintf("素材 %d (标题:%s):\n%s\n\n", i+1, item.OriginalName, text))
+	}
+
+	// 3. 构建深度聚合 Prompt
+	systemPrompt := `你是一个高阶知识整合专家。你的任务是将用户提供的多个笔记碎片素材，聚合成一篇结构严密、逻辑清晰的新知识笔记。
+要求：
+1. 深入分析各素材间的内在联系、因果关系或矛盾点，进行二次创作。
+2. 保持内容的专业性与逻辑性，风格洗练。
+3. 必须包含一个精炼的【标题(Title)】和详实的【正文内容(Content)】。
+4. 正文请使用 Markdown 格式。
+5. 你必须严格以 JSON 格式输出，格式如下：
+{"title": "生成的笔记标题", "content": "生成的 Markdown 格式正文"}`
+
+	if customPrompt == "" {
+		customPrompt = "请帮我整合这些碎片，提炼出它们的本质联系并形成一篇完整的深度笔记。"
+	}
+
+	userMsg := fmt.Sprintf("这是需要整合的素材内容：\n\n%s\n用户指令：%s", context.String(), customPrompt)
+
+	// 4. 调用大模型 (使用 AskAIWithContext 模式，将 systemPrompt 设为系统语境)
+	answer, err := pkg.AskAIWithContext([]map[string]string{
+		{"role": "user", "content": userMsg},
+	}, systemPrompt)
+	if err != nil {
+		return nil, fmt.Errorf("AI 合成失败: %v", err)
+	}
+
+	// 5. 解析结果
+	var result struct {
+		Title   string `json:"title"`
+		Content string `json:"content"`
+	}
+	// pkg.go 中有 parseSmartJSON (虽然未导出，但在同一层级 llm.go 中其实未导出，但 package pkg 内部可用)
+	// 糟糕，llm.go 在 pkg 包下，service 在 service 包下。
+	// 我需要让 pkg 导出 parseSmartJSON 或在 service 层写一个简单的。
+	// 为简单起见，我直接在这里处理。
+	re := regexp.MustCompile(`(?s)\{.*\}`)
+	jsonStr := re.FindString(answer)
+	if jsonStr == "" {
+		jsonStr = answer // 兜底尝试
+	}
+	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
+		// 如果不是 JSON，降级处理：标题取一段，正文用全本
+		result.Title = "聚合生成笔记 " + time.Now().Format("2006-01-02 15:04")
+		result.Content = answer
+	}
+
+	// 6. 创建新的 Note 记录
+	storageID := fmt.Sprintf("syn_%d", time.Now().UnixNano())
+	note := models.NoteItem{
+		OriginalName: result.Title,
+		StorageID:    storageID,
+		FileType:     "text/markdown",
+		FileSize:     int64(len(result.Content)),
+		OcrText:      result.Content,
+		Status:       "pending",
+		Parents:      items, // [新增] 持久化素材来源关联
+	}
+
+	if err := global.DB.Create(&note).Error; err != nil {
+		return nil, fmt.Errorf("数据库保存失败: %v", err)
+	}
+
+	// 7. 发送异步任务完善摘要和标签 (复用 performFullAnalysis)
+	nID := note.ID
+	global.WorkerChan <- func() {
+		performFullAnalysis(nID, 0)
+	}
+
+	return &note, nil
 }
