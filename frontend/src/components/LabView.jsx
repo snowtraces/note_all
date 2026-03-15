@@ -128,6 +128,41 @@ const promptPresets = [
 - 待办事项
 - 购物清单
 - 计划列表`
+    },
+    {
+        icon: "🌐",
+        label: "翻译专家",
+        prompt: `请将以下内容翻译为中文，并严格遵守以下规则：
+
+【强制规则】
+1. 不得删除任何内容
+2. 不得新增任何内容
+3. 不得改变原有结构
+4. 不得改变段落顺序
+5. 保留所有 Markdown、标题、列表、表格、代码块
+6. 保留所有符号、编号、链接、引用
+
+【翻译方式】
+- 逐段翻译
+- 技术术语使用准确中文
+- 保持与原文一一对应
+
+【特别说明】
+如果原文已经是中文，请仅进行语言优化，不要改变结构。
+
+只输出翻译后的内容。`
+    },
+    {
+        icon: "🧹",
+        label: "格式整理",
+        prompt: `请对这些碎片内容进行格式整理，使其更清晰易读。
+
+要求：
+- 修复断句和段落
+- 统一标题层级
+- 列表结构化
+- 保留原始信息
+- 输出为清晰的Markdown格式`
     }
 ];
 
@@ -273,7 +308,7 @@ export default function LabView({
 
                 {/* Source Notes */}
 
-                <div 
+                <div
                     className="w-[320px] border-r border-white/5 flex flex-col bg-[#080808]/30 relative z-40"
                     onMouseLeave={() => setHoveredNote(null)}
                 >
@@ -286,8 +321,8 @@ export default function LabView({
 
                         {sourceNotes.map(note => (
 
-                            <div 
-                                key={note.id} 
+                            <div
+                                key={note.id}
                                 className="p-4 rounded-xl bg-white/[0.03] border border-white/5 relative group cursor-help transition-all duration-300 hover:bg-white/[0.06]"
                                 onMouseEnter={(e) => {
                                     setHoveredNote(note);
@@ -319,12 +354,12 @@ export default function LabView({
 
                     {/* Floating Portal-like Bubble (Outside scroll container) */}
                     {hoveredNote && (
-                        <div 
+                        <div
                             className="absolute left-[316px] w-[400px] z-[100] transition-all duration-200"
                             style={{ top: `${hoveredPos}px` }}
                         >
                             <div className="bg-[#0c0c0c] backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] flex flex-col max-h-[500px] relative animate-in fade-in zoom-in duration-200">
-                                
+
                                 {/* Triangle Pointer */}
                                 <div className="absolute top-6 -left-1.5 w-3 h-3 bg-[#0c0c0c] border-l border-t border-white/10 rotate-[-45deg]"></div>
 
@@ -368,7 +403,7 @@ export default function LabView({
 
                         {/* Presets */}
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-3 gap-3">
 
                             {promptPresets.map((preset, i) => (
 

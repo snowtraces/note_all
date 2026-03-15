@@ -14,6 +14,7 @@
 - **Backend**:
   - 新增 `/api/note/synthesize/save` 路由及 `SaveSynthesized` 处理器。
   - 重理 `service/note.go` 逻辑，解耦 AI 生成与数据库持久化过程。
+  - `config.json` 新增 `vlm_model_id` 配置项，支持多模态模型的灵活切换。
 
 ### Removed
 - **Android Client**: 彻底砍掉语音识别功能。移除了主界面底部的语音录入中心悬浮按钮，并将 “Ai Chat” 与 “新增” 按钮重新布局为双按钮平衡布局。

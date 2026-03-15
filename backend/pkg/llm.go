@@ -321,7 +321,7 @@ func AskAIWithContext(messages []map[string]string, contextStr string) (string, 
 		"stream":                false,
 		"temperature":           0.7,
 		"top_p":                 0.8,
-		"max_completion_tokens": 4000,
+		"max_completion_tokens": 8192,
 	}
 
 	payloadBytes, err := json.Marshal(payload)

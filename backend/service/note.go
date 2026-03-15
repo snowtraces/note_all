@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -10,7 +11,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-	"encoding/json"
 
 	"note_all_backend/global"
 	"note_all_backend/models"
@@ -47,7 +47,7 @@ func syncLinks(nID uint, text string) {
 		return
 	}
 	matches := linkRegex.FindAllStringSubmatch(text, -1)
-	
+
 	targetSet := make(map[string]bool)
 	var linkRecords []models.NoteLink
 	for _, match := range matches {
@@ -551,7 +551,7 @@ func GetKnowledgeGraph() (map[string]interface{}, error) {
 			tagMap[t.Tag] = true
 		}
 	}
-	
+
 	for _, note := range notes {
 		nID := fmt.Sprintf("note_%d", note.ID)
 		noteKeys := strings.Split(note.AiTags, ",")
@@ -579,9 +579,9 @@ func GetKnowledgeGraph() (map[string]interface{}, error) {
 			targetID = "ghost_" + link.Target
 			if !ghostMap[link.Target] {
 				nodeList = append(nodeList, map[string]interface{}{
-					"id":   targetID,
-					"name": link.Target, // 未建立的笔记名
-					"type": "ghost",
+					"id":    targetID,
+					"name":  link.Target, // 未建立的笔记名
+					"type":  "ghost",
 					"count": 0,
 				})
 				ghostMap[link.Target] = true
@@ -617,8 +617,8 @@ func SynthesizeNotes(ids []uint, customPrompt string) (string, string, error) {
 	var context strings.Builder
 	for i, item := range items {
 		text := item.OcrText
-		if len([]rune(text)) > 2000 {
-			text = string([]rune(text)[:2000]) + "..."
+		if len([]rune(text)) > 20480 {
+			text = string([]rune(text)[:20480]) + "..."
 		}
 		context.WriteString(fmt.Sprintf("素材 %d (标题:%s):\n%s\n\n", i+1, item.OriginalName, text))
 	}
