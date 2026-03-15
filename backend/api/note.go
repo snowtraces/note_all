@@ -18,6 +18,38 @@ import (
 
 type NoteApi struct{}
 
+// normalizeQueryForFTS 归一化用户检索词，去掉问句前缀/后缀，避免中文分词导致命中失败。
+// 例如 “如何导出” 会被转成 “导出”，避免 FTS 必须匹配整段问句。
+func normalizeQueryForFTS(q string) string {
+	q = strings.TrimSpace(q)
+	q = strings.ReplaceAll(q, "\"", "")
+	q = strings.ReplaceAll(q, "'", "")
+	q = strings.TrimSpace(q)
+
+	// 去掉常见问句前缀
+	prefixes := []string{"如何", "怎么", "怎样", "请问", "为什么", "能否", "是否", "哪里", "啥", "是什么", "能不能"}
+	for _, p := range prefixes {
+		if strings.HasPrefix(q, p) {
+			q = strings.TrimSpace(strings.TrimPrefix(q, p))
+			break
+		}
+	}
+
+	// 去掉常见问句后缀
+	if q != "" {
+		runes := []rune(q)
+		last := runes[len(runes)-1]
+		if last == '吗' || last == '呢' || last == '嘛' {
+			q = strings.TrimSpace(string(runes[:len(runes)-1]))
+		}
+	}
+
+	if q == "" {
+		return strings.TrimSpace(q)
+	}
+	return q
+}
+
 // Upload 处理前端传递来的 Multipart File 请求
 func (a *NoteApi) Upload(c *gin.Context) {
 	fileHeader, err := c.FormFile("file")
@@ -135,8 +167,7 @@ func (a *NoteApi) Search(c *gin.Context) {
 		return
 	}
 
-	safeKeyword := strings.ReplaceAll(keyword, "\"", "")
-	safeKeyword = strings.ReplaceAll(safeKeyword, "'", "")
+	safeKeyword := normalizeQueryForFTS(keyword)
 	if strings.TrimSpace(safeKeyword) == "" {
 		var items []models.NoteItem
 		// 默认拉取最新创建的数据 (且未归档)
@@ -448,8 +479,7 @@ func (a *NoteApi) Ask(c *gin.Context) {
 		return
 	}
 
-	safeKeyword := strings.ReplaceAll(query, "\"", "")
-	safeKeyword = strings.ReplaceAll(safeKeyword, "'", "")
+	safeKeyword := normalizeQueryForFTS(query)
 
 	var items []models.NoteItem
 
@@ -654,7 +684,7 @@ func (a *NoteApi) RelatedNotes(c *gin.Context) {
 // ReprocessNote 手动触发对单条笔记重新提取（使用当前激活的AI模板）
 func (a *NoteApi) ReprocessNote(c *gin.Context) {
 	id := c.Param("id")
-	
+
 	templateIdStr := c.Query("template_id")
 	var templateId uint = 0
 	if templateIdStr != "" {
@@ -668,7 +698,7 @@ func (a *NoteApi) ReprocessNote(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "重新处理失败: " + err.Error()})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{"message": "已触发后台重新提炼分析"})
 }
 
@@ -731,4 +761,3 @@ func (a *NoteApi) SaveSynthesized(c *gin.Context) {
 		"data":    note,
 	})
 }
-
