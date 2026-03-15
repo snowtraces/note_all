@@ -1,287 +1,450 @@
 import React, { useState, useEffect } from 'react';
-import { X, Beaker, Wand2, Save, Trash2, ArrowRight, MessageSquare, Loader2, Sparkles, Files } from 'lucide-react';
+import {
+    X,
+    Beaker,
+    Wand2,
+    Save,
+    Trash2,
+    Loader2,
+    Sparkles,
+    Files
+} from 'lucide-react';
+
 import MarkdownRenderer from './MarkdownRenderer';
 import { synthesizeNotes } from '../api/noteApi';
 
-export default function LabView({ basket, allNotes, onClose, onSaveSuccess, removeFromBasket }) {
+/* ---------------- Prompt Presets ---------------- */
+
+const promptPresets = [
+    {
+        icon: "🧠",
+        label: "智能整合",
+        prompt: `以下内容来自多个零散知识碎片，请进行智能整合：
+
+1. 识别核心主题
+2. 合并重复信息
+3. 建立清晰结构
+4. 提炼关键结论
+5. 如存在冲突观点请标注
+
+输出为一份结构化总结。`
+    },
+    {
+        icon: "📝",
+        label: "知识综述",
+        prompt: `请整合这些碎片内容，编写一篇结构清晰的知识综述。
+
+要求：
+- 按章节组织内容
+- 保留原始碎片标题或来源映射
+- 避免重复信息
+- 最后总结核心结论`
+    },
+    {
+        icon: "🌳",
+        label: "思维框架",
+        prompt: `请将这些碎片整理为层级化知识框架或思维大纲：
+
+突出：
+- 主题层级
+- 概念关系
+- 核心结论`
+    },
+    {
+        icon: "💡",
+        label: "核心洞察",
+        prompt: `请从这些碎片中提炼最重要的观点和结论。
+
+输出格式：
+- 核心观点
+- 支撑信息
+- 启示或推论`
+    },
+    {
+        icon: "⚖️",
+        label: "对比分析",
+        prompt: `请分析这些碎片中的不同观点：
+
+- 找出一致之处
+- 指出冲突或差异
+- 推测原因
+- 给出综合判断`
+    },
+    {
+        icon: "🔗",
+        label: "关系发现",
+        prompt: `请分析这些碎片之间的潜在联系：
+
+例如：
+- 因果关系
+- 时间顺序
+- 概念关联
+- 隐含逻辑
+
+整理为关系分析。`
+    },
+    {
+        icon: "🚀",
+        label: "行动计划",
+        prompt: `请识别这些碎片中的任务或建议，
+整理为一份执行计划：
+
+输出：
+- 任务
+- 优先级
+- 执行步骤`
+    },
+    {
+        icon: "👥",
+        label: "会议纪要",
+        prompt: `请将这些会议相关内容整理为会议纪要：
+
+包含：
+- 会议主题
+- 参与人
+- 讨论要点
+- 决策事项
+- 后续行动`
+    },
+    {
+        icon: "💻",
+        label: "技术文档",
+        prompt: `请将这些技术片段整理为结构化技术文档：
+
+包含：
+- 背景说明
+- 核心原理
+- 实现步骤
+- 关键代码或配置
+- 注意事项`
+    },
+    {
+        icon: "📋",
+        label: "清单整理",
+        prompt: `请从这些碎片中提取所有项目或任务，
+整理为结构化清单：
+
+例如：
+- 待办事项
+- 购物清单
+- 计划列表`
+    }
+];
+
+/* ---------------- Component ---------------- */
+
+export default function LabView({
+    basket,
+    allNotes,
+    onClose,
+    onSaveSuccess,
+    removeFromBasket
+}) {
+
     const [sourceNotes, setSourceNotes] = useState([]);
-    const [prompt, setPrompt] = useState('');
+    const [prompt, setPrompt] = useState(promptPresets[0].prompt);
+
     const [generating, setGenerating] = useState(false);
-    const [result, setResult] = useState(null); // { title: '', content: '' }
+    const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
+
     const [archiveChecked, setArchiveChecked] = useState(true);
 
+    /* ---------------- load notes ---------------- */
+
     useEffect(() => {
-        // 根据 basket 中的 ID 从 allNotes 中挑选完整的笔记对象
-        const picked = basket.map(id => allNotes.find(n => n.id === id)).filter(Boolean);
+        const picked = basket
+            .map(id => allNotes.find(n => n.id === id))
+            .filter(Boolean);
+
         setSourceNotes(picked);
     }, [basket, allNotes]);
 
+    /* ---------------- synthesize ---------------- */
+
     const handleSynthesize = async () => {
+
         if (sourceNotes.length === 0) return;
+
         setGenerating(true);
         setError(null);
+
         try {
+
             const data = await synthesizeNotes(basket, prompt);
-            // data 是后端生成的 NoteItem，此时包含 AI 生成的原文 (ocr_text) 和标题
+
             setResult({
                 title: data.original_name,
                 content: data.ocr_text,
                 note: data
             });
+
         } catch (e) {
+
             setError(e.message);
+
         } finally {
+
             setGenerating(false);
+
         }
     };
+
+    /* ---------------- empty state ---------------- */
 
     if (basket.length === 0 && !result) {
         return (
             <div className="flex-1 flex flex-col items-center justify-center bg-[#080808] p-10 text-center">
+
                 <div className="w-20 h-20 rounded-full bg-primeAccent/10 flex items-center justify-center mb-6 animate-pulse">
                     <Beaker size={40} className="text-primeAccent/40" />
                 </div>
-                <h2 className="text-xl font-bold text-white mb-2">实验室目前是空的</h2>
+
+                <h2 className="text-xl font-bold text-white mb-2">
+                    实验室目前是空的
+                </h2>
+
                 <p className="text-silverText/40 max-w-md">
-                    请先在主界面挑选一些感兴趣的碎片，点击 <Beaker size={14} className="inline mx-1" /> 加入实验室作为素材。
+                    请先在主界面挑选一些碎片加入实验室。
                 </p>
-                <button 
+
+                <button
                     onClick={onClose}
-                    className="mt-8 px-6 py-2 bg-white/5 border border-white/10 rounded-full text-sm hover:bg-white/10 transition-all font-medium"
+                    className="mt-8 px-6 py-2 bg-white/5 border border-white/10 rounded-full text-sm hover:bg-white/10 transition-all"
                 >
-                    返回搜寻素材
+                    返回素材区
                 </button>
+
             </div>
         );
     }
 
+    /* ---------------- UI ---------------- */
+
     return (
+
         <div className="h-full w-full flex flex-col bg-[#050505] overflow-hidden">
+
             {/* Header */}
-            <div className="flex items-center justify-between px-8 py-4 border-b border-white/5 bg-[#080808]/80 backdrop-blur shrink-0 z-20">
+
+            <div className="flex items-center justify-between px-8 py-4 border-b border-white/5 bg-[#080808]/80 backdrop-blur">
+
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-primeAccent/20 flex items-center justify-center border border-primeAccent/30 shadow-[0_0_15px_rgba(255,215,0,0.1)]">
+
+                    <div className="w-10 h-10 rounded-xl bg-primeAccent/20 flex items-center justify-center border border-primeAccent/30">
                         <FlaskConicalIcon className="text-primeAccent" />
                     </div>
+
                     <div>
-                        <h2 className="text-lg font-bold tracking-tight text-white">知识实验室</h2>
-                        <p className="text-[10px] text-primeAccent/60 uppercase tracking-[0.2em] font-mono">Synthesis & Alchemy</p>
+
+                        <h2 className="text-lg font-bold text-white">
+                            知识实验室
+                        </h2>
+
+                        <p className="text-[10px] text-primeAccent/60 uppercase font-mono tracking-[0.2em]">
+                            Synthesis & Alchemy
+                        </p>
+
                     </div>
+
                 </div>
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={onClose}
-                        className="p-2 hover:bg-white/5 rounded-full transition-all text-silverText/40 hover:text-white"
-                    >
-                        <X size={20} />
-                    </button>
-                </div>
+
+                <button
+                    onClick={onClose}
+                    className="p-2 hover:bg-white/5 rounded-full"
+                >
+                    <X size={20} />
+                </button>
+
             </div>
 
-            {/* Main Layout: 3 Columns */}
-            <div className="flex-1 flex overflow-hidden">
-                
-                {/* Column 1: Source Materials (30%) */}
-                <div className="w-[320px] flex flex-col border-r border-white/5 bg-[#080808]/30">
-                    <div className="p-4 border-b border-white/5 flex items-center justify-between shrink-0">
-                        <div className="flex items-center gap-2 text-xs font-bold text-silverText/60 uppercase tracking-widest">
-                            <Files size={14} /> 素材卡片 ({sourceNotes.length})
-                        </div>
+            {/* Layout */}
+
+            <div className="flex flex-1 overflow-hidden">
+
+                {/* Source Notes */}
+
+                <div className="w-[320px] border-r border-white/5 flex flex-col bg-[#080808]/30">
+
+                    <div className="p-4 border-b border-white/5 text-xs font-bold text-silverText/60 flex items-center gap-2">
+                        <Files size={14} /> 素材卡片 ({sourceNotes.length})
                     </div>
-                    <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-3">
-                        {sourceNotes.map((note) => (
-                            <div key={note.id} className="group p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:border-primeAccent/30 transition-all relative">
-                                <button 
+
+                    <div className="flex-1 overflow-y-auto p-3 space-y-3">
+
+                        {sourceNotes.map(note => (
+
+                            <div key={note.id} className="p-4 rounded-xl bg-white/[0.03] border border-white/5 relative group">
+
+                                <button
                                     onClick={() => removeFromBasket(note.id)}
-                                    className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 text-silverText/20 hover:text-red-500 transition-all"
+                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-red-400"
                                 >
                                     <Trash2 size={12} />
                                 </button>
-                                <h3 className="text-xs font-bold text-primeAccent/80 mb-2 truncate pr-4">{note.original_name}</h3>
-                                <p className="text-[11px] text-silverText/50 line-clamp-4 leading-relaxed italic">
+
+                                <h3 className="text-xs font-bold text-primeAccent/80 mb-2 truncate">
+                                    {note.original_name}
+                                </h3>
+
+                                <p className="text-[11px] text-silverText/50 line-clamp-4 italic">
                                     {note.ai_summary || "正在提取摘要..."}
                                 </p>
+
                             </div>
+
                         ))}
+
                     </div>
+
                 </div>
 
-                {/* Column 2: Alchemical Controls (35%) */}
-                <div className="flex-1 flex flex-col p-8 border-r border-white/5 bg-[#050505] overflow-y-auto custom-scrollbar min-w-0">
+                {/* Controls */}
+
+                <div className="flex-1 flex flex-col p-8 border-r border-white/5 overflow-y-auto">
+
                     <div className="max-w-xl mx-auto w-full flex flex-col gap-8">
+
+                        {/* Prompt */}
+
                         <div>
+
                             <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-                                <Sparkles size={16} className="text-primeAccent" /> 合成意图
+                                <Sparkles size={16} className="text-primeAccent" />
+                                合成意图
                             </h3>
-                            <div className="relative">
-                                <textarea
-                                    value={prompt}
-                                    onChange={(e) => setPrompt(e.target.value)}
-                                    placeholder="输入你的合成指令。例如：'将这些碎片整合为一份关于 AI 未来趋势的分析报告，重点突出其对生产力的改变。'"
-                                    rows={8}
-                                    className="w-full bg-white/[0.02] border border-white/10 rounded-2xl p-5 text-sm text-white/90 placeholder-white/20 focus:outline-none focus:border-primeAccent/40 focus:bg-white/[0.04] transition-all resize-none shadow-inner"
-                                />
-                                <div className="absolute bottom-4 right-4 text-[10px] text-white/20 font-mono">
-                                    Markdown Ready
-                                </div>
-                            </div>
+
+                            <textarea
+                                value={prompt}
+                                onChange={(e) => setPrompt(e.target.value)}
+                                rows={10}
+                                className="w-full bg-white/[0.02] border border-white/10 rounded-2xl p-5 text-sm"
+                            />
+
                         </div>
 
+                        {/* Presets */}
+
                         <div className="grid grid-cols-2 gap-3">
-                            <button 
-                                onClick={() => setPrompt("请帮我聚合这些碎片，编写一篇逻辑严密的知识综述。要求分章节论述，并保留原始标题的映射。")}
-                                className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-silverText/60 hover:border-primeAccent/30 hover:text-primeAccent transition-all text-left"
-                            >
-                                📝 逻辑综述模式
-                            </button>
-                            <button 
-                                onClick={() => setPrompt("请对比这些碎片中的不同观点，指出其中的必然联系或潜在冲突。")}
-                                className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-silverText/60 hover:border-primeAccent/30 hover:text-primeAccent transition-all text-left"
-                            >
-                                ⚖️ 对比分析模式
-                            </button>
-                            <button 
-                                onClick={() => setPrompt("请从这些碎片中提取出最具价值的核心观点和结论，以精炼的格式呈现。")}
-                                className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-silverText/60 hover:border-primeAccent/30 hover:text-primeAccent transition-all text-left"
-                            >
-                                💡 核心洞察模式
-                            </button>
-                            <button 
-                                onClick={() => setPrompt("请分析这些内容中提到的潜在任务、行动项或下一步建议，整理成一份清晰的执行清单。")}
-                                className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-silverText/60 hover:border-primeAccent/30 hover:text-primeAccent transition-all text-left"
-                            >
-                                🚀 行动清单模式
-                            </button>
-                            <button 
-                                onClick={() => setPrompt("请将这些碎片的内容整理成一个结构化的思维大纲，突出层级关系，方便我理解整体框架。")}
-                                className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-silverText/60 hover:border-primeAccent/30 hover:text-primeAccent transition-all text-left"
-                            >
-                                🌳 思维大纲模式
-                            </button>
-                            <button 
-                                onClick={() => setPrompt("请将这些零散的素材改写成一篇具有逻辑性和吸引力的短文，适合作为博客或工作总结。")}
-                                className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-silverText/60 hover:border-primeAccent/30 hover:text-primeAccent transition-all text-left"
-                            >
-                                🎨 创意改写模式
-                            </button>
-                            <button 
-                                onClick={() => setPrompt("请识别出其中的所有物品、链接或计划，整理成一份清晰的购物清单或待办事项表。")}
-                                className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-silverText/60 hover:border-primeAccent/30 hover:text-primeAccent transition-all text-left"
-                            >
-                                🛒 购物/待办清单
-                            </button>
-                            <button 
-                                onClick={() => setPrompt("请提取出这些票据或截图中的关键数据（日期、金额、商户、项目），整理成规范的表格或收支明细报告。")}
-                                className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-silverText/60 hover:border-primeAccent/30 hover:text-primeAccent transition-all text-left"
-                            >
-                                🧾 票据/支出统计
-                            </button>
-                            <button 
-                                onClick={() => setPrompt("请将这些会议摘要、录音提取或笔记片段，整理成一份正式的会议纪要（包含参与人、讨论要点、决策事项）。")}
-                                className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-silverText/60 hover:border-primeAccent/30 hover:text-primeAccent transition-all text-left"
-                            >
-                                👥 会议/访谈纪要
-                            </button>
-                            <button 
-                                onClick={() => setPrompt("请从这些技术片段或截图中提取出核心代码逻辑、环境配置或操作步骤，整理成一份规范的技术实现文档。")}
-                                className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-silverText/60 hover:border-primeAccent/30 hover:text-primeAccent transition-all text-left"
-                            >
-                                💻 技术/代码文档
-                            </button>
+
+                            {promptPresets.map((preset, i) => (
+
+                                <button
+                                    key={i}
+                                    onClick={() => setPrompt(preset.prompt)}
+                                    className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-left hover:border-primeAccent/30 hover:text-primeAccent"
+                                >
+
+                                    {preset.icon} {preset.label}
+
+                                    {i === 0 && (
+                                        <span className="ml-2 text-[9px] text-primeAccent">
+                                            推荐
+                                        </span>
+                                    )}
+
+                                </button>
+
+                            ))}
+
                         </div>
+
+                        {/* Generate */}
 
                         <button
                             onClick={handleSynthesize}
                             disabled={generating || basket.length === 0}
-                            className={`w-full py-4 rounded-2xl flex items-center justify-center gap-3 font-bold text-sm tracking-widest transition-all ${
-                                generating || basket.length === 0
-                                    ? 'bg-white/5 text-white/20 cursor-not-allowed'
-                                    : 'bg-gradient-to-r from-primeAccent/20 to-primeAccent/40 border border-primeAccent/50 text-primeAccent hover:shadow-[0_0_30px_rgba(255,215,0,0.15)] hover:scale-[1.02]'
-                            }`}
+                            className="w-full py-4 rounded-2xl flex items-center justify-center gap-3 font-bold text-sm bg-primeAccent/30 hover:bg-primeAccent/40"
                         >
-                            {generating ? (
-                                <>
+
+                            {generating
+                                ? <>
                                     <Loader2 size={18} className="animate-spin" />
                                     正在进行知识炼金...
                                 </>
-                            ) : (
-                                <>
+                                : <>
                                     <Wand2 size={18} />
                                     执行知识合成
                                 </>
-                            )}
+                            }
+
                         </button>
 
                         {error && (
-                            <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
-                                炼金失败: {error}
+                            <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+                                {error}
                             </div>
                         )}
+
                     </div>
+
                 </div>
 
-                {/* Column 3: The Golden Result (35%) */}
-                <div className="flex-1 flex flex-col bg-[#080808] min-w-0">
+                {/* Result */}
+
+                <div className="flex-1 bg-[#080808] flex flex-col">
+
                     {result ? (
-                        <div className="flex-1 flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-4 duration-700">
-                           <div className="p-8 pb-4 shrink-0 border-b border-white/5">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-[10px] font-mono text-primeAccent/60 uppercase tracking-[0.3em]">Theoretical Result</span>
-                                    <div className="flex items-center gap-4">
-                                        <label className="flex items-center gap-2 cursor-pointer group/toggle">
-                                            <div className="relative">
-                                                <input 
-                                                    type="checkbox" 
-                                                    className="sr-only peer" 
-                                                    checked={archiveChecked}
-                                                    onChange={() => setArchiveChecked(!archiveChecked)}
-                                                />
-                                                <div className="w-8 h-4 bg-white/10 rounded-full peer peer-checked:bg-primeAccent/40 transition-all"></div>
-                                                <div className="absolute left-0.5 top-0.5 w-3 h-3 bg-white/40 rounded-full transition-all peer-checked:left-4.5 peer-checked:bg-primeAccent"></div>
-                                            </div>
-                                            <span className="text-[10px] text-white/40 group-hover/toggle:text-primeAccent/60 transition-colors">合成后归档素材</span>
-                                        </label>
-                                        <button 
-                                            onClick={() => {
-                                                onSaveSuccess(basket, archiveChecked);
-                                                setResult(null);
-                                                setPrompt('');
-                                            }}
-                                            className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-primeAccent text-black text-[11px] font-bold hover:shadow-lg hover:shadow-primeAccent/20 transition-all"
-                                        >
-                                            <Save size={14} /> 保存至知识库
-                                        </button>
-                                    </div>
-                                </div>
-                                <h1 className="text-2xl font-black text-white leading-tight">{result.title}</h1>
-                           </div>
-                           <div className="flex-1 overflow-y-auto p-8 pt-6 custom-scrollbar min-w-0">
-                                <div className="prose prose-invert max-w-none break-words">
-                                    <MarkdownRenderer content={result.content} />
-                                </div>
-                           </div>
-                        </div>
-                    ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center text-center p-10 opacity-30">
-                            <div className="w-16 h-16 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center mb-4">
-                                <div className="w-8 h-8 rounded-full border-2 border-primeAccent/40 animate-ping"></div>
+
+                        <>
+                            <div className="p-8 border-b border-white/5 flex justify-between items-center">
+
+                                <h1 className="text-2xl font-black text-white">
+                                    {result.title}
+                                </h1>
+
+                                <button
+                                    onClick={() => {
+                                        onSaveSuccess(basket, archiveChecked);
+                                        setResult(null);
+                                    }}
+                                    className="flex items-center gap-2 px-4 py-2 bg-primeAccent text-black rounded-full text-xs"
+                                >
+                                    <Save size={14} /> 保存
+                                </button>
+
                             </div>
-                            <p className="text-xs text-silverText/60 font-mono tracking-widest uppercase">Waiting for reaction...</p>
+
+                            <div className="flex-1 overflow-y-auto p-8">
+
+                                <MarkdownRenderer content={result.content} />
+
+                            </div>
+
+                        </>
+
+                    ) : (
+
+                        <div className="flex-1 flex items-center justify-center opacity-30">
+                            Waiting for reaction...
                         </div>
+
                     )}
+
                 </div>
 
             </div>
+
         </div>
     );
 }
 
-// Internal Icon support since I can't be sure about every lucide import in the target env
+/* ---------------- Icon ---------------- */
+
 function FlaskConicalIcon({ className }) {
     return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <svg xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={className}
+        >
             <path d="M10 2v7.5M14 2v7.5M8.5 2h7M14 10a5 5 0 0 1 5 5v3a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-3a5 5 0 0 1 5-5M11 11.5l-3 3M11.5 16l3-3" />
         </svg>
-    )
+    );
 }
