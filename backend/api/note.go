@@ -463,7 +463,7 @@ func (a *NoteApi) Ask(c *gin.Context) {
 	}
 
 	if needsFallback {
-		dbQuery := global.DB.Model(&models.NoteItem{})
+		dbQuery := global.DB.Model(&models.NoteItem{}).Where("is_archived = ?", false)
 		for _, w := range words {
 			likeStr := "%" + w + "%"
 			dbQuery = dbQuery.Where("ocr_text LIKE ? OR original_name LIKE ? OR ai_summary LIKE ? OR ai_tags LIKE ?", likeStr, likeStr, likeStr, likeStr)
@@ -497,14 +497,14 @@ func (a *NoteApi) Ask(c *gin.Context) {
 			}
 			rows.Close()
 			if len(ids) > 0 {
-				global.DB.Where("id IN ?", ids).Find(&items)
+				global.DB.Where("id IN ? AND is_archived = ?", ids, false).Find(&items)
 				fmt.Printf("[Ask] FTS found: %d\n", len(items))
 			}
 		}
 
 		// 如果 FTS 一个都没找到，可能因为分词问题，降级一次 LIKE
 		if len(items) == 0 {
-			dbQuery := global.DB.Model(&models.NoteItem{})
+			dbQuery := global.DB.Model(&models.NoteItem{}).Where("is_archived = ?", false)
 			for _, w := range words {
 				likeStr := "%" + w + "%"
 				dbQuery = dbQuery.Where("ocr_text LIKE ? OR original_name LIKE ? OR ai_summary LIKE ? OR ai_tags LIKE ?", likeStr, likeStr, likeStr, likeStr)

@@ -12,6 +12,7 @@
     - 为素材卡片引入“冒泡式”预览气泡，通过 React 状态外置管理，利用 `OffsetTop` 动态计算位置，彻底解决了滚动容器导致的 `z-index` 遮挡与边界裁剪顽疾。
     - 预览采用 `PRE` 格式化排版，完美还原 OCR 原始换行与格式；支持鼠标平滑移入气泡进行选词或检阅。
 - **Backend**:
+  - **AI 知识问答 (RAG) 增强**: 默认在该环节过滤掉“已归档”的笔记，确保 AI 对话更聚焦于当前活跃知识。
   - 新增 `/api/note/synthesize/save` 路由及 `SaveSynthesized` 处理器。
   - 重理 `service/note.go` 逻辑，解耦 AI 生成与数据库持久化过程。
   - `config.json` 新增 `vlm_model_id` 配置项，支持多模态模型的灵活切换。
