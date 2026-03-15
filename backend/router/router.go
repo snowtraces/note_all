@@ -42,8 +42,9 @@ func SetupRouter() *gin.Engine {
 		// 2. 根据自签名 SnowStorage ID 下潜读取物理对象返回
 		apiGroup.GET("/file/:id", noteApi.GetFile)
 
-		// 3. FTS5 分词极速高亮检索（支持 # 标签模式）
+		// 3. 混合检索
 		apiGroup.GET("/search", noteApi.Search)
+		apiGroup.POST("/search", noteApi.Search)
 
 		// 4. 详细内容查询与更新
 		apiGroup.PATCH("/note/:id/text", noteApi.UpdateText)
@@ -61,6 +62,7 @@ func SetupRouter() *gin.Engine {
 
 		// 6. RAG 会话与每日回顾
 		apiGroup.POST("/ask", noteApi.Ask)
+		apiGroup.POST("/ai/ask", noteApi.Ask)
 		apiGroup.GET("/chat/sessions", noteApi.ListChatSessions)
 		apiGroup.GET("/chat/session/:id", noteApi.GetChatMessages)
 		apiGroup.DELETE("/chat/session/:id", noteApi.DeleteChatSession)

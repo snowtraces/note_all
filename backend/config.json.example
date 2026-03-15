@@ -3,6 +3,8 @@
   "llm_api_token": "your_llm_api_token_here",
   "llm_model_id": "ernie-4.5-21b-a3b",
   "vlm_model_id": "ernie-4.5-vl-28b-a3b",
-  "paddle_api_url": "https://gem4qfo2mc76xey5.aistudio-app.com/layout-parsing",
+  "embedding_model_id": "text-embedding-3-small",
+  "embedding_api_url": "https://api.example.com/v1/embeddings",
+  "paddle_api_url": "http://localhost:8866/predict/ocr_system",
   "paddle_token": "your_paddle_token_here"
 }

@@ -3,13 +3,11 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 
 	"note_all_backend/global"
 	"note_all_backend/models"
-	"note_all_backend/pkg"
 	"note_all_backend/service"
 
 	"github.com/gin-gonic/gin"
@@ -136,164 +134,42 @@ func (a *NoteApi) GetFile(c *gin.Context) {
 	c.DataFromReader(http.StatusOK, -1, contentType, reader, map[string]string{})
 }
 
-// Search 执行跨 FTS5 内外联接的高性能文本检索并含 snippet 摘要匹配
+// Search 执行混合检索 (Vector + FTS5 + Tag + Link + Recency)
 func (a *NoteApi) Search(c *gin.Context) {
 	keyword := c.Query("q")
-
-	type searchResult struct {
-		models.NoteItem
-		Snippet string `json:"snippet"`
+	if keyword == "" {
+		// 尝试从 Body 读取 (针对 POST 请求)
+		var body struct {
+			Query string `json:"query"`
+		}
+		if err := c.ShouldBindJSON(&body); err == nil && body.Query != "" {
+			keyword = body.Query
+		}
 	}
 
-	// ===== # 标签精确模式 =====
-	if strings.HasPrefix(keyword, "#") {
-		tagName := strings.TrimSpace(keyword[1:])
-		var items []models.NoteItem
-		err := global.DB.Joins("JOIN note_tags ON note_tags.note_id = note_items.id").
-			Where("note_tags.tag = ?", tagName).
-			Where("note_items.is_archived = ?", false).
-			Order("note_items.id DESC").
-			Limit(50).
-			Find(&items).Error
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("标签搜索失败: %v", err)})
-			return
-		}
-		results := make([]searchResult, len(items))
-		for i, item := range items {
-			results[i] = searchResult{NoteItem: item, Snippet: ""}
+	if strings.TrimSpace(keyword) == "" {
+		// 无参数搜索时，默认返回最近更新的 20 条已分析笔记
+		var notes []models.NoteItem
+		// 必须 Preload Tags，否则前端 renderTags 会报错或显示无标签
+		global.DB.Preload("Tags").Where("status = ? AND is_archived = ?", "analyzed", false).
+			Order("updated_at DESC").Limit(20).Find(&notes)
+
+		results := make([]service.SearchResult, 0)
+		for _, n := range notes {
+			results = append(results, service.SearchResult{
+				NoteItem: n,
+				Score:    1.0, // 提供基础分值
+			})
 		}
 		c.JSON(http.StatusOK, gin.H{"data": results})
 		return
 	}
 
-	safeKeyword := normalizeQueryForFTS(keyword)
-	if strings.TrimSpace(safeKeyword) == "" {
-		var items []models.NoteItem
-		// 默认拉取最新创建的数据 (且未归档)
-		if err := global.DB.Preload("Parents").Where("is_archived = ?", false).Order("id DESC").Limit(30).Find(&items).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取默认列表失败"})
-			return
-		}
-
-		results := make([]searchResult, len(items))
-		for i, item := range items {
-			results[i] = searchResult{NoteItem: item, Snippet: ""}
-		}
-		c.JSON(http.StatusOK, gin.H{"data": results})
-		return
-	}
-
-	// 检查是否包含长度<3的词（尤其是对于中文2字词或者单字），
-	// glebarez/sqlite 的 FTS5 trigram tokenizer 无法直接 MATCH <3 个字符的词。
-	words := strings.Fields(safeKeyword)
-	needsFallback := false
-	for _, w := range words {
-		if len([]rune(w)) < 3 {
-			needsFallback = true
-			break
-		}
-	}
-
-	if needsFallback {
-		// 降级使用 LIKE 查询，解决短字符（包含绝大数中文词语）搜不到的问题
-		dbQuery := global.DB.Model(&models.NoteItem{})
-		for _, w := range words {
-			likeStr := "%" + w + "%"
-			dbQuery = dbQuery.Where("ocr_text LIKE ? OR original_name LIKE ? OR ai_summary LIKE ? OR ai_tags LIKE ?", likeStr, likeStr, likeStr, likeStr)
-		}
-		var items []models.NoteItem
-		if err := dbQuery.Preload("Parents").Where("is_archived = ?", false).Order("id DESC").Limit(50).Find(&items).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("获取笔记详情失败: %v", err)})
-			return
-		}
-
-		results := make([]searchResult, len(items))
-		for i, item := range items {
-			snippetText := ""
-			if len(words) > 0 {
-				snippetText = generateSnippet(item.OcrText, words[0], 64)
-				if snippetText == "" {
-					snippetText = generateSnippet(item.OriginalName, words[0], 64)
-				}
-			}
-			results[i] = searchResult{NoteItem: item, Snippet: snippetText}
-		}
-		c.JSON(http.StatusOK, gin.H{"data": results})
-		return
-	}
-
-	// 对于全都是长度>=3的词，使用高性能的 FTS5 全文索引
-	// glebarez/sqlite (modernc.org/sqlite) 的 FTS5 在非 main goroutine 里有 SQLITE_MISUSE 限制：
-	// GORM 的 Scan/ColumnTypes() 会触发 Error 21。
-	// 根治方案：完全绕开 GORM，用底层 database/sql QueryContext + rows.Scan() 操作 FTS5。
-	sqlDB, err := global.DB.DB()
+	results, err := service.HybridSearch(keyword, 20)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取DB连接失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "检索失败: " + err.Error()})
 		return
 	}
-
-	// keyword 已脱敏，并且外层双引号强制匹配完整词组，如果想切分词汇其实交给 FTS5 也能处理，但此处为安全起见用字面量
-	ftsSQL := fmt.Sprintf(`
-	SELECT rowid, snippet(note_fts, -1, '<b>', '</b>', '...', 64)
-	FROM note_fts
-	WHERE note_fts MATCH '"%s"'
-	ORDER BY rowid DESC LIMIT 50;`, safeKeyword)
-
-	rows, err := sqlDB.QueryContext(c.Request.Context(), ftsSQL)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("全文检索失败: %v", err)})
-		return
-	}
-	defer rows.Close()
-
-	type ftsHit struct {
-		Rowid   int64
-		Snippet string
-	}
-	var hits []ftsHit
-	for rows.Next() {
-		var h ftsHit
-		if e := rows.Scan(&h.Rowid, &h.Snippet); e != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("读取搜索结果失败: %v", e)})
-			return
-		}
-		hits = append(hits, h)
-	}
-	if err = rows.Err(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("遍历搜索结果失败: %v", err)})
-		return
-	}
-
-	if len(hits) == 0 {
-		c.JSON(http.StatusOK, gin.H{"data": []searchResult{}})
-		return
-	}
-
-	// Step 2: 用 GORM 标准查询获取 note_items 详情（普通表，无 FTS5）
-	ids := make([]int64, 0, len(hits))
-	snippetMap := make(map[uint]string, len(hits))
-	idxMap := make(map[uint]int, len(hits))
-	for i, h := range hits {
-		ids = append(ids, h.Rowid)
-		snippetMap[uint(h.Rowid)] = h.Snippet
-		idxMap[uint(h.Rowid)] = i
-	}
-	var items []models.NoteItem
-	// 搜索时允许搜到归档内容
-	if err = global.DB.Preload("Parents").Where("id IN ?", ids).Find(&items).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("获取笔记详情失败: %v", err)})
-		return
-	}
-
-	// Step 3: Go 层合并，保持 FTS5 rank 排名顺序
-	results := make([]searchResult, len(items))
-	for i, item := range items {
-		results[i] = searchResult{NoteItem: item, Snippet: snippetMap[item.ID]}
-	}
-	sort.Slice(results, func(i, j int) bool {
-		return idxMap[results[i].ID] < idxMap[results[j].ID]
-	})
 
 	c.JSON(http.StatusOK, gin.H{"data": results})
 }
@@ -452,7 +328,7 @@ type AskQuery struct {
 	SessionID uint                `json:"session_id"`
 }
 
-// Ask 是一个 RAG 端点：基于 FTS5 搜索当前问题，并联合上下文和多轮历史给 LLM
+// Ask 是 RAG 核心端点：集成意图检测、查询改写、混合检索与上下文构建
 func (a *NoteApi) Ask(c *gin.Context) {
 	var body AskQuery
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -465,7 +341,6 @@ func (a *NoteApi) Ask(c *gin.Context) {
 		return
 	}
 
-	// 找出最后一条 User 的话语提取关键词
 	query := ""
 	for i := len(body.Messages) - 1; i >= 0; i-- {
 		if body.Messages[i]["role"] == "user" {
@@ -479,87 +354,17 @@ func (a *NoteApi) Ask(c *gin.Context) {
 		return
 	}
 
-	safeKeyword := normalizeQueryForFTS(query)
-
-	var items []models.NoteItem
-
-	words := strings.Fields(safeKeyword)
-	needsFallback := false
-	for _, w := range words {
-		if len([]rune(w)) < 3 {
-			needsFallback = true
-			break
-		}
-	}
-
-	if needsFallback {
-		dbQuery := global.DB.Model(&models.NoteItem{}).Where("is_archived = ?", false)
-		for _, w := range words {
-			likeStr := "%" + w + "%"
-			dbQuery = dbQuery.Where("ocr_text LIKE ? OR original_name LIKE ? OR ai_summary LIKE ? OR ai_tags LIKE ?", likeStr, likeStr, likeStr, likeStr)
-		}
-		if err := dbQuery.Order("id DESC").Limit(8).Find(&items).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("获取关联笔记失败: %v", err)})
-			return
-		}
-		fmt.Printf("[Ask] Fallback LIKE found: %d\n", len(items))
-	} else {
-		sqlDB, err := global.DB.DB()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "获取DB连接失败"})
-			return
-		}
-
-		ftsSQL := fmt.Sprintf(`
-		SELECT rowid 
-		FROM note_fts 
-		WHERE note_fts MATCH '"%s"' 
-		ORDER BY rank LIMIT 8;`, safeKeyword)
-
-		rows, err := sqlDB.QueryContext(c.Request.Context(), ftsSQL)
-		if err == nil {
-			var ids []int64
-			for rows.Next() {
-				var id int64
-				if rows.Scan(&id) == nil {
-					ids = append(ids, id)
-				}
-			}
-			rows.Close()
-			if len(ids) > 0 {
-				global.DB.Where("id IN ? AND is_archived = ?", ids, false).Find(&items)
-				fmt.Printf("[Ask] FTS found: %d\n", len(items))
-			}
-		}
-
-		// 如果 FTS 一个都没找到，可能因为分词问题，降级一次 LIKE
-		if len(items) == 0 {
-			dbQuery := global.DB.Model(&models.NoteItem{}).Where("is_archived = ?", false)
-			for _, w := range words {
-				likeStr := "%" + w + "%"
-				dbQuery = dbQuery.Where("ocr_text LIKE ? OR original_name LIKE ? OR ai_summary LIKE ? OR ai_tags LIKE ?", likeStr, likeStr, likeStr, likeStr)
-			}
-			dbQuery.Order("id DESC").Limit(5).Find(&items)
-			fmt.Printf("[Ask] FTS missed, second LIKE-fallback found: %d\n", len(items))
-		}
-	}
-
-	// 组装 Context
-	contextBuilder := strings.Builder{}
-	for _, item := range items {
-		// 不要塞入整个 ocr_text 如果太长的话，不过一般碎片知识可以塞入。为防止超 Token，这里可以截断 OCR 原文，或者只依赖 AiSummary。
-		text := item.OcrText
-		if len([]rune(text)) > 500 {
-			text = string([]rune(text)[:500]) + "..."
-		}
-		contextBuilder.WriteString(fmt.Sprintf("- 笔记名称：%s\n  标签：%s\n  AI摘要：%s\n  内容详情：%s\n\n", item.OriginalName, item.AiTags, item.AiSummary, text))
-	}
-
-	// 调用大模型 (传入多轮消息数组)
-	answer, err := pkg.AskAIWithContext(body.Messages, contextBuilder.String())
+	// 执行增强 RAG 流程
+	answer, results, intent, err := service.RAGAsk(query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("AI思考失败: %v", err)})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI 执行失败: " + err.Error()})
 		return
+	}
+
+	// 处理引用项转换
+	var references []models.NoteItem
+	for _, r := range results {
+		references = append(references, r.NoteItem)
 	}
 
 	// 持久化存储
@@ -583,13 +388,14 @@ func (a *NoteApi) Ask(c *gin.Context) {
 		ChatSessionID: sessionID,
 		Role:          "assistant",
 		Content:       answer,
-		References:    items,
+		References:    references,
 	})
 
 	c.JSON(http.StatusOK, gin.H{
 		"data":       answer,
 		"session_id": sessionID,
-		"references": items,
+		"references": references,
+		"intent":     intent,
 	})
 }
 

@@ -8,6 +8,7 @@ import (
 
 	"note_all_backend/global"
 	"note_all_backend/models"
+	"note_all_backend/pkg/synonym"
 	"note_all_backend/storage"
 
 	"github.com/glebarez/sqlite"
@@ -58,4 +59,12 @@ func InitSystem() {
 	storageDataPath := filepath.Join(".", "storage_data")
 	global.Storage = storage.NewSnowStorage(storageDataPath)
 	log.Println("本地底层文件服务 SnowStorage (基于块存储机制) 启动成功。")
+
+	// 3. 异步导入同义词
+	go func() {
+		synonymFile := filepath.Join(".", "哈工大社会计算与信息检索研究中心同义词词林扩展版.txt")
+		if err := synonym.ImportSynonyms(synonymFile); err != nil {
+			log.Printf("[Synonym] 导入同义词失败: %v", err)
+		}
+	}()
 }

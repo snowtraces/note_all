@@ -159,6 +159,12 @@ func performFullAnalysis(nID uint, templateID uint) {
 
 	syncTags(nID, tags)
 	syncLinks(nID, markdownText)
+
+	// 新增：更新向量索引
+	if err := UpdateNoteEmbedding(nID); err != nil {
+		log.Printf("[AI 异常] 向量索引更新失败 (ID:%d): %v", nID, err)
+	}
+
 	log.Printf("[AI全链路作业完成] 记录ID %d: 提取摘要 [%s]...", nID, summary)
 }
 
@@ -378,6 +384,7 @@ func UpdateNoteText(id string, text string) error {
 		if err := global.DB.Select("id").Where("id = ?", itemID).First(&noteItem).Error; err == nil {
 			syncTags(noteItem.ID, tags)
 			syncLinks(noteItem.ID, rawText)
+			UpdateNoteEmbedding(noteItem.ID)
 		}
 
 		log.Printf("[重新提炼作业完成] 记录ID %s: 提取新精简摘要 [%s]...", itemID, summary)

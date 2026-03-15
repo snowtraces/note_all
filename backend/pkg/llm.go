@@ -372,3 +372,62 @@ func AskAIWithContext(messages []map[string]string, contextStr string) (string, 
 
 	return resData.Choices[0].Message.Content, nil
 }
+
+// GetEmbedding 调用大模型 Embedding 接口获取文本向量
+func GetEmbedding(text string) ([]float32, error) {
+	if text == "" {
+		return nil, fmt.Errorf("embedding text is empty")
+	}
+
+	apiUrl := global.Config.EmbeddingApiUrl
+	if apiUrl == "" {
+		apiUrl = global.Config.LlmApiUrl // 默认使用同一套后端
+	}
+
+	// 适配 OpenAI Embedding 标准格式
+	payload := map[string]interface{}{
+		"model": global.Config.EmbeddingModelID,
+		"input": text,
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", apiUrl, bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", global.Config.LlmApiToken))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("Embedding API error: %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	var resData struct {
+		Data []struct {
+			Embedding []float32 `json:"embedding"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&resData); err != nil {
+		return nil, err
+	}
+
+	if len(resData.Data) == 0 {
+		return nil, fmt.Errorf("no embedding data returned")
+	}
+
+	return resData.Data[0].Embedding, nil
+}
