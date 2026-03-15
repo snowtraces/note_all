@@ -146,3 +146,17 @@ export const batchArchiveNotes = async (ids, archive = true) => {
   if (!res.ok) throw new Error("Batch archive failed");
 };
 
+export const saveSynthesizedNote = async (ids, title, content) => {
+  const res = await fetch("/api/note/synthesize/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids, title, content }),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || "Save synthesis failed");
+  }
+  const data = await res.json();
+  return data.data;
+};
+

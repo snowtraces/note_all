@@ -602,15 +602,15 @@ func GetKnowledgeGraph() (map[string]interface{}, error) {
 	}, nil
 }
 
-// SynthesizeNotes 将多个笔记碎片整合汇总成新的知识note
-func SynthesizeNotes(ids []uint, customPrompt string) (*models.NoteItem, error) {
+// SynthesizeNotes 仅生成预览内容，不落库
+func SynthesizeNotes(ids []uint, customPrompt string) (string, string, error) {
 	// 1. 获取所有源素材
 	var items []models.NoteItem
 	if err := global.DB.Where("id IN ?", ids).Find(&items).Error; err != nil {
-		return nil, err
+		return "", "", err
 	}
 	if len(items) == 0 {
-		return nil, fmt.Errorf("没有找到有效的素材碎片")
+		return "", "", fmt.Errorf("没有找到有效的素材碎片")
 	}
 
 	// 2. 构造 Context 文字背景
@@ -639,12 +639,12 @@ func SynthesizeNotes(ids []uint, customPrompt string) (*models.NoteItem, error) 
 
 	userMsg := fmt.Sprintf("这是需要整合的素材内容：\n\n%s\n用户指令：%s", context.String(), customPrompt)
 
-	// 4. 调用大模型 (使用 AskAIWithContext 模式，将 systemPrompt 设为系统语境)
+	// 4. 调用大模型
 	answer, err := pkg.AskAIWithContext([]map[string]string{
 		{"role": "user", "content": userMsg},
 	}, systemPrompt)
 	if err != nil {
-		return nil, fmt.Errorf("AI 合成失败: %v", err)
+		return "", "", fmt.Errorf("AI 合成失败: %v", err)
 	}
 
 	// 5. 解析结果
@@ -652,38 +652,42 @@ func SynthesizeNotes(ids []uint, customPrompt string) (*models.NoteItem, error) 
 		Title   string `json:"title"`
 		Content string `json:"content"`
 	}
-	// pkg.go 中有 parseSmartJSON (虽然未导出，但在同一层级 llm.go 中其实未导出，但 package pkg 内部可用)
-	// 糟糕，llm.go 在 pkg 包下，service 在 service 包下。
-	// 我需要让 pkg 导出 parseSmartJSON 或在 service 层写一个简单的。
-	// 为简单起见，我直接在这里处理。
 	re := regexp.MustCompile(`(?s)\{.*\}`)
 	jsonStr := re.FindString(answer)
 	if jsonStr == "" {
-		jsonStr = answer // 兜底尝试
+		jsonStr = answer
 	}
 	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
-		// 如果不是 JSON，降级处理：标题取一段，正文用全本
 		result.Title = "聚合生成笔记 " + time.Now().Format("2006-01-02 15:04")
 		result.Content = answer
 	}
 
-	// 6. 创建新的 Note 记录
+	return result.Title, result.Content, nil
+}
+
+// CreateSynthesizedNote 接受用户的确认，正式执行落库
+func CreateSynthesizedNote(ids []uint, title, content string) (*models.NoteItem, error) {
+	var items []models.NoteItem
+	if err := global.DB.Where("id IN ?", ids).Find(&items).Error; err != nil {
+		return nil, err
+	}
+
 	storageID := fmt.Sprintf("syn_%d", time.Now().UnixNano())
 	note := models.NoteItem{
-		OriginalName: result.Title,
+		OriginalName: title,
 		StorageID:    storageID,
 		FileType:     "text/markdown",
-		FileSize:     int64(len(result.Content)),
-		OcrText:      result.Content,
+		FileSize:     int64(len(content)),
+		OcrText:      content,
 		Status:       "pending",
-		Parents:      items, // [新增] 持久化素材来源关联
+		Parents:      items,
 	}
 
 	if err := global.DB.Create(&note).Error; err != nil {
 		return nil, fmt.Errorf("数据库保存失败: %v", err)
 	}
 
-	// 7. 发送异步任务完善摘要和标签 (复用 performFullAnalysis)
+	// 发送异步任务完善摘要和标签
 	nID := note.ID
 	global.WorkerChan <- func() {
 		performFullAnalysis(nID, 0)

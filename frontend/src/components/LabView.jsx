@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 import MarkdownRenderer from './MarkdownRenderer';
-import { synthesizeNotes } from '../api/noteApi';
+import { synthesizeNotes, saveSynthesizedNote } from '../api/noteApi';
 
 /* ---------------- Prompt Presets ---------------- */
 
@@ -149,6 +149,8 @@ export default function LabView({
     const [error, setError] = useState(null);
 
     const [archiveChecked, setArchiveChecked] = useState(true);
+    const [hoveredNote, setHoveredNote] = useState(null);
+    const [hoveredPos, setHoveredPos] = useState(0);
 
     /* ---------------- load notes ---------------- */
 
@@ -163,30 +165,37 @@ export default function LabView({
     /* ---------------- synthesize ---------------- */
 
     const handleSynthesize = async () => {
-
         if (sourceNotes.length === 0) return;
 
         setGenerating(true);
         setError(null);
 
         try {
-
             const data = await synthesizeNotes(basket, prompt);
-
             setResult({
-                title: data.original_name,
-                content: data.ocr_text,
-                note: data
+                title: data.title,
+                content: data.content
             });
-
         } catch (e) {
-
             setError(e.message);
-
         } finally {
-
             setGenerating(false);
+        }
+    };
 
+    const handleSave = async () => {
+        if (!result) return;
+        setGenerating(true);
+        setError(null);
+
+        try {
+            await saveSynthesizedNote(basket, result.title, result.content);
+            onSaveSuccess(basket, archiveChecked);
+            setResult(null);
+        } catch (e) {
+            setError(e.message);
+        } finally {
+            setGenerating(false);
         }
     };
 
@@ -264,21 +273,32 @@ export default function LabView({
 
                 {/* Source Notes */}
 
-                <div className="w-[320px] border-r border-white/5 flex flex-col bg-[#080808]/30">
+                <div 
+                    className="w-[320px] border-r border-white/5 flex flex-col bg-[#080808]/30 relative z-40"
+                    onMouseLeave={() => setHoveredNote(null)}
+                >
 
                     <div className="p-4 border-b border-white/5 text-xs font-bold text-silverText/60 flex items-center gap-2">
                         <Files size={14} /> 素材卡片 ({sourceNotes.length})
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                    <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar relative">
 
                         {sourceNotes.map(note => (
 
-                            <div key={note.id} className="p-4 rounded-xl bg-white/[0.03] border border-white/5 relative group">
+                            <div 
+                                key={note.id} 
+                                className="p-4 rounded-xl bg-white/[0.03] border border-white/5 relative group cursor-help transition-all duration-300 hover:bg-white/[0.06]"
+                                onMouseEnter={(e) => {
+                                    setHoveredNote(note);
+                                    // 计算相对于侧边栏顶部的垂直偏移
+                                    setHoveredPos(e.currentTarget.offsetTop - e.currentTarget.parentElement.scrollTop + 48); // 48 是 Header 的高度
+                                }}
+                            >
 
                                 <button
                                     onClick={() => removeFromBasket(note.id)}
-                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-red-400"
+                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-red-400 z-10 p-1 hover:bg-red-500/10 rounded"
                                 >
                                     <Trash2 size={12} />
                                 </button>
@@ -297,11 +317,34 @@ export default function LabView({
 
                     </div>
 
+                    {/* Floating Portal-like Bubble (Outside scroll container) */}
+                    {hoveredNote && (
+                        <div 
+                            className="absolute left-[316px] w-[400px] z-[100] transition-all duration-200"
+                            style={{ top: `${hoveredPos}px` }}
+                        >
+                            <div className="bg-[#0c0c0c] backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] flex flex-col max-h-[500px] relative animate-in fade-in zoom-in duration-200">
+                                
+                                {/* Triangle Pointer */}
+                                <div className="absolute top-6 -left-1.5 w-3 h-3 bg-[#0c0c0c] border-l border-t border-white/10 rotate-[-45deg]"></div>
+
+                                <div className="text-[10px] text-primeAccent font-bold mb-3 uppercase tracking-widest flex justify-between border-b border-white/5 pb-2">
+                                    <span>SOURCE PREVIEW</span>
+                                    <span className="text-white/20 font-mono">ID: {hoveredNote.id}</span>
+                                </div>
+
+                                <pre className="flex-1 overflow-y-auto text-[11px] text-silverText/70 leading-relaxed font-mono whitespace-pre-wrap break-words select-text scrollbar-hide">
+                                    {hoveredNote.ocr_text || "NO CONTENT AVAILABLE"}
+                                </pre>
+                            </div>
+                        </div>
+                    )}
+
                 </div>
 
                 {/* Controls */}
 
-                <div className="flex-1 flex flex-col p-8 border-r border-white/5 overflow-y-auto">
+                <div className="flex-1 flex flex-col p-8 border-r border-white/5 overflow-y-auto relative z-10">
 
                     <div className="max-w-xl mx-auto w-full flex flex-col gap-8">
 
@@ -388,21 +431,28 @@ export default function LabView({
 
                         <>
                             <div className="p-8 border-b border-white/5 flex justify-between items-center">
+                                <div className="flex items-center gap-6">
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            id="archive-sources-final"
+                                            checked={archiveChecked}
+                                            onChange={(e) => setArchiveChecked(e.target.checked)}
+                                            className="w-4 h-4 rounded border-white/10 bg-white/5 text-primeAccent focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                                        />
+                                        <label htmlFor="archive-sources-final" className="text-[11px] text-silverText/40 cursor-pointer select-none">
+                                            归档原始素材
+                                        </label>
+                                    </div>
 
-                                <h1 className="text-2xl font-black text-white">
-                                    {result.title}
-                                </h1>
-
-                                <button
-                                    onClick={() => {
-                                        onSaveSuccess(basket, archiveChecked);
-                                        setResult(null);
-                                    }}
-                                    className="flex items-center gap-2 px-4 py-2 bg-primeAccent text-black rounded-full text-xs"
-                                >
-                                    <Save size={14} /> 保存
-                                </button>
-
+                                    <button
+                                        onClick={handleSave}
+                                        disabled={generating}
+                                        className="flex items-center gap-2 px-4 py-2 bg-primeAccent text-black rounded-full text-xs hover:scale-105 transition-transform disabled:opacity-50 font-bold"
+                                    >
+                                        {generating ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} 确认并保存
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-8">

@@ -73,6 +73,7 @@ func SetupRouter() *gin.Engine {
 
 		// 9.1 知识合成 (Knowledge Lab)
 		apiGroup.POST("/note/synthesize", noteApi.Synthesize)
+		apiGroup.POST("/note/synthesize/save", noteApi.SaveSynthesized)
 
 		// 9.5 知识图谱数据
 		apiGroup.GET("/graph", noteApi.GetGraph)

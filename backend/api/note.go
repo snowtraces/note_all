@@ -682,7 +682,7 @@ func (a *NoteApi) GetGraph(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": data})
 }
 
-// Synthesize 聚合多个素材为新的知识笔记
+// Synthesize 聚合多个素材为新的知识笔记 (Preview Version)
 func (a *NoteApi) Synthesize(c *gin.Context) {
 	var body struct {
 		IDs    []uint `json:"ids" binding:"required"`
@@ -693,14 +693,41 @@ func (a *NoteApi) Synthesize(c *gin.Context) {
 		return
 	}
 
-	note, err := service.SynthesizeNotes(body.IDs, body.Prompt)
+	title, content, err := service.SynthesizeNotes(body.IDs, body.Prompt)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "聚合失败: " + err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "聚合合成成功",
+		"message": "聚合预览生成成功",
+		"data": gin.H{
+			"title":   title,
+			"content": content,
+		},
+	})
+}
+
+// SaveSynthesized 正式保存聚合后的内容
+func (a *NoteApi) SaveSynthesized(c *gin.Context) {
+	var body struct {
+		IDs     []uint `json:"ids" binding:"required"`
+		Title   string `json:"title" binding:"required"`
+		Content string `json:"content" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数解析失败"})
+		return
+	}
+
+	note, err := service.CreateSynthesizedNote(body.IDs, body.Title, body.Content)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存聚合笔记失败: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "聚合合成保存成功",
 		"data":    note,
 	})
 }
