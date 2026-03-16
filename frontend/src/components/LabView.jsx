@@ -176,7 +176,6 @@ export default function LabView({
     removeFromBasket
 }) {
 
-    const [sourceNotes, setSourceNotes] = useState([]);
     const [prompt, setPrompt] = useState(promptPresets[0].prompt);
 
     const [generating, setGenerating] = useState(false);
@@ -184,23 +183,11 @@ export default function LabView({
     const [error, setError] = useState(null);
 
     const [archiveChecked, setArchiveChecked] = useState(true);
-    const [hoveredNote, setHoveredNote] = useState(null);
-    const [hoveredPos, setHoveredPos] = useState(0);
-
-    /* ---------------- load notes ---------------- */
-
-    useEffect(() => {
-        const picked = basket
-            .map(id => allNotes.find(n => n.id === id))
-            .filter(Boolean);
-
-        setSourceNotes(picked);
-    }, [basket, allNotes]);
 
     /* ---------------- synthesize ---------------- */
 
     const handleSynthesize = async () => {
-        if (sourceNotes.length === 0) return;
+        if (basket.length === 0) return;
 
         setGenerating(true);
         setError(null);
@@ -306,80 +293,9 @@ export default function LabView({
 
             <div className="flex flex-1 overflow-hidden">
 
-                {/* Source Notes */}
-
-                <div
-                    className="w-[320px] border-r border-white/5 flex flex-col bg-[#080808]/30 relative z-40"
-                    onMouseLeave={() => setHoveredNote(null)}
-                >
-
-                    <div className="p-4 border-b border-white/5 text-xs font-bold text-silverText/60 flex items-center gap-2">
-                        <Files size={14} /> 素材卡片 ({sourceNotes.length})
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar relative">
-
-                        {sourceNotes.map(note => (
-
-                            <div
-                                key={note.id}
-                                className="p-4 rounded-xl bg-white/[0.03] border border-white/5 relative group cursor-help transition-all duration-300 hover:bg-white/[0.06]"
-                                onMouseEnter={(e) => {
-                                    setHoveredNote(note);
-                                    // 计算相对于侧边栏顶部的垂直偏移
-                                    setHoveredPos(e.currentTarget.offsetTop - e.currentTarget.parentElement.scrollTop + 48); // 48 是 Header 的高度
-                                }}
-                            >
-
-                                <button
-                                    onClick={() => removeFromBasket(note.id)}
-                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-red-400 z-10 p-1 hover:bg-red-500/10 rounded"
-                                >
-                                    <Trash2 size={12} />
-                                </button>
-
-                                <h3 className="text-xs font-bold text-primeAccent/80 mb-2 truncate">
-                                    {note.original_name}
-                                </h3>
-
-                                <p className="text-[11px] text-silverText/50 line-clamp-4 italic">
-                                    {note.ai_summary || "正在提取摘要..."}
-                                </p>
-
-                            </div>
-
-                        ))}
-
-                    </div>
-
-                    {/* Floating Portal-like Bubble (Outside scroll container) */}
-                    {hoveredNote && (
-                        <div
-                            className="absolute left-[316px] w-[400px] z-[100] transition-all duration-200"
-                            style={{ top: `${hoveredPos}px` }}
-                        >
-                            <div className="bg-[#0c0c0c] backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] flex flex-col max-h-[500px] relative animate-in fade-in zoom-in duration-200">
-
-                                {/* Triangle Pointer */}
-                                <div className="absolute top-6 -left-1.5 w-3 h-3 bg-[#0c0c0c] border-l border-t border-white/10 rotate-[-45deg]"></div>
-
-                                <div className="text-[10px] text-primeAccent font-bold mb-3 uppercase tracking-widest flex justify-between border-b border-white/5 pb-2">
-                                    <span>SOURCE PREVIEW</span>
-                                    <span className="text-white/20 font-mono">ID: {hoveredNote.id}</span>
-                                </div>
-
-                                <pre className="flex-1 overflow-y-auto text-[11px] text-silverText/70 leading-relaxed font-mono whitespace-pre-wrap break-words select-text scrollbar-hide">
-                                    {hoveredNote.ocr_text || "NO CONTENT AVAILABLE"}
-                                </pre>
-                            </div>
-                        </div>
-                    )}
-
-                </div>
-
                 {/* Controls */}
 
-                <div className="flex-1 flex flex-col p-8 border-r border-white/5 overflow-y-auto relative z-10">
+                <div className="flex-1 min-w-0 flex flex-col p-8 border-r border-white/5 overflow-y-auto relative z-10">
 
                     <div className="max-w-xl mx-auto w-full flex flex-col gap-8">
 
@@ -395,7 +311,7 @@ export default function LabView({
                             <textarea
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
-                                rows={10}
+                                rows={8}
                                 className="w-full bg-white/[0.02] border border-white/10 rounded-2xl p-5 text-sm"
                             />
 
@@ -410,7 +326,7 @@ export default function LabView({
                                 <button
                                     key={i}
                                     onClick={() => setPrompt(preset.prompt)}
-                                    className="px-4 py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] text-left hover:border-primeAccent/30 hover:text-primeAccent"
+                                    className="px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-[11px] text-left hover:border-primeAccent/30 hover:text-primeAccent"
                                 >
 
                                     {preset.icon} {preset.label}
@@ -460,7 +376,7 @@ export default function LabView({
 
                 {/* Result */}
 
-                <div className="flex-1 bg-[#080808] flex flex-col">
+                <div className="flex-1 min-w-0 bg-[#080808] flex flex-col">
 
                     {result ? (
 

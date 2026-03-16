@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Search, UploadCloud, BrainCircuit, X, Trash2, ArrowLeft, Tag, Library, MessageSquare, PenLine, History, Network, FlaskConical, Beaker, Zap } from 'lucide-react';
+import { Search, UploadCloud, BrainCircuit, X, Trash2, ArrowLeft, Tag, Library, MessageSquare, PenLine, History, Network, FlaskConical, Beaker, Zap, Files } from 'lucide-react';
 import { getTags, getChatSessions, deleteChatSession } from '../api/noteApi';
 import { Settings } from 'lucide-react';
 
@@ -38,6 +38,10 @@ export default function Sidebar({
   const [showTextInput, setShowTextInput] = useState(false);
   const [inputText, setInputText] = useState('');
   const [textSubmitting, setTextSubmitting] = useState(false);
+
+  // 实验室视图卡片悬浮状态
+  const [hoveredNote, setHoveredNote] = useState(null);
+  const [hoveredPos, setHoveredPos] = useState(0);
 
   // 标签联想状态
   const [allTags, setAllTags] = useState([]);
@@ -140,7 +144,10 @@ export default function Sidebar({
   };
 
   return (
-    <div className="w-[380px] md:w-[420px] flex-shrink-0 flex flex-col border-r border-white/10 bg-[#111] relative z-10 transition-all">
+    <div 
+      className="w-[380px] md:w-[420px] flex-shrink-0 flex flex-col border-r border-white/10 bg-[#111] relative z-50 transition-all"
+      onMouseLeave={() => setHoveredNote(null)}
+    >
       {/* Header 区 - 保持默认风格 */}
       <div className="p-5 border-b border-white/5 relative shrink-0">
         <div className="absolute top-0 right-0 w-32 h-32 bg-primeAccent/10 rounded-full blur-[50px] -z-10 pointer-events-none"></div>
@@ -355,8 +362,68 @@ export default function Sidebar({
             <h3 className="text-white font-medium mb-2">进入全景知识图谱</h3>
             <p className="text-silverText/40 text-xs">通过节点引力洞见记忆间的连结。</p>
           </div>
+        ) : viewMode === 'lab' ? (
+          <div className="w-full h-full flex flex-col relative">
+            <div className="p-2 border-b border-white/5 text-xs font-bold text-silverText/60 flex items-center gap-2 mb-3 shrink-0">
+              <Files size={14} /> 素材卡片 ({labBasket.length})
+            </div>
+            <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2">
+              {labBasket.map(id => {
+                const note = results.find(n => n.id === id);
+                if (!note) return null;
+                return (
+                  <div
+                    key={note.id}
+                    className="p-4 rounded-xl bg-white/[0.03] border border-white/5 relative group cursor-help transition-all duration-300 hover:bg-white/[0.06]"
+                    onMouseEnter={(e) => {
+                      setHoveredNote(note);
+                      // Use bounding rect to get absolute screen coordinates
+                      setHoveredPos(e.currentTarget.getBoundingClientRect().top);
+                    }}
+                  >
+                    <button
+                      onClick={() => toggleLabItem(note.id)}
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-red-400 z-10 p-1 hover:bg-red-500/10 rounded"
+                      title="移除"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                    <h3 className="text-xs font-bold text-primeAccent/80 mb-2 truncate pr-6">
+                      {note.original_name}
+                    </h3>
+                    <p className="text-[11px] text-silverText/50 line-clamp-4 italic">
+                      {note.ai_summary || "正在提取摘要..."}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+
+          </div>
         ) : null}
       </div>
+
+      {/* Floating Portal-like Bubble for Lab Mode */}
+      {viewMode === 'lab' && hoveredNote && (
+        <div
+          className="absolute left-full w-[416px] pl-4 z-[100] transition-all duration-200"
+          style={{ top: `${Math.max(0, hoveredPos)}px` }}
+        >
+          <div className="bg-[#0c0c0c] backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] flex flex-col max-h-[500px] relative animate-in fade-in zoom-in duration-200">
+            {/* Triangle Pointer */}
+            <div className="absolute top-6 -left-1.5 w-3 h-3 bg-[#0c0c0c] border-l border-t border-white/10 rotate-[-45deg]"></div>
+
+            <div className="text-[10px] text-primeAccent font-bold mb-3 uppercase tracking-widest flex justify-between border-b border-white/5 pb-2 shrink-0">
+              <span>SOURCE PREVIEW</span>
+              <span className="text-white/20 font-mono pl-2 truncate">ID: {hoveredNote.id}</span>
+            </div>
+
+            <pre className="flex-1 overflow-y-auto text-[11px] text-silverText/70 leading-relaxed font-mono whitespace-pre-wrap break-words select-text scrollbar-hide">
+              {hoveredNote.ocr_text || "NO CONTENT AVAILABLE"}
+            </pre>
+          </div>
+        </div>
+      )}
 
       {!showTrash && viewMode === 'notes' && (
         <div className="p-4 border-t border-white/5 bg-[#111] shrink-0">
