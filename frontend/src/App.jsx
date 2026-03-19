@@ -12,6 +12,7 @@ import MarkdownRenderer from './components/MarkdownRenderer';
 import SettingsModal from './components/SettingsModal';
 import GraphView from './components/GraphView';
 import LabView from './components/LabView';
+import NavRail from './components/NavRail';
 
 function App() {
   const [query, setQuery] = useState('');
@@ -248,6 +249,16 @@ function App() {
 
   return (
     <div className="h-screen w-full flex bg-[#0a0a0a] text-white overflow-hidden font-sans">
+      <NavRail 
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        showTrash={showTrash}
+        setShowTrash={setShowTrash}
+        setShowSettings={setShowSettings}
+        setSelectedItem={setSelectedItem}
+        labBasket={labBasket}
+      />
+
       <Sidebar
         viewMode={viewMode}
         setViewMode={setViewMode}

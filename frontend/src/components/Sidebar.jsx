@@ -149,52 +149,22 @@ export default function Sidebar({
       onMouseLeave={() => setHoveredNote(null)}
     >
       {/* Header 区 - 保持默认风格 */}
-      <div className="p-5 border-b border-white/5 relative shrink-0">
+      <div className="pt-6 px-5 pb-5 border-b border-white/5 relative shrink-0">
         <div className="absolute top-0 right-0 w-32 h-32 bg-primeAccent/10 rounded-full blur-[50px] -z-10 pointer-events-none"></div>
 
-        <div className="flex justify-between items-center mb-6">
-          <h1 className={`text-2xl font-extrabold tracking-tight transition-colors ${showTrash ? 'text-red-500/80' : ''}`}>
-            {showTrash ? 'Trash ' : (viewMode === 'chats' ? 'Chat ' : viewMode === 'graph' ? 'Graph ' : 'Note ')}
-            <span className={showTrash ? 'text-red-400' : (viewMode === 'chats' || viewMode === 'graph' ? 'text-primeAccent' : 'text-gradient')}>
-              {showTrash ? 'Bin' : (viewMode === 'chats' ? 'History' : viewMode === 'graph' ? 'Matrix' : 'All')}
+        <div className="flex justify-between items-center mb-6 h-11">
+          <h1 className={`text-2xl font-extrabold tracking-tight transition-colors leading-none ${showTrash ? 'text-red-500/80 shadow-[0_0_20px_rgba(239,68,68,0.1)]' : ''}`}>
+            {showTrash ? 'Trash ' : (viewMode === 'chats' ? 'Chat ' : viewMode === 'graph' ? 'Graph ' : viewMode === 'lab' ? 'Lab ' : 'Note ')}
+            <span className={showTrash ? 'text-red-400' : 'text-primeAccent'}>
+              {showTrash ? 'Bin' : (viewMode === 'chats' ? 'History' : viewMode === 'graph' ? 'Matrix' : viewMode === 'lab' ? 'Space' : 'All')}
             </span>
           </h1>
-
+          
+          {/* Item Count or Status */}
           <div className="flex items-center gap-2">
-            {!showTrash && (
-              <>
-                <button
-                  onClick={() => setViewMode('notes')}
-                  title="笔记列表"
-                  className={`flex items-center justify-center p-2 rounded-full border transition-all duration-300 ${viewMode === 'notes' ? 'bg-primeAccent/20 border-primeAccent/30 text-primeAccent' : 'bg-white/5 border-white/10 text-silverText/70 hover:bg-white/10 hover:text-white'
-                    }`}
-                >
-                  <Library size={16} />
-                </button>
-                <button
-                  onClick={() => setViewMode('chats')}
-                  title="对话历史"
-                  className={`flex items-center justify-center p-2 rounded-full border transition-all duration-300 ${viewMode === 'chats' ? 'bg-primeAccent/20 border-primeAccent/30 text-primeAccent' : 'bg-white/5 border-white/10 text-silverText/70 hover:bg-white/10 hover:text-white'
-                    }`}
-                >
-                  <MessageSquare size={16} />
-                </button>
-              </>
-            )}
-            <button
-              onClick={() => {
-                setShowTrash(!showTrash);
-                setSelectedItem(null);
-                if (!showTrash) setViewMode('notes'); // 如果进入垃圾桶，强制不显示特殊模式
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all duration-300 ${showTrash
-                ? 'bg-red-500/20 text-red-400 border-red-500/30'
-                : 'bg-white/5 text-silverText/70 border-white/10 hover:bg-white/10 hover:text-white'
-                }`}
-            >
-              {showTrash ? <ArrowLeft size={14} /> : <Trash2 size={14} />}
-              <span className="text-[12px] font-medium tracking-wide">{showTrash ? '退出' : '垃圾篓'}</span>
-            </button>
+            <span className="text-[10px] font-mono text-silverText/30 uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
+              {results.length} FRAGMENTS
+            </span>
           </div>
         </div>
 
