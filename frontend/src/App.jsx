@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import 'katex/dist/katex.min.css';
 import './index.css';
 import { Search, BrainCircuit, X, MessageSquare, BookOpen, FlaskConical } from 'lucide-react';
-import { getTrash, searchNotes, deleteNote, restoreNote, uploadNote, createTextNote, updateNoteText, askAI, getChatMessages, batchArchiveNotes } from './api/noteApi';
+import { getTrash, searchNotes, deleteNote, restoreNote, uploadNote, createTextNote, updateNoteText, updateNoteStatus, askAI, getChatMessages, batchArchiveNotes } from './api/noteApi';
 import { useDataPoller } from './hooks/useDataPoller';
 import Sidebar from './components/Sidebar';
 import Detail from './components/Detail';
@@ -234,6 +234,21 @@ function App() {
     }
   };
 
+  const handleUpdateStatus = async (id, status, comment = "") => {
+    try {
+      await updateNoteStatus(id, status, comment);
+      setSelectedItem(prev => prev ? { ...prev, status, user_comment: comment } : null);
+      if (showTrash) {
+        loadTrashData();
+      } else {
+        executeSearch(query);
+      }
+    } catch (e) {
+      alert('状态更新失败...');
+      console.error(e);
+    }
+  };
+
   const toggleLabItem = (id) => {
     setLabBasket(prev => {
       if (prev.includes(id)) {
@@ -295,6 +310,7 @@ function App() {
               setSelectedItem={setSelectedItem}
               setPreviewImage={setPreviewImage}
               handleUpdateText={handleUpdateText}
+              handleUpdateStatus={handleUpdateStatus}
             />
           </div>
         )}

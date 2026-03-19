@@ -3,7 +3,7 @@ import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, 
 import MarkdownRenderer from './MarkdownRenderer';
 import { getRelatedNotes, reprocessNote } from '../api/noteApi';
 import { getTemplates } from '../api/templateApi';
-import { RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
+import { RefreshCw, CheckCircle2, XCircle, ClipboardEdit, Eye } from 'lucide-react';
 
 export default function Detail({
   item,
@@ -12,7 +12,8 @@ export default function Detail({
   handleDelete,
   setSelectedItem,
   setPreviewImage,
-  handleUpdateText
+  handleUpdateText,
+  handleUpdateStatus
 }) {
   const [isRawMode, setIsRawMode] = useState(false);
   const [editValue, setEditValue] = useState(item?.ocr_text || '');
@@ -22,11 +23,14 @@ export default function Detail({
   const [templates, setTemplates] = useState([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [reprocessStatus, setReprocessStatus] = useState(null); // { type: 'success' | 'error', msg: string }
+  const [annotation, setAnnotation] = useState(item?.user_comment || '');
+  const [isSubmittingStatus, setIsSubmittingStatus] = useState(false);
 
   // 当外部 item 变化时，重新绑定 editValue 和加载关联内容
   useEffect(() => {
     setEditValue(item?.ocr_text || '');
     setReprocessStatus(null);
+    setAnnotation(item?.user_comment || '');
     if (item && item.id) {
        loadRelated();
     }
@@ -227,10 +231,12 @@ export default function Detail({
           </div>
         </div>
 
-        {/* 源侧边区 (紧凑设计，去滚动条) */}
-        <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 p-5 bg-[#0f0f0f]/80 flex flex-col gap-4 overflow-hidden">
-          {/* 图像源展示 */}
-          <div className="w-full flex-1 min-h-0 bg-[#000] border border-white/5 rounded-2xl flex items-center justify-center relative overflow-hidden group shadow-[0_10px_30px_rgba(0,0,0,0.5)] text-center">
+        {/* 源侧边区 (分层结构，底部固定) */}
+        <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 bg-[#0f0f0f]/80 flex flex-col h-full relative border-l border-white/5">
+          {/* 上部可滚动元数据区 */}
+          <div className="flex-1 overflow-y-auto p-5 custom-scrollbar scrollbar-hide flex flex-col gap-4">
+            {/* 图像源展示 (缩小高度) */}
+            <div className="w-full h-[180px] shrink-0 bg-[#000] border border-white/5 rounded-2xl flex items-center justify-center relative overflow-hidden group shadow-[0_10px_30px_rgba(0,0,0,0.5)] text-center">
             <div className="absolute top-3 left-3 bg-white/10 backdrop-blur-md px-2 py-0.5 rounded text-[10px] text-white/60 tracking-widest uppercase font-mono z-10 pointer-events-none border border-white/5 shadow-md">源视觉</div>
             
             {item.file_type?.includes('image') ? (
@@ -319,6 +325,40 @@ export default function Detail({
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* 底部固定批注与标记已读区 */}
+        <div className="p-5 border-t border-white/10 bg-[#0c0c0c] shrink-0 flex flex-col gap-3">
+            <div className="text-[10px] text-silverText/40 uppercase font-mono flex items-center gap-2">
+              <ClipboardEdit size={10} className="text-primeAccent" /> 手动批注与回响
+            </div>
+            <textarea
+              value={annotation}
+              onChange={(e) => setAnnotation(e.target.value)}
+              placeholder="在此记录你的对此碎片的深度思考或执行备忘..."
+              className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-[12px] text-white/80 focus:outline-none focus:border-primeAccent/30 min-h-[100px] resize-none transition-all"
+            />
+            <button
+              onClick={async () => {
+                setIsSubmittingStatus(true);
+                await handleUpdateStatus(item.id, 'done', annotation);
+                setIsSubmittingStatus(false);
+              }}
+              disabled={isSubmittingStatus}
+              className={`w-full py-3 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all ${item.status === 'done'
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.1)]'
+                  : 'bg-primeAccent text-black hover:bg-primeAccent/90 shadow-[0_0_20px_rgba(var(--color-prime-accent),0.3)]'
+                }`}
+            >
+              {isSubmittingStatus ? (
+                <RefreshCw size={14} className="animate-spin" />
+              ) : item.status === 'done' ? (
+                <><CheckCircle2 size={14} /> 已存入常驻记忆</>
+              ) : (
+                <><Eye size={14} /> 标注为已读并保存</>
+              )}
+            </button>
           </div>
         </div>
       </div>

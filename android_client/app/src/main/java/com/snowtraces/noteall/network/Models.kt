@@ -24,6 +24,11 @@ data class TextUploadRequest(
 )
 
 @JsonClass(generateAdapter = true)
+data class StatusUpdateRequest(
+    val status: String
+)
+
+@JsonClass(generateAdapter = true)
 data class TextUploadResponse(
     @Json(name = "storage_id") val storageId: String,
     @Json(name = "message") val message: String?

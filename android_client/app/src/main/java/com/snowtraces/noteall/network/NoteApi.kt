@@ -28,6 +28,9 @@ interface NoteApi {
     @PATCH("/api/note/{id}/text")
     suspend fun updateNoteText(@Path("id") noteId: Int, @Body request: TextUploadRequest): Any
 
+    @PATCH("/api/note/{id}/status")
+    suspend fun updateNoteStatus(@Path("id") noteId: Int, @Body request: StatusUpdateRequest): Any
+
     @retrofit2.http.DELETE("/api/note/{id}")
     suspend fun deleteNote(@Path("id") noteId: Int): Any
 

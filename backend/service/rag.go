@@ -69,7 +69,7 @@ func UpdateNoteEmbedding(nID uint) error {
 func BackfillNoteEmbeddings() error {
 	var notes []models.NoteItem
 	// 找到所有已分析但没有向量记录的笔记
-	err := global.DB.Where("status = ? AND id NOT IN (SELECT note_id FROM note_embeddings)", "analyzed").Find(&notes).Error
+	err := global.DB.Where("status IN ? AND id NOT IN (SELECT note_id FROM note_embeddings)", []string{"analyzed", "done"}).Find(&notes).Error
 	if err != nil {
 		return err
 	}
@@ -142,6 +142,8 @@ func HybridSearch(query string, limit int) ([]SearchResult, error) {
 	global.DB.Table("note_tags").
 		Select("note_id, COUNT(*) as count").
 		Where("tag IN ?", expandedTags).
+		Joins("JOIN note_items ON note_items.id = note_tags.note_id").
+		Where("note_items.deleted_at IS NULL AND note_items.status IN ? AND note_items.is_archived = ?", []string{"analyzed", "done"}, false).
 		Group("note_id").Scan(&tagHits)
 
 	tagScores := make(map[uint]float32)

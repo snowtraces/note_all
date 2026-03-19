@@ -45,6 +45,11 @@ class NoteRepository {
         api.updateNoteText(noteId, TextUploadRequest(text))
     }
 
+    suspend fun updateNoteStatus(baseUrl: String, noteId: Int, status: String) {
+        val api = ApiClient.getApi(baseUrl)
+        api.updateNoteStatus(noteId, StatusUpdateRequest(status))
+    }
+
     suspend fun uploadText(baseUrl: String, text: String) {
         val api = ApiClient.getApi(baseUrl)
         api.uploadText(TextUploadRequest(text))

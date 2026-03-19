@@ -398,7 +398,7 @@ func GetSerendipityReview() (string, []models.NoteItem, error) {
 	var items []models.NoteItem
 	// SQLite 特有的随机排序写法: ORDER BY RANDOM()
 	// 灵感碰撞只从活跃笔记中选取
-	err := global.DB.Where("status = ? AND is_archived = ?", "analyzed", false).Order("RANDOM()").Limit(3).Find(&items).Error
+	err := global.DB.Where("status IN ? AND is_archived = ?", []string{"analyzed", "done"}, false).Order("RANDOM()").Limit(3).Find(&items).Error
 	if err != nil {
 		return "", nil, err
 	}
@@ -496,7 +496,7 @@ func GetKnowledgeGraph() (map[string]interface{}, error) {
 	if err := global.DB.Table("note_tags").
 		Select("note_tags.tag, COUNT(note_tags.tag) as count").
 		Joins("JOIN note_items ON note_items.id = note_tags.note_id").
-		Where("note_items.deleted_at IS NULL AND note_items.status = ? AND note_items.is_archived = ?", "analyzed", false).
+		Where("note_items.deleted_at IS NULL AND note_items.status IN ? AND note_items.is_archived = ?", []string{"analyzed", "done"}, false).
 		Group("note_tags.tag").
 		Having("count > 0").
 		Scan(&tags).Error; err != nil {
@@ -506,7 +506,7 @@ func GetKnowledgeGraph() (map[string]interface{}, error) {
 	// 2. 查出所有有效笔记 (未被逻辑删除，分析过的)
 	var notes []models.NoteItem
 	if err := global.DB.
-		Where("status = ? AND is_archived = ?", "analyzed", false).
+		Where("status IN ? AND is_archived = ?", []string{"analyzed", "done"}, false).
 		Where("deleted_at IS NULL").
 		Find(&notes).Error; err != nil {
 		return nil, err
@@ -515,7 +515,7 @@ func GetKnowledgeGraph() (map[string]interface{}, error) {
 	// 3. 查出这些笔记内的所有有效双链
 	var links []models.NoteLink
 	if err := global.DB.Joins("JOIN note_items ON note_items.id = note_links.source_id").
-		Where("note_items.deleted_at IS NULL AND note_items.status = ? AND note_items.is_archived = ?", "analyzed", false).
+		Where("note_items.deleted_at IS NULL AND note_items.status IN ? AND note_items.is_archived = ?", []string{"analyzed", "done"}, false).
 		Find(&links).Error; err != nil {
 		return nil, err
 	}

@@ -29,6 +29,15 @@ export const updateNoteText = async (id, text) => {
   if (!res.ok) throw new Error("Update text failed");
 };
 
+export const updateNoteStatus = async (id, status, userComment = "") => {
+  const res = await fetch(`/api/note/${id}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status, user_comment: userComment })
+  });
+  if (!res.ok) throw new Error("Update status failed");
+};
+
 export const uploadNote = async (formData) => {
   const res = await fetch("/api/upload", { method: "POST", body: formData });
   if (!res.ok) throw new Error("Upload failed");

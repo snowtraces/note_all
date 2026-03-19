@@ -151,7 +151,7 @@ func (a *NoteApi) Search(c *gin.Context) {
 		// 无参数搜索时，默认返回最近更新的 20 条已分析笔记
 		var notes []models.NoteItem
 		// 必须 Preload Tags，否则前端 renderTags 会报错或显示无标签
-		global.DB.Preload("Tags").Where("status = ? AND is_archived = ?", "analyzed", false).
+		global.DB.Preload("Tags").Where("status IN ? AND is_archived = ?", []string{"analyzed", "done"}, false).
 			Order("updated_at DESC").Limit(20).Find(&notes)
 
 		results := make([]service.SearchResult, 0)
@@ -566,4 +566,26 @@ func (a *NoteApi) SaveSynthesized(c *gin.Context) {
 		"message": "聚合合成保存成功",
 		"data":    note,
 	})
+}
+// UpdateStatus 修改已有笔记的状态（手动标记已处理等）
+func (a *NoteApi) UpdateStatus(c *gin.Context) {
+	id := c.Param("id")
+	var body struct {
+		Status      string `json:"status" binding:"required"`
+		UserComment string `json:"user_comment"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数解析失败"})
+		return
+	}
+
+	if err := global.DB.Model(&models.NoteItem{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"status":       body.Status,
+		"user_comment": body.UserComment,
+	}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新状态失败: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "状态更新成功"})
 }

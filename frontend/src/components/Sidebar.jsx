@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Search, UploadCloud, BrainCircuit, X, Trash2, ArrowLeft, Tag, Library, MessageSquare, PenLine, History, Network, FlaskConical, Beaker, Zap, Files } from 'lucide-react';
+import { Search, UploadCloud, BrainCircuit, X, Trash2, ArrowLeft, Tag, Library, MessageSquare, PenLine, History, Network, FlaskConical, Beaker, Zap, Files, CheckCircle2 } from 'lucide-react';
 import { getTags, getChatSessions, deleteChatSession } from '../api/noteApi';
 import { Settings } from 'lucide-react';
 
@@ -249,7 +249,8 @@ export default function Sidebar({
                       {item.parents && item.parents.length > 0 && (
                         <Zap size={10} className="text-primeAccent fill-primeAccent/20 animate-pulse" title="合成生成的知识笔记" />
                       )}
-                      <div className="text-silverText/40 text-[10px] font-mono flex-shrink-0">
+                      <div className="text-silverText/40 text-[10px] font-mono flex-shrink-0 flex items-center gap-1">
+                        {item.status === 'done' && <CheckCircle2 size={10} className="text-green-500/60" />}
                         {item.created_at || item.CreatedAt
                           ? new Date(item.created_at || item.CreatedAt).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
                           : '刚刚'}

@@ -27,8 +27,9 @@ type NoteItem struct {
 	AiSummary   string `gorm:"size:1024" json:"ai_summary"`             // AI 总结的精华摘要
 	AiTags      string `gorm:"size:255" json:"ai_tags"`                 // AI 打的标签
 	OriginalUrl string `gorm:"size:2048" json:"original_url"`           // [新增] 溯源网页URL
-	Status      string `gorm:"size:32;default:'pending'" json:"status"` // pending/ocred/analyzed/error
+	Status      string `gorm:"size:32;default:'pending'" json:"status"` // pending/ocred/analyzed/done/error
 	IsArchived  bool   `gorm:"default:false;index" json:"is_archived"`  // [新增] 是否归档
+	UserComment string `gorm:"type:text" json:"user_comment"`           // 用户手动标记的批注信息
 
 	// 关联
 	Tags    []NoteTag  `gorm:"foreignKey:NoteID" json:"tags"`
