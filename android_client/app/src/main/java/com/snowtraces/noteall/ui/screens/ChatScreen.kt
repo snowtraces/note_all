@@ -34,9 +34,18 @@ fun ChatScreen(
     onBack: () -> Unit,
     onNavigateToNote: (NoteItem) -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+
+    // 监听错误并弹出提示，避免“突然关闭”感，让用户明确知道是超时或报错
+    LaunchedEffect(viewModel.currentError) {
+        viewModel.currentError?.let {
+            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_LONG).show()
+            // 提示完后建议清理错误状态，防止下次进入页面再次触发（如果 ViewModel 是持久的）
+        }
+    }
 
     LaunchedEffect(viewModel.messages.size) {
         if (viewModel.messages.isNotEmpty()) {

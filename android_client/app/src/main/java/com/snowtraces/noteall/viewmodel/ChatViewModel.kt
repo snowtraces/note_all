@@ -123,7 +123,7 @@ class ChatViewModel(private val repository: NoteRepository) : ViewModel() {
                 messages.add(assistantMsg)
             } catch (e: Exception) {
                 currentError = "发送失败: ${e.message}"
-                messages.remove(userMsg) // Remove on failure
+                // messages.remove(userMsg) // Remove on failure
             } finally {
                 isSending = false
             }
