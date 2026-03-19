@@ -467,6 +467,7 @@ function App() {
               setViewMode={setViewMode}
               setShowSettings={setShowSettings}
               labBasket={labBasket}
+              toggleLabItem={toggleLabItem}
             />
           )
         )}

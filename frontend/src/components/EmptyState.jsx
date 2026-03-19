@@ -1,25 +1,27 @@
 import React, { useEffect, useState } from 'react';
-import { BrainCircuit, Sparkles, RefreshCw, BookOpen, Network, Settings, FlaskConical } from 'lucide-react';
+import { BrainCircuit, Sparkles, RefreshCw, BookOpen, Network, Settings, FlaskConical, ListChecks, Inbox, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getSerendipity } from '../api/noteApi';
 import MarkdownRenderer from './MarkdownRenderer';
 
-export default function EmptyState({ onAsk, onItemClick, serendipityData, setSerendipityData, setViewMode, setShowSettings, labBasket }) {
+export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipityData, setSerendipityData, setViewMode, setShowSettings, labBasket, toggleLabItem }) {
   const [askInput, setAskInput] = useState('');
   
+  const [page, setPage] = useState(1);
   const [serendipityLoading, setSerendipityLoading] = useState(false);
 
   useEffect(() => {
     // 首次且无缓存数据时加载灵感
     if (!serendipityData) {
-      fetchSerendipity();
+      fetchSerendipity(1);
     }
   }, []);
 
-  const fetchSerendipity = async () => {
+  const fetchSerendipity = async (pageNum = 1) => {
     setSerendipityLoading(true);
     try {
-      const data = await getSerendipity();
+      const data = await getSerendipity(pageNum);
       if (setSerendipityData) setSerendipityData(data);
+      setPage(pageNum);
     } catch (e) {
       console.error(e);
     }
@@ -87,72 +89,94 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
               <div className="bg-[#050505]/95 backdrop-blur-xl rounded-[15px] p-5 md:p-6 relative z-10 flex flex-col gap-4">
                 
                 {/* 装饰水印 */}
-                <div className="absolute top-6 right-6 p-4 opacity-[0.06] sm:opacity-10 -rotate-12 group-hover:rotate-0 transition-transform duration-700 pointer-events-none text-white">
-                  <BrainCircuit size={120} />
+                <div className="absolute top-6 right-6 p-4 opacity-[0.05] sm:opacity-[0.08] -rotate-12 group-hover:rotate-0 transition-transform duration-700 pointer-events-none text-white">
+                  <Inbox size={110} />
                 </div>
 
-                {/* 顶部：标题与操作栏 */}
-                <div className="flex items-center justify-between border-b border-white/5 pb-4 relative z-10">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-primeAccent/10 flex items-center justify-center border border-primeAccent/20 shadow-inner">
-                       <Sparkles size={16} className="text-primeAccent" />
+                {/* 顶部：标题与操作栏 (更紧凑) */}
+                <div className="flex items-center justify-between border-b border-white/5 pb-3 relative z-10">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-primeAccent/10 flex items-center justify-center border border-primeAccent/20">
+                       <Inbox size={14} className="text-primeAccent" />
                     </div>
                     <div>
-                      <h3 className="text-[13px] font-mono text-silverText/90 tracking-widest uppercase font-medium">灵感碰撞</h3>
-                      <p className="text-[10px] text-silverText/40 mt-1 uppercase tracking-wider">汇聚历史思绪 · 点燃新知火花</p>
+                      <h3 className="text-[12px] font-mono text-silverText/90 tracking-widest uppercase font-medium">待处理灵感</h3>
+                      <p className="text-[9px] text-silverText/40 uppercase tracking-wider">检阅碎片 · 转化为常驻记忆</p>
                     </div>
                   </div>
-                  <button 
-                    onClick={fetchSerendipity}
-                    disabled={serendipityLoading}
-                    className="px-4 py-2 bg-white/[0.03] hover:bg-primeAccent/10 border border-white/10 hover:border-primeAccent/30 rounded-lg flex items-center gap-2 text-[10px] font-mono text-silverText/70 hover:text-primeAccent transition-all uppercase tracking-wider group/btn shadow-sm"
-                  >
-                    <RefreshCw size={12} className={`text-primeAccent/70 group-hover/btn:text-primeAccent ${serendipityLoading ? 'animate-spin' : ''}`} /> 
-                    {serendipityLoading ? '推演中' : '重新碰撞'}
-                  </button>
+                  <div className="flex items-center gap-3">
+                    {/* 分页控制器 (紧凑型) */}
+                    {serendipityData?.total > 9 && (
+                        <div className="flex items-center gap-2 bg-white/[0.03] px-2 py-1 rounded-lg border border-white/5">
+                            <button 
+                              disabled={page <= 1 || serendipityLoading}
+                              onClick={() => fetchSerendipity(page - 1)}
+                              className="p-1 rounded hover:bg-white/5 disabled:opacity-20 text-silverText/60 transition-colors"
+                            >
+                              <ChevronLeft size={14} />
+                            </button>
+                            <span className="text-[10px] font-mono text-silverText/40 min-w-[36px] text-center">
+                              {page} / {Math.ceil(serendipityData.total / 9)}
+                            </span>
+                            <button 
+                              disabled={page >= Math.ceil(serendipityData.total / 9) || serendipityLoading}
+                              onClick={() => fetchSerendipity(page + 1)}
+                              className="p-1 rounded hover:bg-white/5 disabled:opacity-20 text-silverText/60 transition-colors"
+                            >
+                              <ChevronRight size={14} />
+                            </button>
+                        </div>
+                    )}
+                    <button 
+                        onClick={() => fetchSerendipity(1)}
+                        disabled={serendipityLoading}
+                        className="p-2 bg-white/[0.03] hover:bg-primeAccent/10 border border-white/10 hover:border-primeAccent/30 rounded-lg flex items-center gap-2 text-[10px] font-mono text-silverText/70 hover:text-primeAccent transition-all shadow-sm"
+                        title="刷新列表"
+                    >
+                        <RefreshCw size={12} className={`text-primeAccent/70 ${serendipityLoading ? 'animate-spin' : ''}`} /> 
+                    </button>
+                   </div>
                 </div>
-
-                <div className="flex flex-col lg:flex-row gap-6 relative z-10">
-                  {/* 左侧：正文推演 */}
-                  <div className="flex-1 text-[14px] leading-relaxed text-silverText/90 serendipity-content">
-                    <MarkdownRenderer content={serendipity.content} />
-                  </div>
-                  
-                  {/* 右侧：相关参考列表 */}
+                  {/* 下方：平铺待参考列表 */}
                   {serendipity.references && serendipity.references.length > 0 && (
-                    <div className="w-full lg:w-[320px] xl:w-[360px] shrink-0 pt-4 lg:pt-0 border-t lg:border-t-0 lg:border-l border-white/[0.03] lg:pl-6 flex flex-col">
-                      <div className="text-[10px] text-silverText/30 uppercase tracking-widest mb-3 font-mono flex items-center gap-2">
-                        <BookOpen size={10} /> Tracing References - 溯源映射
-                      </div>
-                      <div className="flex flex-col gap-3">
-                        {serendipity.references.map(ref => (
-                          <div 
-                            key={ref.id}
-                            onClick={() => onItemClick?.(ref)}
-                            className="flex flex-col gap-2 p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:border-primeAccent/30 hover:bg-primeAccent/5 transition-all cursor-pointer group/ref shadow-sm"
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
+                      {serendipity.references.map(ref => (
+                        <div 
+                          key={ref.id}
+                          onClick={() => onItemClick?.(ref)}
+                          className="flex flex-col gap-2 p-4 rounded-xl bg-white/[0.03] border border-white/10 hover:border-primeAccent/40 hover:bg-primeAccent/5 transition-all cursor-pointer group/ref shadow-md h-full min-h-[130px] relative"
+                        >
+                          {/* 加入 Lab 按钮 */}
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); toggleLabItem(ref.id); }}
+                            className={`absolute top-3 right-3 p-1.5 rounded-lg border transition-all ${
+                                labBasket.includes(ref.id) 
+                                ? 'bg-primeAccent/20 border-primeAccent/40 text-primeAccent shadow-[0_0_10px_rgba(255,215,0,0.2)]' 
+                                : 'bg-white/5 border-white/5 text-silverText/20 hover:text-silverText/60 hover:bg-white/10'
+                            }`}
+                            title="加入实验室合成篮"
                           >
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-[10px] text-silverText/40 font-mono tracking-wider group-hover/ref:text-primeAccent/60 transition-colors">
-                                {ref.created_at || ref.CreatedAt ? new Date(ref.created_at || ref.CreatedAt).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }) : '未知时间'}
-                              </span>
-                              <div className="w-5 h-5 rounded-md bg-white/5 flex items-center justify-center text-silverText/40 group-hover/ref:text-primeAccent/80 group-hover/ref:bg-primeAccent/20 transition-colors">
-                                 <BookOpen size={10} />
-                              </div>
-                            </div>
-                            <div className="text-[12px] text-silverText/80 leading-snug line-clamp-3 group-hover/ref:text-white transition-colors">
-                              {ref.ai_summary || ref.original_name}
-                            </div>
+                            <FlaskConical size={12} />
+                          </button>
+
+                          <div className="flex items-center mb-1">
+                            <span className="text-[9px] text-silverText/30 font-mono tracking-wider group-hover/ref:text-primeAccent/60 transition-colors bg-white/5 px-1.5 py-0.5 rounded leading-none">
+                              {ref.created_at || ref.CreatedAt ? new Date(ref.created_at || ref.CreatedAt).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }) : '未知时间'}
+                            </span>
                           </div>
-                        ))}
-                      </div>
+
+                          <div className="text-[12.5px] text-silverText/80 leading-relaxed line-clamp-2 group-hover/ref:text-white transition-colors flex-1 pr-6">
+                            {ref.ai_summary || ref.original_name}
+                          </div>
+
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
-
               </div>
             </div>
-          </div>
-        )}
+          )}
 
 
       </div>

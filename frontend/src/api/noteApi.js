@@ -96,13 +96,14 @@ export const deleteChatSession = async (id) => {
   if (!res.ok) throw new Error("Delete session failed");
 };
 
-export const getSerendipity = async () => {
-  const res = await fetch('/api/serendipity');
-  if (!res.ok) throw new Error("Get serendipity failed");
+export const getSerendipity = async (page = 1) => {
+  const res = await fetch(`/api/serendipity?page=${page}`);
+  if (!res.ok) throw new Error("Get pending notes failed");
   const data = await res.json();
   return { 
     content: data.data || "", 
-    references: data.references || []
+    references: data.references || [],
+    total: data.total || 0
   };
 };
 

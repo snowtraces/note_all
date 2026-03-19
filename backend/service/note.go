@@ -393,42 +393,37 @@ func UpdateNoteText(id string, text string) error {
 	return nil
 }
 
-// GetSerendipityReview 随机抽取若干碎片进行灵感碰撞
-func GetSerendipityReview() (string, []models.NoteItem, error) {
+// GetSerendipityReview 获取待处理的碎片笔记，用于首页提醒 (原灵感碰撞)
+func GetSerendipityReview(page int) (string, int64, []models.NoteItem, error) {
+	if page < 1 {
+		page = 1
+	}
+	limit := 9
+	offset := (page - 1) * limit
+
+	var total int64
+	dbBase := global.DB.Model(&models.NoteItem{}).Where("status = ? AND is_archived = ?", "analyzed", false)
+	if err := dbBase.Count(&total).Error; err != nil {
+		return "", 0, nil, err
+	}
+
 	var items []models.NoteItem
-	// SQLite 特有的随机排序写法: ORDER BY RANDOM()
-	// 灵感碰撞只从活跃笔记中选取
-	err := global.DB.Where("status IN ? AND is_archived = ?", []string{"analyzed", "done"}, false).Order("RANDOM()").Limit(3).Find(&items).Error
+	// 获取指定页面的待检阅笔记
+	err := global.DB.Where("status = ? AND is_archived = ?", "analyzed", false).
+		Order("updated_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&items).Error
 	if err != nil {
-		return "", nil, err
+		return "", 0, nil, err
 	}
 
-	if len(items) < 2 {
-		return "库中笔记碎片太少（需至少 2 条已分析完成的碎片），暂时无法开启灵感碰撞。快去多录入一些信息并静待 AI 分析吧！", items, nil
+	if total == 0 {
+		return "暂无待处理的碎片。太棒了！你的收件箱已经清空。", total, items, nil
 	}
 
-	// 组装 Context
-	var context strings.Builder
-	for i, item := range items {
-		context.WriteString(fmt.Sprintf("%d. 【%s】: %s\n", i+1, item.OriginalName, item.AiSummary))
-	}
-
-	prompt := "你是一个知识连接助理（灵感激发器）。以下是用户数据库中随机抽取的 3 条碎片概括：\n\n" +
-		context.String() + "\n" +
-		"请你做两件事：\n" +
-		"1. 撰写一段富有哲理性或灵感启发性的短文（约 80 字），将这三者以某种意想不到的角度串联在一起，帮用户开启思维火花。\n" +
-		"2. 别太啰嗦，直接进入正题。\n\n" +
-		"请用温暖、理性的语感创作。"
-
-	// 调用大模型 (复用 AskAI 核心逻辑，传空消息数组表明只传 System/User 复合 Prompt)
-	answer, err := pkg.AskAIWithContext([]map[string]string{
-		{"role": "user", "content": prompt},
-	}, "")
-	if err != nil {
-		return "", items, err
-	}
-
-	return answer, items, nil
+	msg := fmt.Sprintf("发现 %d 条待处理的灵感碎片，建议立即检阅并将其转化为常驻记忆：", total)
+	return msg, total, items, nil
 }
 
 // GetRelatedNotes 根据当前笔记的标签，自动寻找相似的关联笔记

@@ -460,15 +460,20 @@ func (a *NoteApi) DeleteChatSession(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "已删除"})
 }
 
-// Serendipity 靈感碰撞接口
+// Serendipity 靈感碰撞接口 (已改造为待处理检阅，支持分页)
 func (a *NoteApi) Serendipity(c *gin.Context) {
-	content, references, err := service.GetSerendipityReview()
+	pageStr := c.DefaultQuery("page", "1")
+	var page int
+	fmt.Sscanf(pageStr, "%d", &page)
+
+	content, total, references, err := service.GetSerendipityReview(page)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取灵感失败: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取待处理笔记失败: " + err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"data":       content,
+		"total":      total,
 		"references": references,
 	})
 }
