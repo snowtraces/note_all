@@ -2,6 +2,7 @@ package router
 
 import (
 	"net/http"
+	"strings"
 
 	"note_all_backend/api"
 
@@ -88,6 +89,26 @@ func SetupRouter() *gin.Engine {
 		apiGroup.DELETE("/templates/:id", templateApi.Delete)
 		apiGroup.POST("/templates/:id/active", templateApi.SetActive)
 	}
+
+	// ====================== 静态资源与 SPA 路由逻辑 ======================
+	// 1. 映射后端能够识别的静态资源目录 (假设前端构建代码位于 ../frontend/dist)
+	staticPath := "../frontend/dist"
+	r.Static("/assets", staticPath+"/assets")
+	r.StaticFile("/favicon.ico", staticPath+"/favicon.ico")
+	r.StaticFile("/manifest.json", staticPath+"/manifest.json")
+
+	// 2. 兜底逻辑：对于非 /api 开头的其他路径，统一返回 index.html
+	// 这样可以交由前端的 react-router 处理具体的动态 URL
+	r.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+		// 如果是 API 路径但找不到，直接报 404
+		if strings.HasPrefix(path, "/api") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "API Route Not Found"})
+			return
+		}
+		// 其他路径统统给 index.html
+		c.File(staticPath + "/index.html")
+	})
 
 	return r
 }

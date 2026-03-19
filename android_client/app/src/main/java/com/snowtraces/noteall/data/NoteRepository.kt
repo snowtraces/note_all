@@ -7,6 +7,7 @@ import com.snowtraces.noteall.network.ChatMessage
 import com.snowtraces.noteall.network.ChatSession
 import com.snowtraces.noteall.network.NoteItem
 import com.snowtraces.noteall.network.TextUploadRequest
+import com.snowtraces.noteall.network.StatusUpdateRequest
 import okhttp3.MultipartBody
 
 class NoteRepository {

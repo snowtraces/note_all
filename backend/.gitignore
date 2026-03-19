@@ -4,5 +4,6 @@ config.json
 # Built application files
 *.exe
 note_all_backend.exe
+note_all_backend
 storage_data
 data/note_all.db

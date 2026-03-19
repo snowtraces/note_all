@@ -39,9 +39,9 @@ func main() {
 	// 2. 装载网络层路由 (Gin)
 	r := router.SetupRouter()
 
-	// 3. 开始在 8080 端口驻留监听服务请求
-	log.Println("Http 接口层已注册，服务驻留于端口: 8080")
-	if err := r.Run(":8080"); err != nil {
+	// 3. 开始在 3344 端口驻留监听服务请求
+	log.Println("Http 接口层已注册，服务驻留于端口: 3344")
+	if err := r.Run(":3344"); err != nil {
 		log.Fatalf("接口服务崩溃: %v", err)
 	}
 }

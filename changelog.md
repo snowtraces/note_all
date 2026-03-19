@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 ### Added
+- **Backend (SPA 集成与负载优化)**:
+  - **支持 SPA 静态托管**: 在 `SetupRouter` 中集成了对前端构建产物 (`../frontend/dist`) 的静态资源映射。
+  - **前端路由兜底 (SPA Fallback)**: 新增 `NoRoute` 处理逻辑，对所有非 `/api` 开头的未知路径统一返回 `index.html`，彻底解决前端 React Router 在刷新页面时触发 404 的问题。
+- **Android Client (修复与基建)**:
+  - **修复引用报错**: 补全了 `NoteRepository.kt` 中缺失的 `StatusUpdateRequest` 引用，解决编译失败问题。
+- **Generic**:
+  - **忽略环境特定文件**: 将 `data/note_all.db` 及各种 `.exe` 生成物加入 `backend/.gitignore` 排除列表。
 - **Backend (待处理灵感检阅增强)**:
   - **灵感碰撞重构为 Inbox Review**: 将原有的 AI 随机联想功能重构为“待处理灵感”收件箱模式。专注于展示处于“已分析 (analyzed)”状态且未处理的笔记，引导用户通过批注将其转化为知识。
   - **服务端分页支持**: `GetSerendipityReview` 接口新增分页参数，支持按更新时间倒序进行分页获取，默认每页 9 条。
