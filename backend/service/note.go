@@ -626,23 +626,28 @@ func SynthesizeNotes(ids []uint, customPrompt string) (string, string, error) {
 	}
 
 	// 3. 构建深度聚合 Prompt
-	systemPrompt := `你是一个高阶知识整合专家。你的任务是将用户提供的多个笔记碎片素材，聚合成一篇结构严密、逻辑清晰的新知识笔记。
-要求：
-1. 深入分析各素材间的内在联系、因果关系或矛盾点，进行二次创作。
-2. 保持内容的专业性与逻辑性，风格洗练。
-3. 必须包含一个精炼的【标题(Title)】和详实的【正文内容(Content)】。
-4. 正文请使用 Markdown 格式。
-5. 你必须严格以 JSON 格式输出，格式如下：
-{"title": "生成的笔记标题", "content": "生成的 Markdown 格式正文"}`
+	systemPromptTemplate := `你的任务是将用户提供的多个笔记碎片素材，整合成一篇新笔记。
+
+严格的格式要求：
+1. 必须为一个包含精炼【标题】和详实【正文】的笔记。
+2. 正文必须使用 Markdown 格式。
+3. 必须严格以 JSON 格式输出，格式如下：
+{"title": "生成的笔记标题", "content": "生成的 Markdown 格式正文，换成要用\n"}
+
+%s`
 
 	if customPrompt == "" {
-		customPrompt = "请帮我整合这些碎片，提炼出它们的本质联系并形成一篇完整的深度笔记。"
+		customPrompt = "附加要求：请帮我整合这些碎片，提炼出它们的本质联系并形成一篇完整的深度笔记。"
+	} else {
+		customPrompt = "附加要求：" + customPrompt
 	}
 
-	userMsg := fmt.Sprintf("这是需要整合的素材内容：\n\n%s\n用户指令：%s", context.String(), customPrompt)
+	systemPrompt := fmt.Sprintf(systemPromptTemplate, customPrompt)
+
+	userMsg := fmt.Sprintf("这是需要整合的素材内容：\n\n%s", context.String())
 
 	// 4. 调用大模型
-	answer, err := pkg.AskAIWithContext([]map[string]string{
+	answer, err := pkg.AskAI([]map[string]string{
 		{"role": "user", "content": userMsg},
 	}, systemPrompt)
 	if err != nil {

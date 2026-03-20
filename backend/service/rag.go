@@ -425,9 +425,18 @@ func RAGAsk(query string) (string, []SearchResult, string, error) {
 
 	// 5. 构建上下文并问答
 	context := BuildRAGContext(finalHits)
-	answer, err := pkg.AskAIWithContext([]map[string]string{
+	log.Printf("[AskAI] Context length: %d\n", len(context))
+
+	systemPrompt := "你是一个专注于个人知识库的智能助手，同时具备深厚的通用知识储备。你会优先基于【参考笔记上下文】来回答用户的问题，以体现出你对用户个人资料的了解；如果数据中没有直接答案，请结合由于你作为大模型本身的通用智慧来流畅地回答，无需由于缺乏引用而反复道歉。请用简洁、深刻的口吻进行回复，并支持 Markdown 格式排版。\n\n"
+	if context != "" {
+		systemPrompt += "【参考笔记上下文】开始：\n" + context + "\n【参考笔记上下文】结束"
+	} else {
+		systemPrompt += "（当前没有找到与问题直接相关的笔记碎片记录）"
+	}
+
+	answer, err := pkg.AskAI([]map[string]string{
 		{"role": "user", "content": query},
-	}, context)
+	}, systemPrompt)
 
 	return answer, finalHits, intent, err
 }

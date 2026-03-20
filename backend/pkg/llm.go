@@ -296,17 +296,8 @@ func parseSmartJSON[T any](content string, v *T) error {
 	return nil
 }
 
-// AskAIWithContext 根据提供的上下文（相关笔记片段）与多轮对话列表，回答用户的问题
-func AskAIWithContext(messages []map[string]string, contextStr string) (string, error) {
-	fmt.Printf("[AskAI] Context length: %d\n", len(contextStr))
-
-	systemPrompt := "你是一个专注于个人知识库的智能助手，同时具备深厚的通用知识储备。你会优先基于【参考笔记上下文】来回答用户的问题，以体现出你对用户个人资料的了解；如果数据中没有直接答案，请结合由于你作为大模型本身的通用智慧来流畅地回答，无需由于缺乏引用而反复道歉。请用简洁、深刻的口吻进行回复，并支持 Markdown 格式排版。\n\n"
-	if contextStr != "" {
-		systemPrompt += "【参考笔记上下文】开始：\n" + contextStr + "\n【参考笔记上下文】结束"
-	} else {
-		systemPrompt += "（当前没有找到与问题直接相关的笔记碎片记录）"
-	}
-
+// AskAI 直接调用大模型，传入自定义的 system prompt 和对话消息
+func AskAI(messages []map[string]string, systemPrompt string) (string, error) {
 	finalMessages := []map[string]string{
 		{
 			"role":    "system",
@@ -372,6 +363,8 @@ func AskAIWithContext(messages []map[string]string, contextStr string) (string, 
 
 	return resData.Choices[0].Message.Content, nil
 }
+
+
 
 // GetEmbedding 调用大模型 Embedding 接口获取文本向量
 func GetEmbedding(text string) ([]float32, error) {
