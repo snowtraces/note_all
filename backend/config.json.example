@@ -6,5 +6,7 @@
   "embedding_model_id": "text-embedding-3-small",
   "embedding_api_url": "https://api.example.com/v1/embeddings",
   "paddle_api_url": "http://localhost:8866/predict/ocr_system",
-  "paddle_token": "your_paddle_token_here"
+  "paddle_token": "your_paddle_token_here",
+  "sys_password": "your_admin_password_here",
+  "jwt_secret": "your_jwt_secret_here"
 }

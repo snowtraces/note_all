@@ -1,27 +1,29 @@
+import { request } from './client';
+
 export const getTrash = async () => {
-  const res = await fetch('/api/trash');
+  const res = await request('/api/trash');
   const data = await res.json();
   return data.data || [];
 };
 
 export const searchNotes = async (query) => {
-  const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+  const res = await request(`/api/search?q=${encodeURIComponent(query)}`);
   const data = await res.json();
   return data.data || [];
 };
 
 export const deleteNote = async (id, hard = false) => {
-  const res = await fetch(`/api/note/${id}${hard ? '/hard' : ''}`, { method: 'DELETE' });
+  const res = await request(`/api/note/${id}${hard ? '/hard' : ''}`, { method: 'DELETE' });
   if (!res.ok) throw new Error("Delete failed");
 };
 
 export const restoreNote = async (id) => {
-  const res = await fetch(`/api/note/${id}/restore`, { method: 'POST' });
+  const res = await request(`/api/note/${id}/restore`, { method: 'POST' });
   if (!res.ok) throw new Error("Restore failed");
 };
 
 export const updateNoteText = async (id, text) => {
-  const res = await fetch(`/api/note/${id}/text`, {
+  const res = await request(`/api/note/${id}/text`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text })
@@ -30,7 +32,7 @@ export const updateNoteText = async (id, text) => {
 };
 
 export const updateNoteStatus = async (id, status, userComment = "") => {
-  const res = await fetch(`/api/note/${id}/status`, {
+  const res = await request(`/api/note/${id}/status`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status, user_comment: userComment })
@@ -39,12 +41,12 @@ export const updateNoteStatus = async (id, status, userComment = "") => {
 };
 
 export const uploadNote = async (formData) => {
-  const res = await fetch("/api/upload", { method: "POST", body: formData });
+  const res = await request("/api/upload", { method: "POST", body: formData });
   if (!res.ok) throw new Error("Upload failed");
 };
 
 export const createTextNote = async (text) => {
-  const res = await fetch("/api/note/text", {
+  const res = await request("/api/note/text", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text }),
@@ -53,7 +55,7 @@ export const createTextNote = async (text) => {
 };
 
 export const getTags = async () => {
-  const res = await fetch('/api/tags');
+  const res = await request('/api/tags');
   const data = await res.json();
   return data.data || [];
 };
@@ -62,7 +64,7 @@ export const getTags = async () => {
 export const askAI = async (messages, sessionId = 0) => {
   // 过滤掉多余字段，只保留后端需要的 role 和 content，防止 JSON 校验失败
   const cleanMessages = messages.map(m => ({ role: m.role, content: m.content }));
-  const res = await fetch("/api/ask", {
+  const res = await request("/api/ask", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ messages: cleanMessages, session_id: sessionId }),
@@ -80,24 +82,24 @@ export const askAI = async (messages, sessionId = 0) => {
 };
 
 export const getChatSessions = async () => {
-  const res = await fetch('/api/chat/sessions');
+  const res = await request('/api/chat/sessions');
   const data = await res.json();
   return data.data || [];
 };
 
 export const getChatMessages = async (id) => {
-  const res = await fetch(`/api/chat/session/${id}`);
+  const res = await request(`/api/chat/session/${id}`);
   const data = await res.json();
   return data.data || [];
 };
 
 export const deleteChatSession = async (id) => {
-  const res = await fetch(`/api/chat/session/${id}`, { method: 'DELETE' });
+  const res = await request(`/api/chat/session/${id}`, { method: 'DELETE' });
   if (!res.ok) throw new Error("Delete session failed");
 };
 
 export const getSerendipity = async (page = 1) => {
-  const res = await fetch(`/api/serendipity?page=${page}`);
+  const res = await request(`/api/serendipity?page=${page}`);
   if (!res.ok) throw new Error("Get pending notes failed");
   const data = await res.json();
   return { 
@@ -112,7 +114,7 @@ export const reprocessNote = async (id, templateId) => {
     if (templateId) {
         url += `?template_id=${templateId}`;
     }
-    const res = await fetch(url, {
+    const res = await request(url, {
         method: 'POST'
     });
     if (!res.ok) throw new Error('Reprocess failed');
@@ -120,21 +122,21 @@ export const reprocessNote = async (id, templateId) => {
 };
 
 export const getRelatedNotes = async (id) => {
-  const res = await fetch(`/api/note/${id}/related`);
+  const res = await request(`/api/note/${id}/related`);
   if (!res.ok) throw new Error("Get related notes failed");
   const data = await res.json();
   return data.data || [];
 };
 
 export const getGraph = async () => {
-  const res = await fetch('/api/graph');
+  const res = await request('/api/graph');
   if (!res.ok) throw new Error("Get graph failed");
   const data = await res.json();
   return data.data || { nodes: [], links: [] };
 };
 
 export const synthesizeNotes = async (ids, prompt) => {
-  const res = await fetch("/api/note/synthesize", {
+  const res = await request("/api/note/synthesize", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids, prompt }),
@@ -148,7 +150,7 @@ export const synthesizeNotes = async (ids, prompt) => {
 };
 
 export const batchArchiveNotes = async (ids, archive = true) => {
-  const res = await fetch("/api/note/batch/archive", {
+  const res = await request("/api/note/batch/archive", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids, archive }),
@@ -157,7 +159,7 @@ export const batchArchiveNotes = async (ids, archive = true) => {
 };
 
 export const saveSynthesizedNote = async (ids, title, content) => {
-  const res = await fetch("/api/note/synthesize/save", {
+  const res = await request("/api/note/synthesize/save", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids, title, content }),

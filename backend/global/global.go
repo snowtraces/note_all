@@ -26,4 +26,6 @@ type AppConfig struct {
 	EmbeddingApiUrl  string `json:"embedding_api_url"`
 	PaddleApiUrl     string `json:"paddle_api_url"`
 	PaddleToken      string `json:"paddle_token"`
+	SysPassword      string `json:"sys_password"` // 访问系统所需密码
+	JwtSecret        string `json:"jwt_secret"`   // JWT 加密密钥
 }

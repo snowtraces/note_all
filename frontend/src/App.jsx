@@ -13,6 +13,8 @@ import SettingsModal from './components/SettingsModal';
 import GraphView from './components/GraphView';
 import LabView from './components/LabView';
 import NavRail from './components/NavRail';
+import LoginOverlay from './components/LoginOverlay';
+import { checkAuth } from './api/authApi';
 
 function App() {
   const [query, setQuery] = useState('');
@@ -23,6 +25,8 @@ function App() {
   const [showTrash, setShowTrash] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
   
   // Persist graph data to avoid re-fetching
   const [cachedGraphData, setCachedGraphData] = useState(null);
@@ -41,11 +45,21 @@ function App() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory, askLoading]);
 
+  // Auth check on mount
+  useEffect(() => {
+    const initAuth = async () => {
+      const ok = await checkAuth();
+      setIsLoggedIn(ok);
+      setIsAuthChecking(false);
+    };
+    initAuth();
+  }, []);
+
   // 探针模式：静默更新列表，不重置 selectedItem
   useDataPoller({
     query,
     results,
-    enabled: !showTrash,
+    enabled: isLoggedIn && !showTrash,
     onChanged: (fresh) => {
       setResults(fresh);
       setSelectedItem(prev => {
@@ -65,6 +79,8 @@ function App() {
 
   // 初始化或者切换回收站状态时获取数据
   useEffect(() => {
+    if (!isLoggedIn) return;
+    
     if (showTrash) {
       loadTrashData();
     } else {
@@ -75,7 +91,7 @@ function App() {
     setChatHistory([]);
     setCurrentSessionId(0);
     setViewMode('notes');
-  }, [showTrash]);
+  }, [showTrash, isLoggedIn]);
 
   // 全局键盘事件监听
   useEffect(() => {
@@ -261,6 +277,18 @@ function App() {
   const removeFromLabItem = (id) => {
     setLabBasket(prev => prev.filter(i => i !== id));
   };
+
+  if (isAuthChecking) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-[#050505]">
+         <div className="w-10 h-10 border-4 border-primeAccent/20 border-t-primeAccent animate-spin rounded-full"></div>
+      </div>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return <LoginOverlay onLoginSuccess={() => setIsLoggedIn(true)} />;
+  }
 
   return (
     <div className="h-screen w-full flex bg-[#0a0a0a] text-white overflow-hidden font-sans">

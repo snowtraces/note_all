@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"note_all_backend/api"
+	"note_all_backend/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -29,13 +30,23 @@ func SetupRouter() *gin.Engine {
 		c.JSON(http.StatusOK, gin.H{"message": "pong"})
 	})
 
-	apiGroup := r.Group("/api")
-	noteApi := new(api.NoteApi)
-	templateApi := new(api.TemplateApi)
+	authApi := new(api.AuthApi)
 
+	// 1. 公开接口 (不需要鉴权)
+	r.POST("/api/auth/login", authApi.Login)
+
+	// 2. 需要鉴权的接口组
+	apiGroup := r.Group("/api")
+	apiGroup.Use(middleware.AuthRequired())
 	{
+		apiGroup.GET("/auth/check", authApi.Check) // 校验 Token 有效性
+
+		noteApi := new(api.NoteApi)
+		templateApi := new(api.TemplateApi)
+
 		// 1. 上传文件生成新解析工单
 		apiGroup.POST("/upload", noteApi.Upload)
+		// ...
 
 		// 2. 纯文本缺口（跳过 OCR，直接 LLM 摘要+标签）
 		apiGroup.POST("/note/text", noteApi.CreateFromText)

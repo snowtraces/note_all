@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 ### Added
+- **Security (认证系统实装 - Phase 1)**:
+  - **单人模式鉴权**: 引入了基于 `sys_password` 的轻量化认证体系，适配单人文档管理场景。
+  - **后端安全中间件**: 新增 `AuthRequired` 中间件，强制校验 `Authorization: Bearer` 令牌，有效覆盖所有业务接口。
+  - **路由隔离**: 实现了公开接口（登录）与保护接口的逻辑分离，防止认证过程被自身拦截。
+  - **前端认证闭环**: 
+    - 新增 **高级感登录 UI (`LoginOverlay`)**，采用毛玻璃视效与极简交互。
+    - 封装 `client.js` 请求包装器，实现 Token 自动注入与 401 自动登出重载逻辑。
+    - 在导航栏 (`NavRail`) 集成手动登出功能，支持完整的会话生命周期管理。
+
+### Added
 - **Backend (SPA 集成与负载优化)**:
   - **支持 SPA 静态托管**: 在 `SetupRouter` 中集成了对前端构建产物 (`../frontend/dist`) 的静态资源映射。
   - **前端路由兜底 (SPA Fallback)**: 新增 `NoRoute` 处理逻辑，对所有非 `/api` 开头的未知路径统一返回 `index.html`，彻底解决前端 React Router 在刷新页面时触发 404 的问题。

@@ -6,8 +6,10 @@ import {
   MessageSquare, 
   Trash2, 
   Settings,
-  BrainCircuit
+  BrainCircuit,
+  LogOut
 } from 'lucide-react';
+import { logout } from '../api/authApi';
 
 export default function NavRail({
   viewMode,
@@ -129,13 +131,25 @@ export default function NavRail({
       </div>
 
       {/* Bottom Area */}
-      <div className="mt-auto px-2 w-full">
+      <div className="mt-auto px-2 w-full flex flex-col gap-4">
         <button
           onClick={() => setShowSettings(true)}
           title="设置"
           className="w-full aspect-square flex items-center justify-center rounded-2xl text-silverText/40 hover:bg-white/5 hover:text-white transition-all group"
         >
           <Settings size={22} className="group-hover:rotate-45 transition-transform duration-500" />
+        </button>
+
+        <button
+          onClick={() => {
+            if (window.confirm("确定要退出吗？")) {
+               logout();
+            }
+          }}
+          title="退出登录"
+          className="w-full aspect-square flex items-center justify-center rounded-2xl text-red-500/30 hover:bg-red-500/10 hover:text-red-500 transition-all group"
+        >
+          <LogOut size={20} />
         </button>
       </div>
     </div>
