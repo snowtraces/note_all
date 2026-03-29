@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"note_all_backend/global"
+	"note_all_backend/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -20,16 +21,21 @@ func (a *AuthApi) Login(c *gin.Context) {
 		return
 	}
 
-	// 简单的密码校验
+	// 密码校验
 	if input.Password != global.Config.SysPassword {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid password"})
 		return
 	}
 
-	// 这里的 token 我们在这个最简版本中直接返回密码字符串 (或者哈希一个随机序列也行)
-	// 在 Bearer 规范下直接使用密码作为 token
+	// 生成 JWT Token
+	token, err := utils.GenerateToken("admin") // 这里 admin 仅做逻辑占位，后续可拓展多用户
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"token": global.Config.SysPassword,
+		"token":   token,
 		"message": "Login successful",
 	})
 }

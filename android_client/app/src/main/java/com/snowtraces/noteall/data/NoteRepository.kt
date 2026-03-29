@@ -5,12 +5,18 @@ import com.snowtraces.noteall.network.AskRequest
 import com.snowtraces.noteall.network.AskResponse
 import com.snowtraces.noteall.network.ChatMessage
 import com.snowtraces.noteall.network.ChatSession
+import com.snowtraces.noteall.network.LoginRequest
+import com.snowtraces.noteall.network.LoginResponse
 import com.snowtraces.noteall.network.NoteItem
 import com.snowtraces.noteall.network.TextUploadRequest
 import com.snowtraces.noteall.network.StatusUpdateRequest
 import okhttp3.MultipartBody
 
 class NoteRepository {
+    suspend fun login(baseUrl: String, password: String): LoginResponse {
+        val api = ApiClient.getApi(baseUrl)
+        return api.login(LoginRequest(password))
+    }
 
     suspend fun getNotes(baseUrl: String, query: String): List<NoteItem> {
         if (baseUrl.isEmpty()) return emptyList()

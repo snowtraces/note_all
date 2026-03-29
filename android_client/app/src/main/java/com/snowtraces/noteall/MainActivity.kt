@@ -114,13 +114,15 @@ fun MainApp() {
     LaunchedEffect(Unit) {
         val savedBaseUrl = configManager.baseUrlFlow.first()
         val savedToken = configManager.authTokenFlow.first()
+        val savedRawPassword = configManager.rawPasswordFlow.first()
+        
         tempUrl = savedBaseUrl
-        tempToken = savedToken
+        tempToken = savedRawPassword // UI 显示原始密码
         
         viewModel.baseUrl = savedBaseUrl
         chatViewModel.baseUrl = savedBaseUrl
         
-        // 关键：注入认证 Token 到网络引擎
+        // 注入已保存的 JWT Token
         com.snowtraces.noteall.network.ApiClient.authToken = savedToken
         
         viewModel.refresh()
@@ -609,18 +611,27 @@ fun MainApp() {
                         Button(
                             onClick = {
                                 coroutineScope.launch {
-                                    configManager.saveBaseUrl(tempUrl)
-                                    configManager.saveAuthToken(tempToken)
-                                    
-                                    viewModel.baseUrl = tempUrl
-                                    // 按需注入新的 Token 到 ApiClient
-                                    com.snowtraces.noteall.network.ApiClient.authToken = tempToken
-                                    
-                                    showSettings = false
-                                    viewModel.refresh(showIndicator = true)
+                                    try {
+                                        // 升级：登录换取 JWT
+                                        val loginResp = repository.login(tempUrl, tempToken)
+                                        val jwtToken = loginResp.token
+
+                                        configManager.saveBaseUrl(tempUrl)
+                                        configManager.saveAuthToken(jwtToken)
+                                        configManager.saveRawPassword(tempToken)
+                                        
+                                        viewModel.baseUrl = tempUrl
+                                        com.snowtraces.noteall.network.ApiClient.authToken = jwtToken
+                                        
+                                        showSettings = false
+                                        viewModel.refresh(showIndicator = true)
+                                        Toast.makeText(context, "配置成功并已签发令牌", Toast.LENGTH_SHORT).show()
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "登录验证失败: ${e.message}", Toast.LENGTH_LONG).show()
+                                    }
                                 }
                             },
-                            shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp)
                         ) {
                             Text("保存并加载")
                         }

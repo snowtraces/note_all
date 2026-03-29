@@ -4,6 +4,17 @@ import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
+data class LoginRequest(
+    val password: String
+)
+
+@JsonClass(generateAdapter = true)
+data class LoginResponse(
+    val token: String,
+    val message: String?
+)
+
+@JsonClass(generateAdapter = true)
 data class NoteItem(
     val id: Int,
     @Json(name = "created_at") val createdAt: String?,

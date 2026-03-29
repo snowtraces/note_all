@@ -1,4 +1,4 @@
-const DEFAULT_API_URL = "http://localhost:8080/api/note/text";
+const DEFAULT_SERVER_URL = "http://localhost:3344";
 
 document.addEventListener("DOMContentLoaded", async () => {
   const noteContent = document.getElementById("note-content");
@@ -12,8 +12,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const statusMsg = document.getElementById("status-msg");
 
   // Load Saved Settings
-  const settings = await chrome.storage.local.get(["apiUrl"]);
-  apiUrlInput.value = settings.apiUrl || DEFAULT_API_URL;
+  const settings = await chrome.storage.local.get(["serverUrl", "apiToken", "rawPassword"]);
+  const serverUrlInput = document.getElementById("server-url");
+  serverUrlInput.value = settings.serverUrl || DEFAULT_SERVER_URL;
+  document.getElementById("api-token").value = settings.rawPassword || "";
 
   // Try to get selected text from current tab
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -44,14 +46,48 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Save Settings
   saveSettingsBtn.addEventListener("click", async () => {
-    const newApiUrl = apiUrlInput.value.trim();
-    if (newApiUrl) {
-      await chrome.storage.local.set({ apiUrl: newApiUrl });
-      showStatus("设置已保存", "success");
+    let newServerUrl = serverUrlInput.value.trim();
+    if (newServerUrl.endsWith("/")) {
+      newServerUrl = newServerUrl.slice(0, -1);
+    }
+    const pwd = document.getElementById("api-token").value.trim();
+    
+    // JWT 升级：保存设置时先进行 Login 换取 Token
+    saveSettingsBtn.disabled = true;
+    saveSettingsBtn.textContent = "正在验证...";
+    
+    try {
+      const resp = await fetch(`${newServerUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwd })
+      });
+
+      if (!resp.ok) {
+        throw new Error("密码错误或服务器无法连接");
+      }
+
+      const data = await resp.json();
+      if (!data.token) {
+        throw new Error("服务器未返回有效 Token");
+      }
+
+      await chrome.storage.local.set({ 
+        serverUrl: newServerUrl,
+        apiToken: data.token, // 此时保存的是 JWT
+        rawPassword: pwd     // 保存原始密码以便后续刷新或显示（选做，这里为了回填显示）
+      });
+      
+      showStatus("设置已保存并登录成功", "success");
       setTimeout(() => {
         settingsView.style.display = "none";
         mainView.style.display = "block";
-      }, 500);
+      }, 800);
+    } catch (err) {
+      showStatus(`❌ ${err.message}`, "error");
+    } finally {
+      saveSettingsBtn.disabled = false;
+      saveSettingsBtn.textContent = "保存设置";
     }
   });
 
@@ -66,15 +102,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     saveNoteBtn.disabled = true;
     saveNoteBtn.textContent = "发送中...";
 
-    const currentSettings = await chrome.storage.local.get(["apiUrl"]);
-    const targetUrl = currentSettings.apiUrl || DEFAULT_API_URL;
+    const currentSettings = await chrome.storage.local.get(["serverUrl", "apiToken"]);
+    const serverUrl = currentSettings.serverUrl || DEFAULT_SERVER_URL;
+    const targetUrl = `${serverUrl}/api/note/text`;
+    const token = currentSettings.apiToken || "";
 
     try {
+      const headers = { "Content-Type": "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const response = await fetch(targetUrl, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: headers,
         body: JSON.stringify({ text: text })
       });
 

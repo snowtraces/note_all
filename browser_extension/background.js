@@ -1,5 +1,4 @@
-const DEFAULT_API_URL = "http://localhost:8080/api/note/text";
-const UPLOAD_API_URL = "http://localhost:8080/api/upload";
+const DEFAULT_SERVER_URL = "http://localhost:8080";
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
@@ -100,8 +99,10 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
 async function clipImageFromFrontend(srcUrl) {
   try {
-    const result = await chrome.storage.local.get("uploadApiUrl");
-    const apiUrl = result.uploadApiUrl || UPLOAD_API_URL;
+    const result = await chrome.storage.local.get(["serverUrl", "apiToken"]);
+    const serverUrl = result.serverUrl || DEFAULT_SERVER_URL;
+    const apiUrl = `${serverUrl}/api/upload`;
+    const token = result.apiToken || "";
 
     // 1. 在浏览器侧下载图片（利用浏览器 Cookie/Session 绕过防盗链）
     const imageResp = await fetch(srcUrl);
@@ -122,8 +123,14 @@ async function clipImageFromFrontend(srcUrl) {
     const formData = new FormData();
     formData.append("file", blob, filename);
 
+    const headers = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const response = await fetch(apiUrl, {
       method: "POST",
+      headers: headers,
       body: formData
     });
 
@@ -159,16 +166,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 async function clipToNoteAll(content, type = "text") {
-  const result = await chrome.storage.local.get("apiUrl");
-  const apiUrl = result.apiUrl || DEFAULT_API_URL;
+  const result = await chrome.storage.local.get(["serverUrl", "apiToken"]);
+  const serverUrl = result.serverUrl || DEFAULT_SERVER_URL;
+  const apiUrl = `${serverUrl}/api/note/text`;
+  const token = result.apiToken || "";
 
   console.log('Note All: Sending data to API', apiUrl);
   try {
+    const headers = { "Content-Type": "application/json" };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const response = await fetch(apiUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: headers,
       body: JSON.stringify({ text: content })
     });
 

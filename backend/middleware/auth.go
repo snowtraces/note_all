@@ -2,12 +2,13 @@ package middleware
 
 import (
 	"note_all_backend/global"
+	"note_all_backend/utils"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 )
 
-// AuthRequired 鉴权中间件 (简单令牌校验)
+// AuthRequired 鉴权中间件 (JWT 校验)
 func AuthRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 如果配置中没有设置密码，则不开启鉴权 (方便初期调试)
@@ -31,14 +32,16 @@ func AuthRequired() gin.HandlerFunc {
 			return
 		}
 
-		// 在这个最简版本中，我们直接校验 token 是否等于 sys_password
-		// 后续如果有需要可以换成 JWT
-		if parts[1] != global.Config.SysPassword {
-			c.JSON(401, gin.H{"error": "Unauthorized: Invalid token"})
+		// 解析 JWT
+		claims, err := utils.ParseToken(parts[1])
+		if err != nil {
+			c.JSON(401, gin.H{"error": "Unauthorized: " + err.Error()})
 			c.Abort()
 			return
 		}
 
+		// 将 UserID 注入 Context，方便后续业务逻辑使用 (虽然目前是单人系统，但架构上对齐)
+		c.Set("user_id", claims.UserID)
 		c.Next()
 	}
 }

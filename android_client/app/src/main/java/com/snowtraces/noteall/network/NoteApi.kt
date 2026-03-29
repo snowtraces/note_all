@@ -11,6 +11,11 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface NoteApi {
+    @POST("/api/auth/login")
+    suspend fun login(@Body request: LoginRequest): LoginResponse
+
+    @GET("/api/auth/check")
+    suspend fun checkAuth(): Any
 
     @GET("/api/search")
     suspend fun searchNotes(@Query("q") query: String): NoteItemsResponse

@@ -16,14 +16,19 @@ class ConfigManager(private val context: Context) {
     companion object {
         val BASE_URL_KEY = stringPreferencesKey("base_url")
         val AUTH_TOKEN_KEY = stringPreferencesKey("auth_token")
+        val RAW_PASSWORD_KEY = stringPreferencesKey("raw_password")
     }
 
     val baseUrlFlow: Flow<String> = context.dataStore.data.map { preferences ->
-        preferences[BASE_URL_KEY] ?: "http://192.168.31.160:8080"
+        preferences[BASE_URL_KEY] ?: "http://192.168.31.200:8080"
     }
 
     val authTokenFlow: Flow<String> = context.dataStore.data.map { preferences ->
         preferences[AUTH_TOKEN_KEY] ?: ""
+    }
+
+    val rawPasswordFlow: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[RAW_PASSWORD_KEY] ?: ""
     }
 
     suspend fun saveBaseUrl(url: String) {
@@ -35,6 +40,12 @@ class ConfigManager(private val context: Context) {
     suspend fun saveAuthToken(token: String) {
         context.dataStore.edit { preferences ->
             preferences[AUTH_TOKEN_KEY] = token
+        }
+    }
+
+    suspend fun saveRawPassword(password: String) {
+        context.dataStore.edit { preferences ->
+            preferences[RAW_PASSWORD_KEY] = password
         }
     }
 }
