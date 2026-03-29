@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink, Link, Zap } from 'lucide-react';
+import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink, Link, Zap, Share2 } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
 import { getRelatedNotes, reprocessNote } from '../api/noteApi';
 import { getTemplates } from '../api/templateApi';
+import ShareModal from './ShareModal';
 import { RefreshCw, CheckCircle2, XCircle, ClipboardEdit, Eye } from 'lucide-react';
 
 export default function Detail({
@@ -25,6 +26,7 @@ export default function Detail({
   const [reprocessStatus, setReprocessStatus] = useState(null); // { type: 'success' | 'error', msg: string }
   const [annotation, setAnnotation] = useState(item?.user_comment || '');
   const [isSubmittingStatus, setIsSubmittingStatus] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // 当外部 item 变化时，重新绑定 editValue 和加载关联内容
   useEffect(() => {
@@ -114,6 +116,15 @@ export default function Detail({
               className="px-4 py-1.5 bg-red-500/5 text-red-500/60 hover:bg-red-500/10 hover:text-red-500 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-red-500/10"
             >
               <Trash2 size={14} /> 移入垃圾篓
+            </button>
+          )}
+
+          {!showTrash && (
+            <button 
+              onClick={() => setShowShareModal(true)} 
+              className="px-4 py-1.5 bg-primeAccent/5 text-primeAccent/60 hover:bg-primeAccent/10 hover:text-primeAccent transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/10"
+            >
+              <Share2 size={14} /> 分享碎片
             </button>
           )}
           <button 
@@ -362,6 +373,7 @@ export default function Detail({
           </div>
         </div>
       </div>
+      {showShareModal && <ShareModal item={item} onClose={() => setShowShareModal(false)} />}
     </div>
   );
 }

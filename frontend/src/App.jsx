@@ -14,6 +14,7 @@ import GraphView from './components/GraphView';
 import LabView from './components/LabView';
 import NavRail from './components/NavRail';
 import LoginOverlay from './components/LoginOverlay';
+import PublicSharePage from './components/PublicSharePage';
 import { checkAuth } from './api/authApi';
 
 function App() {
@@ -59,7 +60,7 @@ function App() {
   useDataPoller({
     query,
     results,
-    enabled: isLoggedIn && !showTrash,
+    enabled: isLoggedIn && !showTrash && !window.location.pathname.startsWith('/s/'),
     onChanged: (fresh) => {
       setResults(fresh);
       setSelectedItem(prev => {
@@ -277,6 +278,12 @@ function App() {
   const removeFromLabItem = (id) => {
     setLabBasket(prev => prev.filter(i => i !== id));
   };
+
+  const urlPath = window.location.pathname;
+  if (urlPath.startsWith('/s/')) {
+    const shareId = urlPath.split('/')[2];
+    return <PublicSharePage shareId={shareId} />;
+  }
 
   if (isAuthChecking) {
     return (

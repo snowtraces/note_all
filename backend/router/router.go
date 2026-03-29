@@ -31,15 +31,22 @@ func SetupRouter() *gin.Engine {
 	})
 
 	authApi := new(api.AuthApi)
+	shareApi := new(api.ShareApi)
 
 	// 1. 公开接口 (不需要鉴权)
 	r.POST("/api/auth/login", authApi.Login)
+	r.GET("/api/pub/share/:id", shareApi.GetPublicShare) // 这里是真正的公开分享端点
 
 	// 2. 需要鉴权的接口组
 	apiGroup := r.Group("/api")
 	apiGroup.Use(middleware.AuthRequired())
 	{
 		apiGroup.GET("/auth/check", authApi.Check) // 校验 Token 有效性
+
+		// ============== 分享管理 (保护) ==============
+		apiGroup.POST("/share", shareApi.CreateShare)
+		apiGroup.DELETE("/share/:id", shareApi.RevokeShare)
+		apiGroup.GET("/note/:id/shares", shareApi.ListNoteShares)
 
 		noteApi := new(api.NoteApi)
 		templateApi := new(api.TemplateApi)
