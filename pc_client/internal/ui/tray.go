@@ -9,10 +9,13 @@ import (
 
 	"github.com/getlantern/systray"
 
+	"note_all_pc/internal/config"
 	"note_all_pc/internal/domain"
 	"note_all_pc/internal/hotkey"
+	"note_all_pc/internal/network"
 	"note_all_pc/internal/notifier"
 	"note_all_pc/internal/sys"
+	"note_all_pc/internal/ui/input"
 )
 
 // RunTray 启动系统托盘（常驻模式入口）
@@ -67,6 +70,33 @@ func onTrayReady(cfg *domain.Config) {
 	go func() {
 		for range mOpen.ClickedCh {
 			openBrowser(cfg.ServerURL)
+		}
+	}()
+
+	systray.AddSeparator()
+
+	// ── 菜单：设置 ──
+	mSettings := systray.AddMenuItem("⚙️ 设置", "配置服务器地址与访问密码")
+	go func() {
+		for range mSettings.ClickedCh {
+			newUrl, pwd, ok := input.ShowSettingsDialog(cfg.ServerURL)
+			if ok {
+				// 执行登录并换领 Token
+				token, err := network.Login(newUrl, pwd, cfg.UploadTimeoutSec)
+				if err != nil {
+					notifier.ShowToastNotify("登录失败", err.Error(), true)
+					continue
+				}
+
+				// 更新并保存配置
+				cfg.ServerURL = newUrl
+				cfg.AuthToken = token
+				if err := config.SaveConfig(cfg); err != nil {
+					notifier.ShowToastNotify("保存失败", err.Error(), true)
+				} else {
+					notifier.ShowToastNotify("设置成功", "配置已更新并已成功登录", false)
+				}
+			}
 		}
 	}()
 

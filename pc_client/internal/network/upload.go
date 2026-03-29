@@ -63,6 +63,9 @@ func UploadFile(filePath string, cfg *domain.Config) (*domain.UploadResult, erro
 		return nil, fmt.Errorf("创建请求失败: %w", err)
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
+	if cfg.AuthToken != "" {
+		req.Header.Set("Authorization", "Bearer "+cfg.AuthToken)
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -113,6 +116,9 @@ func UploadText(text string, cfg *domain.Config) (*domain.UploadResult, error) {
 		return nil, fmt.Errorf("创建请求失败: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if cfg.AuthToken != "" {
+		req.Header.Set("Authorization", "Bearer "+cfg.AuthToken)
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -139,4 +145,46 @@ func UploadText(text string, cfg *domain.Config) (*domain.UploadResult, error) {
 		NoteID:  fmt.Sprintf("%d", result.Data.ID),
 		Message: result.Message,
 	}, nil
+}
+
+// Login 登录并获取 JWT Token
+func Login(baseUrl, password string, timeoutSec int) (string, error) {
+	timeout := time.Duration(timeoutSec) * time.Second
+	if timeout <= 0 {
+		timeout = 10 * time.Second
+	}
+	client := &http.Client{Timeout: timeout}
+
+	url := strings.TrimRight(baseUrl, "/") + "/api/auth/login"
+	payload := map[string]string{"password": password}
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(payloadBytes))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("无法连接到服务器: %v", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("登录失败: %s", string(respBody))
+	}
+
+	var result struct {
+		Token string `json:"token"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return "", fmt.Errorf("解析响应失败: %v", err)
+	}
+
+	return result.Token, nil
 }

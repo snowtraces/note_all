@@ -298,3 +298,90 @@ func encodeUTF16LE(s string) []byte {
 	}
 	return b
 }
+
+// ShowSettingsDialog 弹出配置对话框
+func ShowSettingsDialog(currentUrl string) (string, string, bool) {
+	psScript := `
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+$form = New-Object System.Windows.Forms.Form
+$form.Text = "Note All 客户端配置"
+$form.Size = New-Object System.Drawing.Size(400, 240)
+$form.StartPosition = "CenterScreen"
+$form.FormBorderStyle = "FixedDialog"
+$form.MaximizeBox = $False
+$form.MinimizeBox = $False
+$form.TopMost = $True
+
+$lblUrl = New-Object System.Windows.Forms.Label
+$lblUrl.Text = "服务器地址 (Base URL):"
+$lblUrl.Location = New-Object System.Drawing.Point(20, 20)
+$lblUrl.AutoSize = $True
+
+$txtUrl = New-Object System.Windows.Forms.TextBox
+$txtUrl.Text = "` + currentUrl + `"
+$txtUrl.Location = New-Object System.Drawing.Point(20, 40)
+$txtUrl.Size = New-Object System.Drawing.Size(340, 25)
+
+$lblPwd = New-Object System.Windows.Forms.Label
+$lblPwd.Text = "系统访问密码:"
+$lblPwd.Location = New-Object System.Drawing.Point(20, 80)
+$lblPwd.AutoSize = $True
+
+$txtPwd = New-Object System.Windows.Forms.TextBox
+$txtPwd.PasswordChar = '*'
+$txtPwd.Location = New-Object System.Drawing.Point(20, 100)
+$txtPwd.Size = New-Object System.Drawing.Size(340, 25)
+
+$btnSave = New-Object System.Windows.Forms.Button
+$btnSave.Text = "登录并保存"
+$btnSave.Location = New-Object System.Drawing.Point(180, 150)
+$btnSave.Size = New-Object System.Drawing.Size(100, 30)
+
+$btnCancel = New-Object System.Windows.Forms.Button
+$btnCancel.Text = "取消"
+$btnCancel.Location = New-Object System.Drawing.Point(290, 150)
+$btnCancel.Size = New-Object System.Drawing.Size(70, 30)
+
+$btnSave.Add_Click({
+    $form.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $form.Close()
+})
+$btnCancel.Add_Click({
+    $form.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+    $form.Close()
+})
+
+$form.Controls.AddRange(@($lblUrl, $txtUrl, $lblPwd, $txtPwd, $btnSave, $btnCancel))
+$form.AcceptButton = $btnSave
+$form.CancelButton = $btnCancel
+
+$res = $form.ShowDialog()
+if ($res -eq [System.Windows.Forms.DialogResult]::OK) {
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    Write-Output $txtUrl.Text
+    Write-Output $txtPwd.Text
+}
+`
+	encodedBytes := encodeUTF16LE(psScript)
+	b64 := base64.StdEncoding.EncodeToString(encodedBytes)
+
+	cmd := exec.Command("powershell", "-NoProfile", "-STA", "-WindowStyle", "Hidden", "-EncodedCommand", b64)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+
+	if err := cmd.Run(); err != nil {
+		return "", "", false
+	}
+
+	out := stdout.String()
+	lines := strings.Split(strings.TrimSpace(out), "\r\n")
+	if len(lines) < 2 {
+		return "", "", false
+	}
+
+	return strings.TrimSpace(lines[0]), strings.TrimSpace(lines[1]), true
+}
