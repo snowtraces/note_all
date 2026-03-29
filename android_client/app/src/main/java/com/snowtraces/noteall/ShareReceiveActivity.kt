@@ -136,10 +136,15 @@ class ShareReceiveActivity : ComponentActivity() {
     }
 
     private suspend fun uploadText(text: String, onResult: (String, Boolean) -> Unit) {
+        val configManager = ConfigManager(this@ShareReceiveActivity)
+        val baseUrl = configManager.baseUrlFlow.first()
+        val authToken = configManager.authTokenFlow.first()
+        
+        // 关键：注入认证 Token 到网络引擎
+        com.snowtraces.noteall.network.ApiClient.authToken = authToken
+
         withContext(Dispatchers.IO) {
             try {
-                val configManager = ConfigManager(this@ShareReceiveActivity)
-                val baseUrl = configManager.baseUrlFlow.first()
                 repository.uploadText(baseUrl, text)
                 withContext(Dispatchers.Main) {
                     onResult("Uploading text success!", true)
@@ -176,6 +181,10 @@ class ShareReceiveActivity : ComponentActivity() {
                 
                 val configManager = ConfigManager(this@ShareReceiveActivity)
                 val baseUrl = configManager.baseUrlFlow.first()
+                val authToken = configManager.authTokenFlow.first()
+                
+                // 关键：注入认证 Token 到网络引擎
+                com.snowtraces.noteall.network.ApiClient.authToken = authToken
                 
                 repository.uploadImage(baseUrl, body)
                 tempFile.delete() 

@@ -2,7 +2,13 @@
 
 ## [Unreleased]
 ### Added
-- **Feature (幻境分享系统 - Phase 2)**:
+- **Android (权限管理与图片修复)**:
+  - **同步系统鉴权**: 为 Android 客户端引入系统访问密码设置，支持全局 `Bearer` 令牌注入 API 请求。
+  - **交互增强**: 在系统设置中新增密码配置，支持持久化存储。
+  - **Image Loader 修复**: 通过自定义 `Application` 与 `ImageLoaderFactory` 解决了 Android 端由于缺乏 Header 导致的图片加载 401 故障。
+  - **分享插件兼容**: 确保 Android 系统分享采集功能具备身份校验能力。
+
+- **Feature (分享系统 - Phase 2)**:
   - **按需生成分享链路**: 为笔记碎片引入了基于随机加密 ID 的公开发布机制，支持后台管理与随时撤销。
   - **沉浸式公开展示页**: 
     - 实现深度优化的 **全屏阅读体验 (`PublicSharePage`)**，具备极致的视觉排版。

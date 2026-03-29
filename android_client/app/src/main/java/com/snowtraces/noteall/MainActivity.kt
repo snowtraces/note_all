@@ -103,6 +103,7 @@ fun MainApp() {
     // Settings Dialog State
     var showSettings by remember { mutableStateOf(false) }
     var tempUrl by remember { mutableStateOf("") }
+    var tempToken by remember { mutableStateOf("") }
     var showAddNoteDialog by remember { mutableStateOf(false) }
     var noteToHardDelete by remember { mutableStateOf<NoteItem?>(null) }
     var activeSwipeNoteId by remember { mutableStateOf<Int?>(null) }
@@ -112,9 +113,16 @@ fun MainApp() {
 
     LaunchedEffect(Unit) {
         val savedBaseUrl = configManager.baseUrlFlow.first()
+        val savedToken = configManager.authTokenFlow.first()
         tempUrl = savedBaseUrl
+        tempToken = savedToken
+        
         viewModel.baseUrl = savedBaseUrl
         chatViewModel.baseUrl = savedBaseUrl
+        
+        // 关键：注入认证 Token 到网络引擎
+        com.snowtraces.noteall.network.ApiClient.authToken = savedToken
+        
         viewModel.refresh()
     }
     
@@ -582,6 +590,16 @@ fun MainApp() {
                                 label = { Text("后端服务器 (Base URL)") },
                                 placeholder = { Text("http://your-ip:8080") },
                                 singleLine = true,
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            
+                            OutlinedTextField(
+                                value = tempToken,
+                                onValueChange = { tempToken = it },
+                                label = { Text("系统访问密码") },
+                                placeholder = { Text("sys_password") },
+                                singleLine = true,
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp)
                             )
@@ -592,7 +610,12 @@ fun MainApp() {
                             onClick = {
                                 coroutineScope.launch {
                                     configManager.saveBaseUrl(tempUrl)
+                                    configManager.saveAuthToken(tempToken)
+                                    
                                     viewModel.baseUrl = tempUrl
+                                    // 按需注入新的 Token 到 ApiClient
+                                    com.snowtraces.noteall.network.ApiClient.authToken = tempToken
+                                    
                                     showSettings = false
                                     viewModel.refresh(showIndicator = true)
                                 }
