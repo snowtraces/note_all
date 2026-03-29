@@ -59,4 +59,13 @@ interface NoteApi {
 
     @retrofit2.http.DELETE("/api/chat/session/{id}")
     suspend fun deleteChatSession(@Path("id") sessionId: Int): Any
+
+    @POST("/api/share")
+    suspend fun createShare(@Body request: CreateShareRequest): ShareResponse
+
+    @GET("/api/note/{id}/shares")
+    suspend fun getNoteShares(@Path("id") noteId: Int): ShareListResponse
+
+    @retrofit2.http.DELETE("/api/share/{id}")
+    suspend fun revokeShare(@Path("id") shareId: String): Any
 }

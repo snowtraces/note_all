@@ -104,3 +104,28 @@ data class ChatMessagesResponse(
     val code: Int? = 0,
     val data: List<ChatMessage>? = emptyList()
 )
+@JsonClass(generateAdapter = true)
+data class CreateShareRequest(
+    @Json(name = "note_id") val noteId: Int,
+    @Json(name = "expire_days") val expireDays: Int = 0
+)
+
+@JsonClass(generateAdapter = true)
+data class ShareItem(
+    val id: String,
+    @Json(name = "note_id") val noteId: Int,
+    @Json(name = "created_at") val createdAt: String,
+    @Json(name = "expires_at") val expiresAt: String?
+)
+
+@JsonClass(generateAdapter = true)
+data class ShareResponse(
+    val code: Int?,
+    val data: ShareItem?
+)
+
+@JsonClass(generateAdapter = true)
+data class ShareListResponse(
+    val code: Int?,
+    val data: List<ShareItem>?
+)

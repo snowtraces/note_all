@@ -145,4 +145,28 @@ class NoteViewModel(private val repository: NoteRepository) : ViewModel() {
             }
         }
     }
+
+    suspend fun getNoteShares(noteId: Int): List<com.snowtraces.noteall.network.ShareItem> {
+        return try {
+            repository.getNoteShares(baseUrl, noteId)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun createShare(noteId: Int): com.snowtraces.noteall.network.ShareItem? {
+        return try {
+            repository.createShare(baseUrl, noteId)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun revokeShare(shareId: String) {
+        try {
+            repository.revokeShare(baseUrl, shareId)
+        } catch (e: Exception) {
+            // Error handling could be improved
+        }
+    }
 }

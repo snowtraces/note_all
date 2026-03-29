@@ -36,10 +36,17 @@ import androidx.compose.ui.Alignment
 import coil.compose.AsyncImage
 import com.snowtraces.noteall.ui.components.MarkdownDisplay
 import com.snowtraces.noteall.network.NoteItem
+import androidx.compose.material.icons.filled.Share
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DetailScreen(note: NoteItem, baseUrl: String, onBack: () -> Unit, onUpdateRaw: (Int, String) -> Unit) {
+fun DetailScreen(
+    note: NoteItem, 
+    baseUrl: String, 
+    onBack: () -> Unit, 
+    onUpdateRaw: (Int, String) -> Unit,
+    onShareClick: () -> Unit
+) {
     var rawMode by remember { mutableStateOf(false) }
     var editableText by remember { mutableStateOf(note.ocrText ?: "") }
     var showFullScreenImage by remember { mutableStateOf<String?>(null) }
@@ -61,6 +68,9 @@ fun DetailScreen(note: NoteItem, baseUrl: String, onBack: () -> Unit, onUpdateRa
                     } else {
                         IconButton(onClick = { rawMode = true }) {
                             Icon(Icons.Default.Edit, contentDescription = "Edit RAW")
+                        }
+                        IconButton(onClick = onShareClick) {
+                            Icon(Icons.Default.Share, contentDescription = "Share")
                         }
                     }
                 }

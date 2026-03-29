@@ -87,4 +87,20 @@ class NoteRepository {
         val api = ApiClient.getApi(baseUrl)
         api.deleteChatSession(sessionId)
     }
+
+    suspend fun getNoteShares(baseUrl: String, noteId: Int): List<com.snowtraces.noteall.network.ShareItem> {
+        val api = ApiClient.getApi(baseUrl)
+        return api.getNoteShares(noteId).data ?: emptyList()
+    }
+
+    suspend fun createShare(baseUrl: String, noteId: Int): com.snowtraces.noteall.network.ShareItem? {
+        val api = ApiClient.getApi(baseUrl)
+        val resp = api.createShare(com.snowtraces.noteall.network.CreateShareRequest(noteId))
+        return resp.data
+    }
+
+    suspend fun revokeShare(baseUrl: String, shareId: String) {
+        val api = ApiClient.getApi(baseUrl)
+        api.revokeShare(shareId)
+    }
 }

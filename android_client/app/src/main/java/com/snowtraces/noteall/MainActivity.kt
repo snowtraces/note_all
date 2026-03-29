@@ -107,6 +107,7 @@ fun MainApp() {
     var showAddNoteDialog by remember { mutableStateOf(false) }
     var noteToHardDelete by remember { mutableStateOf<NoteItem?>(null) }
     var activeSwipeNoteId by remember { mutableStateOf<Int?>(null) }
+    var shareNoteId by remember { mutableStateOf<Int?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
 
@@ -262,6 +263,9 @@ fun MainApp() {
                             },
                             onError = { Toast.makeText(context, "Fail: $it", Toast.LENGTH_SHORT).show() }
                         )
+                    },
+                    onShareClick = {
+                        shareNoteId = selectedNote!!.id
                     }
                 )
             }
@@ -696,8 +700,16 @@ fun MainApp() {
                     }
                 )
             }
-
             }
+        }
+
+        // Share Dialog (Moved outside when block to ensure it's on top of everything)
+        if (shareNoteId != null) {
+            com.snowtraces.noteall.ui.components.ShareDialog(
+                noteId = shareNoteId!!,
+                viewModel = viewModel,
+                onDismissRequest = { shareNoteId = null }
+            )
         }
     }
 }
