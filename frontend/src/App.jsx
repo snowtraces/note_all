@@ -15,6 +15,7 @@ import LabView from './components/LabView';
 import NavRail from './components/NavRail';
 import LoginOverlay from './components/LoginOverlay';
 import PublicSharePage from './components/PublicSharePage';
+import WeixinView from './components/WeixinView';
 import { checkAuth } from './api/authApi';
 
 function App() {
@@ -376,6 +377,14 @@ function App() {
                 setViewMode('notes');
                 executeSearch(query);
               }}
+           />
+        </div>
+
+        {/* Weixin View Layer */}
+        <div className={`absolute inset-0 transition-opacity duration-300 ${viewMode === 'weixin' && !selectedItem ? 'z-40 opacity-100 pointer-events-auto' : '-z-10 opacity-0 pointer-events-none'}`}>
+           <WeixinView 
+              active={viewMode === 'weixin' && !selectedItem}
+              onClose={() => setViewMode('notes')}
            />
         </div>
 

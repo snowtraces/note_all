@@ -80,6 +80,17 @@ export default function NavRail({
         setSelectedItem(null);
       }
     },
+    {
+      id: 'weixin',
+      icon: <MessageSquare size={22} />,
+      label: '微信同步',
+      active: viewMode === 'weixin' && !showTrash,
+      onClick: () => {
+        setViewMode('weixin');
+        setShowTrash(false);
+        setSelectedItem(null);
+      }
+    },
   ];
 
   return (

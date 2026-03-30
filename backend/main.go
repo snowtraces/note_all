@@ -23,6 +23,7 @@ func main() {
 	// 1. 初始化底层核心与外置服务（SQLite / FTS5 / SnowStorage）
 	database.InitSystem()
 	service.InitWorker()
+	service.InitActiveWeixinBots()
 	log.Println("Note-All 后端底层架构组件初始化成功...")
 
 	// // 1.5 启动向量索引补全

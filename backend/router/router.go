@@ -47,6 +47,15 @@ func SetupRouter() *gin.Engine {
 		apiGroup.POST("/share", shareApi.CreateShare)
 		apiGroup.DELETE("/share/:id", shareApi.RevokeShare)
 		apiGroup.GET("/note/:id/shares", shareApi.ListNoteShares)
+		
+		weixinApi := new(api.WeixinApi)
+		apiGroup.GET("/weixin/bot", weixinApi.GetBot)
+		apiGroup.POST("/weixin/bot/toggle", weixinApi.ToggleBot)
+		apiGroup.DELETE("/weixin/bot", weixinApi.LogoutBot)
+		apiGroup.GET("/weixin/qrcode", weixinApi.GetQRCode)
+		apiGroup.GET("/weixin/status", weixinApi.CheckStatus)
+		apiGroup.GET("/weixin/messages", weixinApi.ListMessages)
+		apiGroup.POST("/weixin/send", weixinApi.SendManualReply)
 
 		noteApi := new(api.NoteApi)
 		templateApi := new(api.TemplateApi)

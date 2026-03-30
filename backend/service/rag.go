@@ -246,7 +246,10 @@ func HybridSearch(query string, limit int) ([]SearchResult, error) {
 
 // IntentDetection 优化版：短语优先 + 权重 + 多动词组合
 func IntentDetection(query string) string {
-	query = strings.ToLower(query)
+	query = strings.ToLower(strings.TrimSpace(query))
+	if query == "" {
+		return "record"
+	}
 
 	type keyword struct {
 		word   string
@@ -273,22 +276,26 @@ func IntentDetection(query string) string {
 	}
 
 	scores := make(map[string]int)
-	used := make([]bool, len(query)) // 标记已匹配字符，避免重复计分
+	used := make([]bool, len(query))
 
 	for intent, kws := range intentKeywords {
 		for _, kw := range kws {
 			idx := strings.Index(query, kw.word)
 			if idx >= 0 {
 				overlap := false
-				for i := idx; i < idx+len(kw.word) && i < len(used); i++ {
+				start := idx
+				end := idx + len(kw.word)
+				if end > len(used) {
+					end = len(used)
+				}
+				for i := start; i < end; i++ {
 					if used[i] {
 						overlap = true
 						break
 					}
 				}
 				if !overlap {
-					// 标记已使用
-					for i := idx; i < idx+len(kw.word) && i < len(used); i++ {
+					for i := start; i < end; i++ {
 						used[i] = true
 					}
 					scores[intent] += kw.weight
@@ -297,8 +304,8 @@ func IntentDetection(query string) string {
 		}
 	}
 
-	// 选择得分最高的意图
-	bestIntent := "search"
+	// 1. 如果有明确关键词命中的最高分，优先返回该意图
+	bestIntent := ""
 	maxScore := 0
 	for intent, score := range scores {
 		if score > maxScore {
@@ -306,8 +313,20 @@ func IntentDetection(query string) string {
 			maxScore = score
 		}
 	}
+	if bestIntent != "" {
+		return bestIntent
+	}
 
-	return bestIntent
+	// 2. 无明确关键词，检查是否包含疑问词/标点
+	qMarkers := []string{"?", "？", "如何", "什么是", "怎么", "为什么", "谁", "哪里", "哪个", "是否", "吗"}
+	for _, m := range qMarkers {
+		if strings.Contains(query, m) {
+			return "search"
+		}
+	}
+
+	// 3. 默认意图：笔记录入/收录
+	return "record"
 }
 
 // QueryRewrite 扩展查询意图

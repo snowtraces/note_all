@@ -9,6 +9,7 @@
     <img src="https://img.shields.io/badge/Frontend-React%2018-61DAFB?logo=react" alt="React" />
     <img src="https://img.shields.io/badge/Backend-Golang-00ADD8?logo=go" alt="Golang" />
     <img src="https://img.shields.io/badge/Android-Jetpack%20Compose-3DDC84?logo=android" alt="Android" />
+    <img src="https://img.shields.io/badge/Bot-WeChat%20iLink-07C160?logo=wechat" alt="WeChat Bot" />
     <img src="https://img.shields.io/badge/Platform-Web%20%7C%20Windows%20%7C%20Android-lightgrey" alt="Platform" />
   </p>
 
@@ -34,7 +35,8 @@
 | **URL 智能剪藏**：穿透反爬，Markdown 自动净化 | **智能标签 (Auto-Tag)**：根据内容深度提取主题特性 | **混合检索引擎**：#标签联想、OCR文本、AI摘要并行 |
 | **Windows 全局热键**：`Alt+Q` 截图 / `Alt+Shift+Q` 闪记 | **短文本熔断策略**：精准防御垃圾信息，节约 AI 算力 | **全功能渲染**：KaTeX 公式、GFM 表格一网打尽 |
 | **浏览器剪藏扩展**：划词剪藏及扩展弹窗，补全 PC 工作流 | **自定义 AI 模板**：支持内建与自定义 Prompt 模板 | **智能记忆拼图**：AI 串联随机碎片激发灵感<br>**隐式双链**：基于标签自动发现并串联知识点 |
-| **知识实验室 (Synthesis)**：跨上下文素材挑拣，炼金合成为长文 | **VLM 多模态感知**：深度解析图像内容，图文融合理解 | **知识溯源 (Lineage)**：合成笔记自动记录来源，支持一键跳回 |
+| **浏览器剪藏扩展**：划词剪藏及扩展弹窗，补全 PC 工作流 | **自定义 AI 模板**：支持内建与自定义 Prompt 模板 | **知识溯源 (Lineage)**：合成笔记自动记录来源，支持一键跳回 |
+| **微信 ClawBot 接入**：扫码即可将微信变为你的私人闪记入口 | **多模态消息处理**：不仅处理文字，更支持图片、文件自动收录 | **微信双向交互**：支持在微信端发起问答并实时获得 RAG 回复 |
 
 ---
 
@@ -42,7 +44,7 @@
 
 ```mermaid
 graph LR
-    A[外部信息] -->|分享/截图/粘贴| B(收集层 Ingestor)
+    A[外部信息] -->|分享/截图/粘贴/微信| B(收集层 Ingestor)
     B --> C{处理中枢 Processor}
     C -->|OCR 识别| D[文本/代码/公式]
     C -->|LLM 分析| E[摘要/标签/分类]
@@ -110,6 +112,15 @@ Note All 构建了一套高召回、轻量级的本地化 RAG 流程，核心逻
 - **谱系溯源**：所有新知识都保留了原始碎片的链接，点击即可回到灵感的发生点。
 
 ---
+
+## 🤖 微信助手 (WeChat ClawBot)
+
+Note All 集成了基于 **腾讯 iLink 协议** 的微信机器人，让你的微信瞬间变身为强大的生产力入口：
+
+- **扫码极速接入**：在 Web 仪表盘侧边栏一键获取登录二维码，完成微信账号绑定。
+- **无感知识收录**：直接向机器人发送文字、链接、图片或文档，系统将自动异步下载、加壳解密并存入收件箱。
+- **智能问答 (Cloud RAG)**：集成 RAG 检索引擎。当你在微信提问时，助手会实时检索你的个人笔记库，并以深刻、简洁的口吻给出回答，同时附带参考来源。
+- **远程交互中心**：Web 端支持实时聊天监控与手动回复，方便在管理后台直接参与对话。
 
 ---
 
