@@ -3,7 +3,9 @@ import {
   Library, 
   Network, 
   FlaskConical, 
-  MessageSquare, 
+  MessageSquare,
+  MessageCircle,
+  Bot,
   Trash2, 
   Settings,
   BrainCircuit,
@@ -39,7 +41,7 @@ export default function NavRail({
     },
     {
       id: 'chats',
-      icon: <MessageSquare size={22} />,
+      icon: <MessageCircle size={22} />,
       label: '对话历史',
       active: viewMode === 'chats' && !showTrash,
       onClick: () => {
@@ -82,7 +84,7 @@ export default function NavRail({
     },
     {
       id: 'weixin',
-      icon: <MessageSquare size={22} />,
+      icon: <Bot size={22} />,
       label: '微信同步',
       active: viewMode === 'weixin' && !showTrash,
       onClick: () => {

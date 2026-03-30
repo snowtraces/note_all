@@ -19,21 +19,28 @@ func AuthRequired() gin.HandlerFunc {
 
 		// 从 Header 获取 Authorization: Bearer <token>
 		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
+		var tokenString string
+
+		if authHeader != "" {
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) == 2 && parts[0] == "Bearer" {
+				tokenString = parts[1]
+			}
+		}
+
+		// 如果 Header 中没找到，尝试从 Query 参数中寻找 token (用于图片等无法设置 Header 的场景)
+		if tokenString == "" {
+			tokenString = c.Query("token")
+		}
+
+		if tokenString == "" {
 			c.JSON(401, gin.H{"error": "Unauthorized: No token provided"})
 			c.Abort()
 			return
 		}
 
-		parts := strings.SplitN(authHeader, " ", 2)
-		if !(len(parts) == 2 && parts[0] == "Bearer") {
-			c.JSON(401, gin.H{"error": "Unauthorized: Invalid token format"})
-			c.Abort()
-			return
-		}
-
 		// 解析 JWT
-		claims, err := utils.ParseToken(parts[1])
+		claims, err := utils.ParseToken(tokenString)
 		if err != nil {
 			c.JSON(401, gin.H{"error": "Unauthorized: " + err.Error()})
 			c.Abort()

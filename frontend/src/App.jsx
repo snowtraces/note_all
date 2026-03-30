@@ -16,7 +16,7 @@ import NavRail from './components/NavRail';
 import LoginOverlay from './components/LoginOverlay';
 import PublicSharePage from './components/PublicSharePage';
 import WeixinView from './components/WeixinView';
-import { checkAuth } from './api/authApi';
+import { checkAuth, getAuthToken } from './api/authApi';
 
 function App() {
   const [query, setQuery] = useState('');
@@ -421,42 +421,46 @@ function App() {
                         }`}>
                         <MarkdownRenderer content={chat.content} />
 
-                        {chat.references && chat.references.length > 0 && (
+                  {chat.references && chat.references.length > 0 && (
                           <div className="mt-6 pt-4 border-t border-white/5">
                             <div className="flex items-center gap-1.5 text-[10px] text-silverText/30 uppercase font-mono mb-3 tracking-widest">
                               <BookOpen size={10} /> 智能引证
                             </div>
                             <div className="flex flex-col gap-2">
-                              {chat.references.map(ref => (
-                                <div
-                                  key={ref.id}
-                                  onClick={() => setSelectedItem(ref)}
-                                  className="flex items-center gap-3 p-2 rounded-lg bg-white/[0.02] border border-white/5 hover:bg-white/5 hover:border-primeAccent/20 transition-all cursor-pointer"
-                                >
-                                  {ref.file_type?.includes('image') ? (
-                                    <div className="w-10 h-10 rounded border border-white/10 overflow-hidden shrink-0 bg-black/40">
-                                      <img src={`/api/file/${ref.storage_id}`} className="w-full h-full object-cover" alt="" />
-                                    </div>
-                                  ) : (
-                                    <div className="w-10 h-10 rounded border border-white/10 flex items-center justify-center shrink-0 bg-white/5 text-white/20">
-                                      <BookOpen size={14} />
-                                    </div>
-                                  )}
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex items-center justify-between gap-2 mb-1">
-                                      <div className="flex flex-wrap gap-1 max-h-[16px] overflow-hidden">
-                                        {(ref.ai_tags || "").split(',').slice(0, 2).map((t, i) => t.trim() && (
-                                          <span key={i} className="text-[9px] bg-primeAccent/10 text-primeAccent/70 px-1 rounded">#{t.trim()}</span>
-                                        ))}
+                              {chat.references.map(ref => {
+                                const token = getAuthToken();
+                                const refFileUrl = `/api/file/${ref.storage_id}${token ? `?token=${token}` : ''}`;
+                                return (
+                                  <div
+                                    key={ref.id}
+                                    onClick={() => setSelectedItem(ref)}
+                                    className="flex items-center gap-3 p-2 rounded-lg bg-white/[0.02] border border-white/5 hover:bg-white/5 hover:border-primeAccent/20 transition-all cursor-pointer"
+                                  >
+                                    {ref.file_type?.includes('image') ? (
+                                      <div className="w-10 h-10 rounded border border-white/10 overflow-hidden shrink-0 bg-black/40">
+                                        <img src={refFileUrl} className="w-full h-full object-cover" alt="" />
                                       </div>
-                                      <span className="text-[9px] text-silverText/20 font-mono shrink-0">
-                                        {new Date(ref.created_at).toLocaleDateString('zh-CN', {month:'2-digit', day:'2-digit'})}
-                                      </span>
+                                    ) : (
+                                      <div className="w-10 h-10 rounded border border-white/10 flex items-center justify-center shrink-0 bg-white/5 text-white/20">
+                                        <BookOpen size={14} />
+                                      </div>
+                                    )}
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center justify-between gap-2 mb-1">
+                                        <div className="flex flex-wrap gap-1 max-h-[16px] overflow-hidden">
+                                          {(ref.ai_tags || "").split(',').slice(0, 2).map((t, i) => t.trim() && (
+                                            <span key={i} className="text-[9px] bg-primeAccent/10 text-primeAccent/70 px-1 rounded">#{t.trim()}</span>
+                                          ))}
+                                        </div>
+                                        <span className="text-[9px] text-silverText/20 font-mono shrink-0">
+                                          {new Date(ref.created_at).toLocaleDateString('zh-CN', {month:'2-digit', day:'2-digit'})}
+                                        </span>
+                                      </div>
+                                      <div className="text-[11px] text-white/70 leading-snug line-clamp-2">{ref.ai_summary || '碎片内容细节...'}</div>
                                     </div>
-                                    <div className="text-[11px] text-white/70 leading-snug line-clamp-2">{ref.ai_summary || '碎片内容细节...'}</div>
                                   </div>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         )}

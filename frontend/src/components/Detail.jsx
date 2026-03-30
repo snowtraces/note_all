@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink, Link, Zap, Share2 } from 'lucide-react';
+import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink, Link, Zap, Share2, RefreshCw, CheckCircle2, XCircle, ClipboardEdit, Eye } from 'lucide-react';
+import { getAuthToken } from '../api/authApi';
 import MarkdownRenderer from './MarkdownRenderer';
 import { getRelatedNotes, reprocessNote } from '../api/noteApi';
 import { getTemplates } from '../api/templateApi';
 import ShareModal from './ShareModal';
-import { RefreshCw, CheckCircle2, XCircle, ClipboardEdit, Eye } from 'lucide-react';
 
 export default function Detail({
   item,
@@ -27,6 +27,8 @@ export default function Detail({
   const [annotation, setAnnotation] = useState(item?.user_comment || '');
   const [isSubmittingStatus, setIsSubmittingStatus] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const token = getAuthToken();
+  const fileUrl = item?.storage_id ? `/api/file/${item.storage_id}${token ? `?token=${token}` : ''}` : '';
 
   // 当外部 item 变化时，重新绑定 editValue 和加载关联内容
   useEffect(() => {
@@ -252,10 +254,10 @@ export default function Detail({
             
             {item.file_type?.includes('image') ? (
               <img 
-                src={`/api/file/${item.storage_id}`} 
+                src={fileUrl} 
                 alt="source visual" 
                 className="max-w-full max-h-full object-contain transition-transform duration-700 group-hover:scale-105 cursor-crosshair"
-                onClick={() => setPreviewImage(`/api/file/${item.storage_id}`)}
+                onClick={() => setPreviewImage(fileUrl)}
               />
             ) : (
               <div className="opacity-40 flex flex-col items-center justify-center p-4 h-full">
