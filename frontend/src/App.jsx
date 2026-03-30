@@ -79,21 +79,27 @@ function App() {
     interval: 5000,
   });
 
-  // 初始化或者切换回收站状态时获取数据
+  // 1. 当首次登录成功时，执行全量初始化 (数据拉取与视图复位)
   useEffect(() => {
     if (!isLoggedIn) return;
-    
+    executeSearch(query);
+    setSelectedItem(null);
+    setChatHistory([]);
+    setCurrentSessionId(0);
+    setViewMode('notes');
+  }, [isLoggedIn]);
+
+  // 2. 当显式切换回收站或搜索指令变化时，仅负责加载对应数据，不干扰视图与对话状态
+  useEffect(() => {
+    if (!isLoggedIn) return;
     if (showTrash) {
       loadTrashData();
     } else {
       executeSearch(query);
     }
-    // 切换模式时清空已选中的详情和问答
+    // 切换数据源时清空已选中的详情项（安全做法），但不再重置 ViewMode 与聊天历史
     setSelectedItem(null);
-    setChatHistory([]);
-    setCurrentSessionId(0);
-    setViewMode('notes');
-  }, [showTrash, isLoggedIn]);
+  }, [showTrash, query]);
 
   // 全局键盘事件监听
   useEffect(() => {

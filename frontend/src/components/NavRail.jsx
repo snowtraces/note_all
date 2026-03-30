@@ -78,6 +78,7 @@ export default function NavRail({
       label: '回收站',
       active: showTrash,
       onClick: () => {
+        setViewMode('notes');
         setShowTrash(true);
         setSelectedItem(null);
       }
