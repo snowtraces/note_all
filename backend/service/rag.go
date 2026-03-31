@@ -280,11 +280,10 @@ func IntentDetection(query string) string {
 
 	for intent, kws := range intentKeywords {
 		for _, kw := range kws {
-			idx := strings.Index(query, kw.word)
-			if idx >= 0 {
+			if strings.HasPrefix(query, kw.word) {
 				overlap := false
-				start := idx
-				end := idx + len(kw.word)
+				start := 0
+				end := len(kw.word)
 				if end > len(used) {
 					end = len(used)
 				}

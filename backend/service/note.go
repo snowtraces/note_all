@@ -100,7 +100,7 @@ func performFullAnalysis(nID uint, templateID uint) {
 		// 1.1 尝试 OCR
 		ext := filepath.Ext(note.OriginalName)
 		ocrResult, err := pkg.ExtractTextFromImage(fileBlob, ext)
-		if err == nil && strings.TrimSpace(ocrResult) != "" {
+		if err == nil && strings.TrimSpace(ocrResult) != "" && len(strings.TrimSpace(ocrResult)) > 5 {
 			markdownText = ocrResult
 			log.Printf("[AI 作业] OCR 识别成功, 记录ID %d", nID)
 		} else {
