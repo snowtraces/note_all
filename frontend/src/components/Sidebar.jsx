@@ -15,10 +15,13 @@ import {
   Trash2,
   UploadCloud,
   X,
-  Zap
+  Zap,
+  Book,
+  FileText,
+  Image as ImageIcon
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { deleteChatSession, getChatSessions, getTags } from '../api/noteApi';
+import { deleteChatSession, getChatSessions, getTags, getWikiList, deleteWikiEntry } from '../api/noteApi';
 import { checkWeixinStatus, getWeixinBot, getWeixinQRCode, logoutWeixinBot, toggleWeixinBot } from '../api/weixinApi';
 
 export default function Sidebar({
@@ -47,6 +50,10 @@ export default function Sidebar({
   const [chatSessions, setChatSessions] = useState([]);
   const [sessionLoading, setSessionLoading] = useState(false);
   const [confirmingId, setConfirmingId] = useState(null);
+
+  const [wikiEntries, setWikiEntries] = useState([]);
+  const [wikiLoading, setWikiLoading] = useState(false);
+  const [wikiTotal, setWikiTotal] = useState(0);
 
   const fileInputRef = useRef(null);
   const dropdownRef = useRef(null);
@@ -102,9 +109,23 @@ export default function Sidebar({
     setSessionLoading(false);
   };
 
+  const loadWikiList = async () => {
+    setWikiLoading(true);
+    try {
+      const { entries, total } = await getWikiList(1, 100);
+      setWikiEntries(entries || []);
+      setWikiTotal(total || 0);
+    } catch (e) {
+      console.error(e);
+    }
+    setWikiLoading(false);
+  };
+
   useEffect(() => {
     if (viewMode === 'chats') {
       loadSessions();
+    } else if (viewMode === 'wiki') {
+      loadWikiList();
     }
   }, [viewMode]);
 
@@ -172,16 +193,23 @@ export default function Sidebar({
 
         <div className="flex justify-between items-center mb-6 h-11">
           <h1 className={`text-2xl font-extrabold tracking-tight transition-colors leading-none ${showTrash ? 'text-red-500/80 shadow-[0_0_20px_rgba(239,68,68,0.1)]' : ''}`}>
-            {showTrash ? 'Trash ' : (viewMode === 'chats' ? 'Chat ' : viewMode === 'graph' ? 'Graph ' : viewMode === 'lab' ? 'Lab ' : 'Note ')}
-            <span className={showTrash ? 'text-red-400' : 'text-primeAccent'}>
-              {showTrash ? 'Bin' : (viewMode === 'chats' ? 'History' : viewMode === 'graph' ? 'Matrix' : viewMode === 'lab' ? 'Space' : 'All')}
-            </span>
+             <div className="flex items-center gap-2">
+                {viewMode === 'wiki' && <Book size={24} className="text-primeAccent" />}
+                {viewMode === 'doc' && <FileText size={24} className="text-primeAccent" />}
+                {viewMode === 'pic' && <ImageIcon size={24} className="text-primeAccent" />}
+                <span>
+                   {showTrash ? 'Trash ' : (viewMode === 'chats' ? 'Chat ' : viewMode === 'graph' ? 'Graph ' : viewMode === 'lab' ? 'Lab ' : viewMode === 'wiki' ? 'Wiki ' : viewMode === 'doc' ? 'File ' : viewMode === 'pic' ? 'Photo ' : 'Note ')}
+                   <span className={showTrash ? 'text-red-400' : 'text-primeAccent'}>
+                     {showTrash ? 'Bin' : (viewMode === 'chats' ? 'History' : viewMode === 'graph' ? 'Matrix' : viewMode === 'lab' ? 'Space' : viewMode === 'wiki' ? 'Lib' : viewMode === 'doc' ? 'Vault' : viewMode === 'pic' ? 'Gallery' : 'All')}
+                   </span>
+                </span>
+             </div>
           </h1>
           
           {/* Item Count or Status */}
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-mono text-silverText/30 uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
-              {results.length} FRAGMENTS
+              {viewMode === 'wiki' ? `${wikiEntries.length} ENTRIES` : `${results.length} FRAGMENTS`}
             </span>
           </div>
         </div>
@@ -235,17 +263,17 @@ export default function Sidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-3 relative">
-        {viewMode === 'notes' ? (
+        {viewMode === 'notes' || viewMode === 'doc' || viewMode === 'pic' ? (
           <>
-            {loading && results.length === 0 && (
+            {(loading || wikiLoading) && results.length === 0 && (
               <div className="w-full h-32 flex flex-col items-center justify-center text-primeAccent/60 animate-pulse gap-2">
                 <BrainCircuit size={32} className="animate-spin" />
-                <span className="text-sm">检索记忆中...</span>
+                <span className="text-sm">读取中...</span>
               </div>
             )}
             {!loading && results.length === 0 && (
               <div className="w-full h-full flex items-center justify-center text-silverText/40 text-sm py-20">
-                无相关记忆碎片
+                无相关碎片内容
               </div>
             )}
             {results.map((item) => {
@@ -262,6 +290,8 @@ export default function Sidebar({
                   <div className="flex justify-between items-start mb-2 relative">
                     <div className="flex flex-wrap gap-1.5 max-h-[44px] overflow-hidden">
                       {renderTags(item.ai_tags, item.id, isSelected)}
+                      {item.category_type === 'doc' && <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded uppercase font-bold tracking-tight">DOC</span>}
+                      {item.category_type === 'pic' && <span className="text-[9px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded uppercase font-bold tracking-tight">PIC</span>}
                     </div>
                     <div className="flex items-center gap-2">
                       {item.parents && item.parents.length > 0 && (
@@ -269,6 +299,8 @@ export default function Sidebar({
                       )}
                       <div className="text-silverText/40 text-[10px] font-mono flex-shrink-0 flex items-center gap-1">
                         {item.status === 'done' && <CheckCircle2 size={10} className="text-green-500/60" />}
+                        {item.category_type === 'doc' && <FileText size={10} className="text-silverText/40" />}
+                        {item.category_type === 'pic' && <ImageIcon size={10} className="text-silverText/40" />}
                         {item.created_at || item.CreatedAt
                           ? new Date(item.created_at || item.CreatedAt).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
                           : '刚刚'}
@@ -294,6 +326,77 @@ export default function Sidebar({
                 </div>
               );
             })}
+          </>
+        ) : viewMode === 'wiki' ? (
+          <>
+            {wikiLoading && wikiEntries.length === 0 && (
+              <div className="w-full h-32 flex flex-col items-center justify-center text-primeAccent/40 animate-pulse">
+                <span className="text-sm italic">翻阅词条库...</span>
+              </div>
+            )}
+            {!wikiLoading && wikiEntries.length === 0 && (
+              <div className="w-full text-center py-20 px-8">
+                <p className="text-silverText/30 text-xs text-center border-dashed border-2 border-white/5 p-10 rounded-3xl">
+                  尚未合成任何知识词条。<br/>
+                  在「实验室」中选择多个碎片进行合成。
+                </p>
+              </div>
+            )}
+            {wikiEntries.map(entry => (
+              <div
+                key={entry.id}
+                onClick={() => setSelectedItem({ ...entry, _is_wiki: true })}
+                className={`p-4 rounded-xl transition-all duration-300 flex flex-col border-l-[3px] border-white/5 bg-[#1a1a1a] hover:bg-[#222] cursor-pointer relative group ${
+                  selectedItem?.id === entry.id && selectedItem?._is_wiki ? 'border-l-primeAccent bg-primeAccent/5 shadow-xl' : 'border-l-transparent'
+                }`}
+              >
+                <div className="flex justify-between items-start mb-2">
+                   <h3 className="text-sm font-bold text-white/90 group-hover:text-primeAccent transition-colors pr-6">
+                      {entry.title}
+                   </h3>
+                   <span className="text-[9px] font-mono text-silverText/20 group-hover:text-silverText/40">
+                      V.{entry.edit_count || 1}
+                   </span>
+                </div>
+                <p className="text-[12px] text-silverText/50 line-clamp-2 leading-relaxed italic mb-3">
+                  {entry.summary || "词条概述详情..."}
+                </p>
+                <div className="flex items-center gap-2 mt-auto">
+                   <div className="flex -space-x-1.5">
+                      {(entry.sources || []).slice(0, 3).map((src, i) => (
+                         <div key={i} className="w-4 h-4 rounded-full border border-[#1a1a1a] bg-primeAccent/20 flex items-center justify-center text-[7px]" title={src.original_name}>
+                            {i === 2 && entry.sources.length > 3 ? `+${entry.sources.length - 2}` : (src.original_name?.[0] || 'S')}
+                         </div>
+                      ))}
+                   </div>
+                   <span className="text-[10px] text-silverText/30 font-mono">
+                      {new Date(entry.updated_at).toLocaleDateString()}
+                   </span>
+                </div>
+                
+                <button
+                   onClick={async (e) => {
+                     e.stopPropagation();
+                     if (window.confirm("确定要删除这个词条吗？相关的来源碎片不会被删除。")) {
+                       try {
+                         await deleteWikiEntry(entry.id);
+                         setWikiEntries(prev => prev.filter(w => w.id !== entry.id));
+                         setWikiTotal(prev => prev - 1);
+                         if (selectedItem?.id === entry.id && selectedItem?._is_wiki) {
+                           setSelectedItem(null);
+                         }
+                       } catch(err) {
+                         alert("删除失败: " + err.message);
+                       }
+                     }
+                   }}
+                   className="absolute bottom-4 right-4 p-2 text-white/0 group-hover:text-red-500/20 hover:text-red-500 transition-all focus:outline-none"
+                   title="删除词条"
+                >
+                   <Trash2 size={12} />
+                </button>
+              </div>
+            ))}
           </>
         ) : viewMode === 'chats' ? (
           <>

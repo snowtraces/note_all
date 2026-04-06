@@ -172,3 +172,81 @@ export const saveSynthesizedNote = async (ids, title, content) => {
   return data.data;
 };
 
+// Knowledge Layer: Categories
+export const getNotesByCategory = async (category, page = 1, limit = 20) => {
+  const res = await request(`/api/notes/category/${category}?page=${page}&limit=${limit}`);
+  if (!res.ok) throw new Error(`Get ${category} failed`);
+  const data = await res.json();
+  return { items: data.items || [], total: data.total || 0 };
+};
+
+export const setNoteCategory = async (id, subType, expireAt) => {
+  const res = await request(`/api/note/${id}/category`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ doc_sub_type: subType, doc_expire_at: expireAt })
+  });
+  if (!res.ok) throw new Error("Set category failed");
+};
+
+export const resetNoteCategory = async (id) => {
+  const res = await request(`/api/note/${id}/category`, { method: 'DELETE' });
+  if (!res.ok) throw new Error("Reset category failed");
+};
+
+// Knowledge Layer: Wiki
+export const getWikiList = async (page = 1, limit = 20, status = '') => {
+  const res = await request(`/api/wiki?page=${page}&limit=${limit}&status=${status}`);
+  if (!res.ok) throw new Error("Get wiki list failed");
+  const data = await res.json();
+  return { entries: data.entries || [], total: data.total || 0 };
+};
+
+export const getWikiEntry = async (id) => {
+  const res = await request(`/api/wiki/${id}`);
+  if (!res.ok) throw new Error("Get wiki entry failed");
+  return res.json();
+};
+
+export const createWikiEntry = async (title, summary, body, sourceIds) => {
+  const res = await request("/api/wiki", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title, summary, body, source_ids: sourceIds }),
+  });
+  if (!res.ok) throw new Error("Create wiki entry failed");
+  return res.json();
+};
+
+export const autoCreateWiki = async (title, sourceIds) => {
+  const res = await request("/api/wiki/auto", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title, source_ids: sourceIds }),
+  });
+  if (!res.ok) throw new Error("Auto create wiki failed");
+  return res.json();
+};
+
+export const updateWikiEntry = async (id, data) => {
+  const res = await request(`/api/wiki/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Update wiki failed");
+  return res.json();
+};
+
+export const deleteWikiEntry = async (id) => {
+  const res = await request(`/api/wiki/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Delete wiki failed");
+};
+
+export const getWikiVersions = async (id) => {
+  const res = await request(`/api/wiki/${id}/versions`);
+  if (!res.ok) throw new Error("Get wiki versions failed");
+  const data = await res.json();
+  return data.versions || [];
+};
+

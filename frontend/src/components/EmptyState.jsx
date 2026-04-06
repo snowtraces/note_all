@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrainCircuit, Sparkles, RefreshCw, BookOpen, Network, Settings, FlaskConical, ListChecks, Inbox, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BrainCircuit, Sparkles, RefreshCw, MessageSquare, BookOpen, Network, Settings, FlaskConical, ListChecks, Inbox, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getSerendipity } from '../api/noteApi';
 import MarkdownRenderer from './MarkdownRenderer';
 
@@ -47,35 +47,45 @@ export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipity
         </p>
 
         {/* ================= Ask AI 大搜索框 ================= */}
-        <div className="w-full max-w-xl relative group mb-8">
-          <div className="absolute -inset-[1px] bg-gradient-to-r from-primeAccent/30 via-primeAccent/10 to-transparent rounded-2xl blur-md opacity-20 group-hover:opacity-40 transition-opacity duration-500"></div>
-          <div className="relative flex items-center bg-black/50 border border-white/10 rounded-2xl px-5 h-[60px] w-full shadow-2xl focus-within:border-primeAccent/60 focus-within:bg-black/80 transition-all duration-300">
-            <Sparkles size={18} className="text-primeAccent/70 mr-3 shrink-0" />
-            <input
-              type="text"
-              value={askInput}
-              onChange={(e) => setAskInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && askInput.trim()) {
-                  if (onAsk) onAsk(askInput.trim());
-                  setAskInput('');
-                }
-              }}
-              placeholder="向 AI 咨询关于你的笔记内容..."
-              className="flex-1 bg-transparent border-none outline-none text-[15px] text-white placeholder-silverText/30 tracking-wide"
-            />
-            {askInput.trim() && (
-              <button 
-                onClick={() => {
-                  if (onAsk) onAsk(askInput.trim());
-                  setAskInput('');
+        <div className="w-full max-w-xl relative group mb-8 flex items-center gap-4">
+          <div className="flex-1 relative group">
+            <div className="absolute -inset-[1px] bg-gradient-to-r from-primeAccent/30 via-primeAccent/10 to-transparent rounded-2xl blur-md opacity-20 group-hover:opacity-40 transition-opacity duration-500"></div>
+            <div className="relative flex items-center bg-black/50 border border-white/10 rounded-2xl px-5 h-[60px] w-full shadow-2xl focus-within:border-primeAccent/60 focus-within:bg-black/80 transition-all duration-300">
+              <Sparkles size={18} className="text-primeAccent/70 mr-3 shrink-0" />
+              <input
+                type="text"
+                value={askInput}
+                onChange={(e) => setAskInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && askInput.trim()) {
+                    if (onAsk) onAsk(askInput.trim());
+                    setAskInput('');
+                  }
                 }}
-                className="ml-3 bg-primeAccent/10 hover:bg-primeAccent/20 text-primeAccent px-3 py-1.5 rounded-lg text-xs font-semibold tracking-widest uppercase transition-colors"
-              >
-                深思
-              </button>
-            )}
+                placeholder="向 AI 咨询关于你的笔记内容..."
+                className="flex-1 bg-transparent border-none outline-none text-[15px] text-white placeholder-silverText/30 tracking-wide"
+              />
+              {askInput.trim() && (
+                <button 
+                  onClick={() => {
+                    if (onAsk) onAsk(askInput.trim());
+                    setAskInput('');
+                  }}
+                  className="ml-3 bg-primeAccent/10 hover:bg-primeAccent/20 text-primeAccent px-3 py-1.5 rounded-lg text-xs font-semibold tracking-widest uppercase transition-colors"
+                >
+                  深思
+                </button>
+              )}
+            </div>
           </div>
+
+          <button 
+            onClick={() => setViewMode('chats')}
+            title="查看对话历史"
+            className="h-[60px] w-[60px] flex items-center justify-center bg-white/[0.02] border border-white/10 rounded-2xl text-silverText/30 hover:text-primeAccent hover:border-primeAccent/40 hover:bg-primeAccent/5 transition-all shadow-xl group/hist"
+          >
+            <MessageSquare size={20} className="group-hover/hist:scale-110 transition-transform" />
+          </button>
         </div>
 
         {/* 灵感碰撞区域 (Phase 3) */}

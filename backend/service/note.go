@@ -80,6 +80,7 @@ func performFullAnalysis(nID uint, templateID uint) {
 	markdownText := note.OcrText
 	summary := ""
 	tags := ""
+	isPic := false // 标记此条结果属于纯图片（VLM 兼底）
 
 	// 1. 如果是图片且目前没有实质文本内容，尝试识别（OCR -> VLM）
 	if strings.HasPrefix(note.FileType, "image/") && strings.TrimSpace(markdownText) == "" {
@@ -111,7 +112,8 @@ func performFullAnalysis(nID uint, templateID uint) {
 				markdownText = desc
 				summary = summaryStr
 				tags = tagsStr
-				log.Printf("[AI 作业] VLM 视觉感知成功, 记录ID %d (Summary: %s)", nID, summary)
+				isPic = true // VLM 兼底成功：该图片没有有效文字，归为照片
+				log.Printf("[AI 作业] VLM 视觉感知成功, 记录ID %d (分类:PIC, Summary: %s)", nID, summary)
 			} else {
 				log.Printf("[AI 作业] VLM 识别亦失败: %v", vlmErr)
 			}
@@ -150,19 +152,28 @@ func performFullAnalysis(nID uint, templateID uint) {
 		}
 	}
 
-	global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Updates(map[string]interface{}{
+	updates := map[string]interface{}{
 		"ocr_text":   markdownText,
 		"ai_summary": summary,
 		"ai_tags":    tags,
 		"status":     "analyzed",
-	})
+	}
+	if isPic {
+		updates["category_type"] = "pic"
+	}
+	global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Updates(updates)
 
 	syncTags(nID, tags)
 	syncLinks(nID, markdownText)
 
-	// 新增：更新向量索引
+	// 更新向量索引
 	if err := UpdateNoteEmbedding(nID); err != nil {
 		log.Printf("[AI 异常] 向量索引更新失败 (ID:%d): %v", nID, err)
+	}
+
+	// WIKI 知识层自动发现与提炼 (Phase 4)
+	if !isPic && strings.TrimSpace(markdownText) != "" {
+		ProcessNoteForWiki(nID)
 	}
 
 	log.Printf("[AI全链路作业完成] 记录ID %d: 提取摘要 [%s]...", nID, summary)
@@ -385,6 +396,8 @@ func UpdateNoteText(id string, text string) error {
 			syncTags(noteItem.ID, tags)
 			syncLinks(noteItem.ID, rawText)
 			UpdateNoteEmbedding(noteItem.ID)
+			// 同时触发与 Wiki 层级的对接同步
+			ProcessNoteForWiki(noteItem.ID)
 		}
 
 		log.Printf("[重新提炼作业完成] 记录ID %s: 提取新精简摘要 [%s]...", itemID, summary)

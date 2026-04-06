@@ -7,11 +7,16 @@ import {
     Trash2,
     Loader2,
     Sparkles,
-    Files
+    Files,
+    BookOpen,
+    Info,
+    Calendar,
+    Share2,
+    Book
 } from 'lucide-react';
 
 import MarkdownRenderer from './MarkdownRenderer';
-import { synthesizeNotes, saveSynthesizedNote } from '../api/noteApi';
+import { synthesizeNotes, saveSynthesizedNote, autoCreateWiki } from '../api/noteApi';
 
 /* ---------------- Prompt Presets ---------------- */
 
@@ -84,17 +89,6 @@ const promptPresets = [
 整理为关系分析。`
     },
     {
-        icon: "🚀",
-        label: "行动计划",
-        prompt: `请识别这些碎片中的任务或建议，
-整理为一份执行计划：
-
-输出：
-- 任务
-- 优先级
-- 执行步骤`
-    },
-    {
         icon: "👥",
         label: "会议纪要",
         prompt: `请将这些会议相关内容整理为会议纪要：
@@ -164,6 +158,23 @@ const promptPresets = [
 4. 案例必须在原章节内单独成块展示（列表或引用），保留原文内容
 5. 不得用概括性描述替代具体案例
 6. 仅优化排版（标题层级、分段、列表）`
+    },
+    {
+        icon: "📚",
+        label: "维基合成",
+        prompt: `请将这些分散的知识点合成一份标准的 Wiki 百科词条。
+        
+        要求：
+        1. 提炼出一个准确的「核心概念名称」作为标题。
+        2. 编写一段精炼的「背景/概述」。
+        3. 使用结构化的 Markdown 编写详细的「词条正文」。
+        4. 建立信息之间的逻辑关联。
+        
+        输出格式要求：
+        # [标题]
+        > [概述]
+        
+        [正文内容...]`
     }
 ];
 
@@ -187,6 +198,8 @@ export default function LabView({
 
     /* ---------------- synthesize ---------------- */
 
+    const [isWikiMode, setIsWikiMode] = useState(false);
+
     const handleSynthesize = async () => {
         if (basket.length === 0) return;
 
@@ -199,6 +212,10 @@ export default function LabView({
                 title: data.title,
                 content: data.content
             });
+            // 如果 Prompt 包含维基或选择了维基预设，自动勾选维基模式
+            if (prompt.includes("Wiki") || prompt.includes("词条")) {
+                setIsWikiMode(true);
+            }
         } catch (e) {
             setError(e.message);
         } finally {
@@ -212,7 +229,13 @@ export default function LabView({
         setError(null);
 
         try {
-            await saveSynthesizedNote(basket, result.title, result.content);
+            if (isWikiMode) {
+                // 如果是 Wiki 模式，直接保存为 WikiEntry
+                await autoCreateWiki(result.title, basket);
+            } else {
+                // 否则保存为常规归档笔记
+                await saveSynthesizedNote(basket, result.title, result.content);
+            }
             onSaveSuccess(basket, archiveChecked);
             setResult(null);
         } catch (e) {
@@ -394,6 +417,19 @@ export default function LabView({
                                         />
                                         <label htmlFor="archive-sources-final" className="text-[11px] text-silverText/40 cursor-pointer select-none">
                                             归档原始素材
+                                        </label>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            id="wiki-mode"
+                                            checked={isWikiMode}
+                                            onChange={(e) => setIsWikiMode(e.target.checked)}
+                                            className="w-4 h-4 rounded border-white/10 bg-white/5 text-primeAccent focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                                        />
+                                        <label htmlFor="wiki-mode" className="text-[11px] text-primeAccent/60 hover:text-primeAccent cursor-pointer select-none flex items-center gap-1">
+                                            <Book size={14} /> 确认为「知识词条」
                                         </label>
                                     </div>
 

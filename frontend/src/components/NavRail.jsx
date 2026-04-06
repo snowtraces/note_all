@@ -1,15 +1,15 @@
-import React from 'react';
-import { 
-  Library, 
-  Network, 
-  FlaskConical, 
-  MessageSquare,
-  MessageCircle,
+import {
+  Book,
   Bot,
-  Trash2, 
-  Settings,
   BrainCircuit,
-  LogOut
+  FileText,
+  FlaskConical,
+  Image,
+  Library,
+  LogOut,
+  Network,
+  Settings,
+  Trash2
 } from 'lucide-react';
 import { logout } from '../api/authApi';
 
@@ -40,12 +40,34 @@ export default function NavRail({
       }
     },
     {
-      id: 'chats',
-      icon: <MessageCircle size={22} />,
-      label: '对话历史',
-      active: viewMode === 'chats' && !showTrash,
+      id: 'wiki',
+      icon: <Book size={22} />,
+      label: '知识 Wiki',
+      active: viewMode === 'wiki' && !showTrash,
       onClick: () => {
-        setViewMode('chats');
+        setViewMode('wiki');
+        setShowTrash(false);
+        setSelectedItem(null);
+      }
+    },
+    {
+      id: 'doc',
+      icon: <FileText size={22} />,
+      label: '个人文件',
+      active: viewMode === 'doc' && !showTrash,
+      onClick: () => {
+        setViewMode('doc');
+        setShowTrash(false);
+        setSelectedItem(null);
+      }
+    },
+    {
+      id: 'pic',
+      icon: <Image size={22} />,
+      label: '相册照片',
+      active: viewMode === 'pic' && !showTrash,
+      onClick: () => {
+        setViewMode('pic');
         setShowTrash(false);
         setSelectedItem(null);
       }
@@ -157,7 +179,7 @@ export default function NavRail({
         <button
           onClick={() => {
             if (window.confirm("确定要退出吗？")) {
-               logout();
+              logout();
             }
           }}
           title="退出登录"

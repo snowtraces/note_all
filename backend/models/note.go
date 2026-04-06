@@ -26,10 +26,15 @@ type NoteItem struct {
 	OcrText     string `gorm:"type:text" json:"ocr_text"`               // OCR原始大宗文本
 	AiSummary   string `gorm:"size:1024" json:"ai_summary"`             // AI 总结的精华摘要
 	AiTags      string `gorm:"size:255" json:"ai_tags"`                 // AI 打的标签
-	OriginalUrl string `gorm:"size:2048" json:"original_url"`           // [新增] 溯源网页URL
+	OriginalUrl string `gorm:"size:2048" json:"original_url"`           // 溯源网页URL
 	Status      string `gorm:"size:32;default:'pending'" json:"status"` // pending/ocred/analyzed/done/error
-	IsArchived  bool   `gorm:"default:false;index" json:"is_archived"`  // [新增] 是否归档
+	IsArchived  bool   `gorm:"default:false;index" json:"is_archived"`  // 是否归档
 	UserComment string `gorm:"type:text" json:"user_comment"`           // 用户手动标记的批注信息
+
+	// 知识分类 (Knowledge Layer)
+	CategoryType string     `gorm:"size:32;default:'fragment'" json:"category_type"` // fragment/pic/doc/doc_suggested
+	DocSubType   string     `gorm:"size:32" json:"doc_sub_type"`                     // contract/invoice/certificate/medical/insurance/other
+	DocExpireAt  *time.Time `json:"doc_expire_at"`                                   // 文件有效期（DOC 类型）
 
 	// 关联
 	Tags    []NoteTag  `gorm:"foreignKey:NoteID" json:"tags"`
@@ -73,7 +78,7 @@ type ChatMessage struct {
 // SetupDBWithFTS 初始化数据库结构，包括建立 FTS5 虚拟表及与基础表联动的触发器
 func SetupDBWithFTS(db *gorm.DB) error {
 	// 1. 自动迁移主表 + 标签关联表 + NoteLink双链表 + 对话表 + 提示词模板表 + 向量表 + 微信相关表
-	if err := db.AutoMigrate(&NoteItem{}, &NoteTag{}, &NoteLink{}, &ChatSession{}, &ChatMessage{}, &PromptTemplate{}, &NoteEmbedding{}, &ShareLink{}, &WeixinBotCredential{}, &WeixinUserContext{}, &WeixinMessage{}); err != nil {
+	if err := db.AutoMigrate(&NoteItem{}, &NoteTag{}, &NoteLink{}, &ChatSession{}, &ChatMessage{}, &PromptTemplate{}, &NoteEmbedding{}, &ShareLink{}, &WeixinBotCredential{}, &WeixinUserContext{}, &WeixinMessage{}, &WikiEntry{}, &WikiTag{}, &WikiVersion{}); err != nil {
 		return fmt.Errorf("failed to migrate tables: %v", err)
 	}
 

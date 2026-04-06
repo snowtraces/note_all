@@ -115,6 +115,23 @@ func SetupRouter() *gin.Engine {
 		apiGroup.PUT("/templates/:id", templateApi.Update)
 		apiGroup.DELETE("/templates/:id", templateApi.Delete)
 		apiGroup.POST("/templates/:id/active", templateApi.SetActive)
+
+		// 11. 知识分类管理 (Knowledge Layer)
+		categoryApi := new(api.CategoryApi)
+		apiGroup.PATCH("/note/:id/category", categoryApi.SetDocCategory)   // 手动标记为 DOC
+		apiGroup.DELETE("/note/:id/category", categoryApi.ResetCategory)   // 重置为 fragment
+		apiGroup.GET("/notes/category/:type", categoryApi.ListByCategory)  // 按分类列出
+
+		// 12. Wiki 词条 (Knowledge Layer)
+		wikiApi := new(api.WikiApi)
+		apiGroup.GET("/wiki", wikiApi.List)                       // 词条列表
+		apiGroup.POST("/wiki", wikiApi.Create)                    // 人工创建词条
+		apiGroup.POST("/wiki/auto", wikiApi.AutoCreate)           // AI 自动合成词条
+		apiGroup.GET("/wiki/:id", wikiApi.Get)                    // 词条详情
+		apiGroup.PATCH("/wiki/:id", wikiApi.Update)               // 更新词条
+		apiGroup.DELETE("/wiki/:id", wikiApi.Delete)              // 删除词条
+		apiGroup.POST("/wiki/:id/source", wikiApi.AddSource)      // 追加来源碎片
+		apiGroup.GET("/wiki/:id/versions", wikiApi.GetVersions)   // 历史版本
 	}
 
 	// ====================== 静态资源与 SPA 路由逻辑 ======================

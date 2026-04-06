@@ -2,10 +2,18 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import 'katex/dist/katex.min.css';
 import './index.css';
 import { Search, BrainCircuit, X, MessageSquare, BookOpen, FlaskConical } from 'lucide-react';
-import { getTrash, searchNotes, deleteNote, restoreNote, uploadNote, createTextNote, updateNoteText, updateNoteStatus, askAI, getChatMessages, batchArchiveNotes } from './api/noteApi';
+import { 
+  getTrash, searchNotes, deleteNote, restoreNote, uploadNote, createTextNote, 
+  updateNoteText, updateNoteStatus, askAI, getChatMessages, batchArchiveNotes,
+  getNotesByCategory, getWikiList, getWikiEntry, createWikiEntry, autoCreateWiki,
+  updateWikiEntry, deleteWikiEntry, getWikiVersions 
+} from './api/noteApi';
 import { useDataPoller } from './hooks/useDataPoller';
 import Sidebar from './components/Sidebar';
-import Detail from './components/Detail';
+import FragmentDetail from './components/FragmentDetail';
+import WikiDetail from './components/WikiDetail';
+import PicDetail from './components/PicDetail';
+import DocDetail from './components/DocDetail';
 import EmptyState from './components/EmptyState';
 import Lightbox from './components/Lightbox';
 import MarkdownRenderer from './components/MarkdownRenderer';
@@ -61,16 +69,14 @@ function App() {
   useDataPoller({
     query,
     results,
-    enabled: isLoggedIn && !showTrash && !window.location.pathname.startsWith('/s/'),
+    // 仅在主笔记列表模式下启用，防止在个人文件、相册或回收站视图下被全量搜索结果覆盖
+    enabled: isLoggedIn && !showTrash && viewMode === 'notes' && !window.location.pathname.startsWith('/s/'),
     onChanged: (fresh) => {
       setResults(fresh);
       setSelectedItem(prev => {
         if (!prev) return prev;
         const updated = fresh.find(item => item.id === prev.id);
-        // 如果能找到更新项，且有发生实质的字段变化（简单比较一下 ai_summary/ai_tags 即可，或者直接全部覆盖），就同步更新
         if (updated) {
-          // 只在关键字段发发生变化时更新，避免无谓的重渲染破坏输入状态，或者如果内容确实变化了直接返回 updated。
-          // 安全起见，只要有 updated，就用更新的值合并进去，确保状态和详情一致。
           return { ...prev, ...updated };
         }
         return prev;
@@ -89,17 +95,28 @@ function App() {
     setViewMode('notes');
   }, [isLoggedIn]);
 
-  // 2. 当显式切换回收站或搜索指令变化时，仅负责加载对应数据，不干扰视图与对话状态
+  // 2. 当显式切换回收站、类别或搜索指令变化时，仅负责加载对应数据，不干扰视图与对话状态
   useEffect(() => {
     if (!isLoggedIn) return;
     if (showTrash) {
       loadTrashData();
+    } else if (viewMode === 'doc' || viewMode === 'pic') {
+      loadCategoryData(viewMode);
     } else {
       executeSearch(query);
     }
     // 切换数据源时清空已选中的详情项（安全做法），但不再重置 ViewMode 与聊天历史
     setSelectedItem(null);
-  }, [showTrash, query]);
+  }, [showTrash, query, viewMode]);
+
+  const loadCategoryData = async (cat) => {
+    setLoading(true);
+    try {
+      const { items } = await getNotesByCategory(cat);
+      setResults(items);
+    } catch(e) { console.error(e); }
+    setLoading(false);
+  };
 
   // 全局键盘事件监听
   useEffect(() => {
@@ -344,16 +361,48 @@ function App() {
       <div className="flex-1 flex flex-col bg-[#050505] relative overflow-hidden">
         {selectedItem && (
           <div className="absolute inset-0 z-50 bg-[#050505]">
-            <Detail
-              item={selectedItem}
-              showTrash={showTrash}
-              handleRestore={handleRestore}
-              handleDelete={handleDelete}
-              setSelectedItem={setSelectedItem}
-              setPreviewImage={setPreviewImage}
-              handleUpdateText={handleUpdateText}
-              handleUpdateStatus={handleUpdateStatus}
-            />
+            {selectedItem._is_wiki ? (
+              <WikiDetail
+                item={selectedItem}
+                setSelectedItem={setSelectedItem}
+                onWikiDelete={async (id) => {
+                  if (window.confirm("确定删除此词条吗？")) {
+                    await deleteWikiEntry(id);
+                    setSelectedItem(null);
+                    if (viewMode === 'wiki') executeSearch(query);
+                  }
+                }}
+              />
+            ) : selectedItem.category_type === 'pic' ? (
+              <PicDetail 
+                item={selectedItem}
+                showTrash={showTrash}
+                handleRestore={handleRestore}
+                handleDelete={handleDelete}
+                setSelectedItem={setSelectedItem}
+                setPreviewImage={setPreviewImage}
+              />
+            ) : selectedItem.category_type === 'doc' ? (
+              <DocDetail
+                item={selectedItem}
+                showTrash={showTrash}
+                handleRestore={handleRestore}
+                handleDelete={handleDelete}
+                setSelectedItem={setSelectedItem}
+                handleUpdateStatus={handleUpdateStatus}
+              />
+            ) : (
+              <FragmentDetail
+                item={selectedItem}
+                showTrash={showTrash}
+                handleRestore={handleRestore}
+                handleDelete={handleDelete}
+                setSelectedItem={setSelectedItem}
+                setPreviewImage={setPreviewImage}
+                handleUpdateText={handleUpdateText}
+                handleUpdateStatus={handleUpdateStatus}
+              />
+            )}
           </div>
         )}
 
