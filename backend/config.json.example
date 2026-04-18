@@ -8,5 +8,10 @@
   "paddle_api_url": "http://localhost:8866/predict/ocr_system",
   "paddle_token": "your_paddle_token_here",
   "sys_password": "your_admin_password_here",
-  "jwt_secret": "your_jwt_secret_here"
+  "jwt_secret": "your_jwt_secret_here",
+  "chunk_max_size": 500,
+  "chunk_min_size": 100,
+  "chunk_overlap": 50,
+  "chunk_max_per_doc": 100,
+  "rag_context_limit": 12000
 }

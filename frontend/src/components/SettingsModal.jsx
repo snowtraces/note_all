@@ -233,7 +233,7 @@ function VectorTab() {
   }, []);
 
   const handleRebuild = async () => {
-    if (!window.confirm('确定要清空并重建所有向量索引？\n\n此操作会清除现有向量数据，然后调用 Embedding API 逐条重新生成。过程可能需要数分钟。')) return;
+    if (!window.confirm('确定要清空并重建所有向量索引？\n\n此操作会清除现有的文档向量 和 分片向量，然后重新生成。\n过程可能需要数分钟，请查看后端日志了解进度。')) return;
     try {
       setRebuilding(true);
       await rebuildEmbeddings();
@@ -251,8 +251,8 @@ function VectorTab() {
     );
   }
 
-  const progress = status && status.note_count > 0
-    ? Math.round((status.embedding_count / status.note_count) * 100)
+  const chunkPerNote = status && status.note_count > 0
+    ? Math.round(status.chunk_count / status.note_count)
     : 0;
 
   return (
@@ -272,7 +272,7 @@ function VectorTab() {
               ) : (
                 <>
                   <div className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-                  <span className="text-amber-400 text-sm font-medium">回退模式 (Go 内存计算)</span>
+                  <span className="text-amber-400 text-sm font-medium">向量检索已禁用</span>
                 </>
               )}
             </div>
@@ -287,21 +287,17 @@ function VectorTab() {
           </div>
         </div>
 
-        {/* Progress Card */}
+        {/* Chunk Progress Card */}
         <div className="bg-white/[0.03] border border-white/5 rounded-xl p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <div className="text-[11px] text-silverText/40 uppercase tracking-wider font-mono">向量索引覆盖率</div>
+            <div className="text-[11px] text-silverText/40 uppercase tracking-wider font-mono">分片向量索引</div>
             <span className="text-white/60 text-sm font-mono">
-              {status?.embedding_count ?? 0} / {status?.note_count ?? 0}
+              {status?.chunk_count ?? 0} 个分片 / {status?.note_count ?? 0} 篇笔记
             </span>
           </div>
-          <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-primeAccent/80 to-primeAccent rounded-full transition-all duration-500"
-              style={{ width: `${progress}%` }}
-            />
+          <div className="text-[13px] text-silverText/60">
+            平均每篇 {chunkPerNote} 个分片 · 粒度 {status?.chunk_max_size || 500} 字 · 上下文限制 {status?.rag_context_limit || 12000} 字
           </div>
-          <div className="text-right text-[12px] text-silverText/40">{progress}%</div>
         </div>
 
         {/* Rebuild Action */}
@@ -310,7 +306,7 @@ function VectorTab() {
             <div>
               <h4 className="text-white/90 font-medium text-[15px] mb-1.5">全量重建向量索引</h4>
               <p className="text-[13px] text-silverText/40 leading-relaxed">
-                清空现有向量数据，使用当前 Embedding 模型对所有笔记重新生成向量。<br />
+                清空并重建文档向量 + 分片向量索引。<br />
                 适用于切换模型、修复数据不一致等场景。
               </p>
             </div>

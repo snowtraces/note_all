@@ -12,6 +12,7 @@ import (
 	"note_all_backend/global"
 	"note_all_backend/models"
 	"note_all_backend/pkg"
+	"note_all_backend/pkg/chunker"
 	"note_all_backend/pkg/synonym"
 )
 
@@ -25,63 +26,106 @@ type SearchResult struct {
 	RecencyScore float32 `json:"recency_score"`
 }
 
-// UpdateNoteEmbedding 生成或更新笔记的向量索引
-func UpdateNoteEmbedding(nID uint) error {
+// ChunkSearchResult 分片检索结果
+type ChunkSearchResult struct {
+	ChunkID    uint
+	NoteID     uint
+	Content    string
+	Heading    string
+	ChunkIndex int
+	Score      float32
+}
+
+// UpdateNoteChunks 生成或更新笔记的分片向量索引
+func UpdateNoteChunks(nID uint) error {
 	var note models.NoteItem
 	if err := global.DB.First(&note, nID).Error; err != nil {
 		return err
 	}
 
-	content := fmt.Sprintf("%s\n%s", note.AiSummary, note.OcrText)
-	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(content)))
+	// 获取分片配置
+	config := models.GetChunkConfig()
 
-	var existing models.NoteEmbedding
-	found := global.DB.Where("note_id = ?", nID).First(&existing).Error == nil
-	if found && existing.Hash == hash {
+	// 对文档进行分片
+	chunks := chunker.ChunkText(note.OcrText, config)
+	if len(chunks) == 0 {
 		return nil
 	}
 
-	vec, err := pkg.GetEmbedding(content)
-	if err != nil {
-		return fmt.Errorf("failed to get embedding: %v", err)
+	// 批量删除旧的分片记录（先查询ID再删除，避免子查询性能问题）
+	var oldChunkIDs []uint
+	global.DB.Model(&models.NoteChunk{}).Where("note_id = ?", nID).Pluck("id", &oldChunkIDs)
+	if len(oldChunkIDs) > 0 {
+		global.DB.Where("chunk_id IN ?", oldChunkIDs).Delete(&models.NoteChunkEmbedding{})
+		global.DB.Where("id IN ?", oldChunkIDs).Delete(&models.NoteChunk{})
 	}
 
-	blob, err := models.Float32ToBytes(vec)
-	if err != nil {
-		return err
+	// 创建新分片并生成向量
+	for i, chunk := range chunks {
+		// 保存分片记录
+		nc := models.NoteChunk{
+			NoteID:     nID,
+			ChunkIndex: i,
+			Content:    chunk.Content,
+			StartPos:   chunk.StartPos,
+			EndPos:     chunk.EndPos,
+			Heading:    chunk.Heading,
+			ChunkType:  chunk.ChunkType,
+		}
+		if err := global.DB.Create(&nc).Error; err != nil {
+			log.Printf("[UpdateNoteChunks] 创建分片失败 (ID:%d, index:%d): %v", nID, i, err)
+			continue
+		}
+
+		// 生成分片向量
+		vec, err := pkg.GetEmbedding(chunk.Content)
+		if err != nil {
+			log.Printf("[UpdateNoteChunks] 获取向量失败 (chunk_id:%d): %v", nc.ID, err)
+			continue
+		}
+
+		blob, err := models.Float32ToBytes(vec)
+		if err != nil {
+			log.Printf("[UpdateNoteChunks] 向量编码失败 (chunk_id:%d): %v", nc.ID, err)
+			continue
+		}
+
+		hash := fmt.Sprintf("%x", sha256.Sum256([]byte(chunk.Content)))
+		if err := global.DB.Create(&models.NoteChunkEmbedding{
+			ChunkID:   nc.ID,
+			Embedding: blob,
+			Hash:      hash,
+		}).Error; err != nil {
+			log.Printf("[UpdateNoteChunks] 保存向量失败 (chunk_id:%d): %v", nc.ID, err)
+		}
 	}
 
-	if found {
-		existing.Embedding = blob
-		existing.Hash = hash
-		return global.DB.Save(&existing).Error
-	}
-
-	return global.DB.Create(&models.NoteEmbedding{
-		NoteID:    nID,
-		Embedding: blob,
-		Hash:      hash,
-	}).Error
+	log.Printf("[UpdateNoteChunks] 完成 (ID:%d): 生成 %d 个分片", nID, len(chunks))
+	return nil
 }
 
-// BackfillNoteEmbeddings 补全历史笔记的向量索引
-func BackfillNoteEmbeddings() error {
+// BackfillNoteChunks 补全历史笔记的分片向量索引
+func BackfillNoteChunks() error {
 	var notes []models.NoteItem
-	err := global.DB.Where("status IN ? AND deleted_at IS NULL AND id NOT IN (SELECT note_id FROM note_embeddings)", []string{"analyzed", "done"}).Find(&notes).Error
+	err := global.DB.Where("status IN ? AND deleted_at IS NULL AND ocr_text != '' AND ocr_text IS NOT NULL",
+		[]string{"analyzed", "done"}).
+		Where("id NOT IN (SELECT DISTINCT note_id FROM note_chunks)").
+		Find(&notes).Error
 	if err != nil {
 		return err
 	}
 
 	if len(notes) == 0 {
+		log.Printf("[BackfillNoteChunks] 无需补全，所有笔记已有分片索引")
 		return nil
 	}
 
-	log.Printf("[RAG] 发现 %d 条笔记需要补全向量索引...", len(notes))
+	log.Printf("[BackfillNoteChunks] 发现 %d 条笔记需要补全分片索引...", len(notes))
 	for _, n := range notes {
-		if err := UpdateNoteEmbedding(n.ID); err != nil {
-			log.Printf("[RAG] 补全向量失败 (ID:%d): %v", n.ID, err)
+		if err := UpdateNoteChunks(n.ID); err != nil {
+			log.Printf("[BackfillNoteChunks] 补全失败 (ID:%d): %v", n.ID, err)
 		} else {
-			log.Printf("[RAG] 补全向量成功 (ID:%d)", n.ID)
+			log.Printf("[BackfillNoteChunks] 补全成功 (ID:%d)", n.ID)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -95,7 +139,7 @@ func HybridSearch(query string, limit int) ([]SearchResult, error) {
 
 // BatchHybridSearch 批量混合检索，合并多关键词查询
 func BatchHybridSearch(queries []string, limit int) ([]SearchResult, error) {
-	// 1. 向量检索 (只对第一个 query)
+	// 1. 分片级向量检索 (只对第一个 query)
 	vectorScores := make(map[uint]float32)
 	if len(queries) > 0 {
 		queryVec, err := pkg.GetEmbedding(queries[0])
@@ -105,36 +149,37 @@ func BatchHybridSearch(queries []string, limit int) ([]SearchResult, error) {
 			if global.VectorExtLoaded {
 				queryBlob, _ := models.Float32ToBytes(queryVec)
 				var vecResults []struct {
-					NoteID   uint    `gorm:"column:note_id"`
-					Distance float32 `gorm:"column:distance"`
+					ChunkID    uint    `gorm:"column:chunk_id"`
+					NoteID     uint    `gorm:"column:note_id"`
+					Content    string  `gorm:"column:content"`
+					Heading    string  `gorm:"column:heading"`
+					ChunkIndex int     `gorm:"column:chunk_index"`
+					Distance   float32 `gorm:"column:distance"`
 				}
+				// 使用分片向量表进行检索
 				global.DB.Raw(`
-					SELECT ne.note_id, v.distance
-					FROM vector_full_scan('note_embeddings', 'embedding', ?, 50) AS v
-					JOIN note_embeddings AS ne ON ne.id = v.rowid
-					JOIN note_items AS n ON n.id = ne.note_id
+					SELECT nc.id as chunk_id, nc.note_id, nc.content, nc.heading, nc.chunk_index, v.distance
+					FROM vector_full_scan('note_chunk_embeddings', 'embedding', ?, 50) AS v
+					JOIN note_chunk_embeddings AS ce ON ce.id = v.rowid
+					JOIN note_chunks AS nc ON nc.id = ce.chunk_id
+					JOIN note_items AS n ON n.id = nc.note_id
 					WHERE n.deleted_at IS NULL AND n.status IN ('analyzed', 'done')
+					ORDER BY v.distance ASC
 				`, queryBlob).Scan(&vecResults)
+				// 聚合分片分数到文档级（取最高分）
 				for _, r := range vecResults {
 					score := float32(1.0 - float64(r.Distance)/2.0)
-					if score > 0.73 {
-						vectorScores[r.NoteID] = score
-					}
-				}
-				log.Printf("[BatchHybridSearch] Vector hits: %d (sqlite-vector)", len(vectorScores))
-			} else {
-				var embeddings []models.NoteEmbedding
-				global.DB.Find(&embeddings)
-				for _, e := range embeddings {
-					vec, err := models.BytesToFloat32(e.Embedding)
-					if err == nil {
-						score := models.CosineSimilarity(queryVec, vec)
-						if score > 0.73 {
-							vectorScores[e.NoteID] = score
+					if score > 0.78 {
+						// 文档分数取所有分片中的最高分
+						if existing, ok := vectorScores[r.NoteID]; !ok || score > existing {
+							vectorScores[r.NoteID] = score
 						}
 					}
 				}
-				log.Printf("[BatchHybridSearch] Vector hits: %d (fallback)", len(vectorScores))
+				log.Printf("[BatchHybridSearch] Chunk vector hits: %d docs, %d chunks (sqlite-vector)", len(vectorScores), len(vecResults))
+			} else {
+				// sqlite-vector 未加载，跳过向量检索，仅使用 FTS5 + Tag
+				log.Printf("[BatchHybridSearch] sqlite-vector not loaded, skip vector search")
 			}
 		}
 	}
@@ -355,7 +400,7 @@ func uniqueStrings(slice []string) []string {
 	return list
 }
 
-// BuildRAGContext 构建 RAG 上下文
+// BuildRAGContext 构建 RAG 上下文（使用完整文档）
 func BuildRAGContext(results []SearchResult) string {
 	if len(results) == 0 {
 		return ""
@@ -372,6 +417,134 @@ func BuildRAGContext(results []SearchResult) string {
 	return sb.String()
 }
 
+// BuildRAGContextFromChunks 从分片构建 RAG 上下文（智能选择相关片段）
+func BuildRAGContextFromChunks(results []SearchResult, hitChunks map[uint][]ChunkSearchResult) string {
+	if len(results) == 0 {
+		return ""
+	}
+
+	// 1. 收集所有需要查询的索引范围
+	expandRanges := make(map[uint][2]int) // noteID -> [expandStart, expandEnd]
+	for _, res := range results {
+		chunks := hitChunks[res.ID]
+		if len(chunks) == 0 {
+			continue
+		}
+		minIndex := chunks[0].ChunkIndex
+		maxIndex := chunks[0].ChunkIndex
+		for _, c := range chunks {
+			if c.ChunkIndex < minIndex {
+				minIndex = c.ChunkIndex
+			}
+			if c.ChunkIndex > maxIndex {
+				maxIndex = c.ChunkIndex
+			}
+		}
+		// 扩展前后各1片
+		expandStart := minIndex - 1
+		if expandStart < 0 {
+			expandStart = 0
+		}
+		expandEnd := maxIndex + 2
+		expandRanges[res.ID] = [2]int{expandStart, expandEnd}
+	}
+
+	// 2. 批量查询所有相关分片（解决 N+1 问题）
+	var allChunks []models.NoteChunk
+	if len(expandRanges) > 0 {
+		noteIDs := make([]uint, 0, len(expandRanges))
+		for id := range expandRanges {
+			noteIDs = append(noteIDs, id)
+		}
+		global.DB.Where("note_id IN ?", noteIDs).
+			Order("note_id, chunk_index ASC").
+			Find(&allChunks)
+	}
+
+	// 3. 按 noteID 分组
+	chunksByNote := make(map[uint][]models.NoteChunk)
+	for _, c := range allChunks {
+		chunksByNote[c.NoteID] = append(chunksByNote[c.NoteID], c)
+	}
+
+	// 4. 构建上下文
+	var sb strings.Builder
+	for i, res := range results {
+		sb.WriteString(fmt.Sprintf("[%d] 文档: %s\n摘要: %s\n", i+1, res.OriginalName, res.AiSummary))
+
+		// 获取该文档命中的分片（最多5个）
+		hit := hitChunks[res.ID]
+		if len(hit) > 0 {
+			// 从批量查询结果中筛选并扩展
+			expandedChunks := selectExpandChunks(res.ID, hit, chunksByNote[res.ID], expandRanges[res.ID], 5)
+			for _, chunk := range expandedChunks {
+				sb.WriteString(fmt.Sprintf("> 相关片段:\n%s\n\n", chunk.Content))
+			}
+		} else {
+			// 没有分片命中时，使用原文（截断）
+			text := res.OcrText
+			if len([]rune(text)) > 1000 {
+				text = string([]rune(text)[:1000]) + "..."
+			}
+			sb.WriteString(fmt.Sprintf("> 内容摘要:\n%s\n\n", text))
+		}
+		sb.WriteString("---\n")
+
+		contextLimit := global.Config.RagContextLimit
+		if contextLimit <= 0 {
+			contextLimit = 12000
+		}
+		if sb.Len() > contextLimit {
+			break
+		}
+	}
+	return sb.String()
+}
+
+// selectExpandChunks 从批量查询结果中选择扩展分片，最多返回 maxChunks 个
+func selectExpandChunks(noteID uint, hitChunks []ChunkSearchResult, allChunks []models.NoteChunk, expandRange [2]int, maxChunks int) []ChunkSearchResult {
+	if len(hitChunks) == 0 || len(allChunks) == 0 {
+		return nil
+	}
+
+	// 筛选扩展范围内的分片
+	expandStart, expandEnd := expandRange[0], expandRange[1]
+	result := make([]ChunkSearchResult, 0)
+	for _, c := range allChunks {
+		if c.ChunkIndex < expandStart || c.ChunkIndex >= expandEnd {
+			continue
+		}
+		hitScore := float32(0)
+		for _, h := range hitChunks {
+			if h.ChunkID == c.ID {
+				hitScore = h.Score
+				break
+			}
+		}
+		result = append(result, ChunkSearchResult{
+			ChunkID:    c.ID,
+			NoteID:     c.NoteID,
+			Content:    c.Content,
+			Heading:    c.Heading,
+			ChunkIndex: c.ChunkIndex,
+			Score:      hitScore,
+		})
+	}
+
+	// 限制最多返回 maxChunks 个分片（优先保留命中的分片）
+	if len(result) > maxChunks {
+		sort.Slice(result, func(i, j int) bool {
+			return result[i].Score > result[j].Score || (result[i].Score == result[j].Score && result[i].ChunkIndex < result[j].ChunkIndex)
+		})
+		result = result[:maxChunks]
+		sort.Slice(result, func(i, j int) bool {
+			return result[i].ChunkIndex < result[j].ChunkIndex
+		})
+	}
+
+	return result
+}
+
 // RAGAsk 执行完整的 RAG 问答流程
 func RAGAsk(query string) (string, []SearchResult, string, error) {
 	intent := IntentDetection(query)
@@ -382,10 +555,10 @@ func RAGAsk(query string) (string, []SearchResult, string, error) {
 		expandedQueries = QueryRewrite(query)
 	}
 
-	// 使用 BatchHybridSearch 合并所有扩展词
-	hits, err := BatchHybridSearch(expandedQueries, 20)
+	// 使用分片级混合检索
+	hits, hitChunks, err := BatchHybridSearchWithChunks(expandedQueries, 20)
 	if err != nil {
-		log.Printf("[RAG] BatchHybridSearch failed: %v", err)
+		log.Printf("[RAG] BatchHybridSearchWithChunks failed: %v", err)
 	}
 
 	uniqueResults := make(map[uint]SearchResult)
@@ -426,8 +599,15 @@ func RAGAsk(query string) (string, []SearchResult, string, error) {
 
 	log.Printf("[RAG] Final context hits: %d", len(finalHits))
 
-	context := BuildRAGContext(finalHits)
-	log.Printf("[AskAI] Context length: %d", len(context))
+	// 使用分片上下文构建（如果有分片命中）
+	var context string
+	if len(hitChunks) > 0 {
+		context = BuildRAGContextFromChunks(finalHits, hitChunks)
+		log.Printf("[AskAI] Context length (chunk-based): %d", len(context))
+	} else {
+		context = BuildRAGContext(finalHits)
+		log.Printf("[AskAI] Context length (document-based): %d", len(context))
+	}
 
 	systemPrompt := "你是一个专注于个人知识库的智能助手，同时具备深厚的通用知识储备。你会优先基于【参考笔记上下文】来回答用户的问题，以体现出你对用户个人资料的了解；如果数据中没有直接答案，请结合由于你作为大模型本身的通用智慧来流畅地回答，无需由于缺乏引用而反复道歉。请用简洁、深刻的口吻进行回复，并支持 Markdown 格式排版。\n\n"
 	if context != "" {
@@ -441,4 +621,163 @@ func RAGAsk(query string) (string, []SearchResult, string, error) {
 	}, systemPrompt)
 
 	return answer, finalHits, intent, err
+}
+
+// BatchHybridSearchWithChunks 分片级混合检索，返回文档结果和命中的分片
+func BatchHybridSearchWithChunks(queries []string, limit int) ([]SearchResult, map[uint][]ChunkSearchResult, error) {
+	// 1. 分片级向量检索
+	vectorScores := make(map[uint]float32)
+	hitChunks := make(map[uint][]ChunkSearchResult)
+	if len(queries) > 0 {
+		queryVec, err := pkg.GetEmbedding(queries[0])
+		if err != nil {
+			log.Printf("[BatchHybridSearchWithChunks] GetEmbedding failed: %v", err)
+		} else if queryVec != nil {
+			if global.VectorExtLoaded {
+				queryBlob, _ := models.Float32ToBytes(queryVec)
+				var vecResults []struct {
+					ChunkID    uint    `gorm:"column:chunk_id"`
+					NoteID     uint    `gorm:"column:note_id"`
+					Content    string  `gorm:"column:content"`
+					Heading    string  `gorm:"column:heading"`
+					ChunkIndex int     `gorm:"column:chunk_index"`
+					Distance   float32 `gorm:"column:distance"`
+				}
+				global.DB.Raw(`
+					SELECT nc.id as chunk_id, nc.note_id, nc.content, nc.heading, nc.chunk_index, v.distance
+					FROM vector_full_scan('note_chunk_embeddings', 'embedding', ?, 50) AS v
+					JOIN note_chunk_embeddings AS ce ON ce.id = v.rowid
+					JOIN note_chunks AS nc ON nc.id = ce.chunk_id
+					JOIN note_items AS n ON n.id = nc.note_id
+					WHERE n.deleted_at IS NULL AND n.status IN ('analyzed', 'done')
+					ORDER BY v.distance ASC
+				`, queryBlob).Scan(&vecResults)
+				for _, r := range vecResults {
+					score := float32(1.0 - float64(r.Distance)/2.0)
+					if score > 0.78 {
+						hitChunks[r.NoteID] = append(hitChunks[r.NoteID], ChunkSearchResult{
+							ChunkID:    r.ChunkID,
+							NoteID:     r.NoteID,
+							Content:    r.Content,
+							Heading:    r.Heading,
+							ChunkIndex: r.ChunkIndex,
+							Score:      score,
+						})
+						if existing, ok := vectorScores[r.NoteID]; !ok || score > existing {
+							vectorScores[r.NoteID] = score
+						}
+					}
+				}
+				log.Printf("[BatchHybridSearchWithChunks] Chunk vector hits: %d docs, %d chunks", len(vectorScores), len(vecResults))
+			} else {
+				// sqlite-vector 未加载，跳过向量检索，仅使用 FTS5 + Tag
+				log.Printf("[BatchHybridSearchWithChunks] sqlite-vector not loaded, skip vector search")
+			}
+		}
+	}
+
+	// 2. FTS5 全文搜索
+	ftsScores := make(map[uint]float32)
+	ftsQueries := make([]string, 0, len(queries))
+	for _, q := range queries {
+		ftsQueries = append(ftsQueries, "\""+strings.ReplaceAll(q, "\"", "")+"\"")
+	}
+	ftsQuery := strings.Join(ftsQueries, " OR ")
+	var ftsResults []struct {
+		ID    uint
+		Score float32
+	}
+	global.DB.Raw("SELECT rowid as id, -bm25(note_fts) as score FROM note_fts WHERE note_fts MATCH ? ORDER BY score DESC LIMIT 50", ftsQuery).Scan(&ftsResults)
+	for _, r := range ftsResults {
+		if existing, ok := ftsScores[r.ID]; !ok || r.Score > existing {
+			ftsScores[r.ID] = r.Score
+		}
+	}
+	log.Printf("[BatchHybridSearchWithChunks] FTS5 hits: %d", len(ftsScores))
+
+	// 3. Tag 检索
+	allTags := make([]string, 0)
+	for _, q := range queries {
+		allTags = append(allTags, synonym.RewriteQuery(q)...)
+	}
+	allTags = uniqueStrings(allTags)
+	var tagHits []struct {
+		NoteID uint
+		Count  int
+	}
+	global.DB.Table("note_tags").
+		Select("note_id, COUNT(*) as count").
+		Where("tag IN ?", allTags).
+		Joins("JOIN note_items ON note_items.id = note_tags.note_id").
+		Where("note_items.deleted_at IS NULL AND note_items.status IN ? AND note_items.is_archived = ?", []string{"analyzed", "done"}, false).
+		Group("note_id").Scan(&tagHits)
+	tagScores := make(map[uint]float32)
+	for _, r := range tagHits {
+		tagScores[r.NoteID] = float32(r.Count) * 5.0
+	}
+
+	// 4. 合并所有 ID
+	allIDsMap := make(map[uint]bool)
+	for id := range vectorScores {
+		allIDsMap[id] = true
+	}
+	for id := range ftsScores {
+		allIDsMap[id] = true
+	}
+	for id := range tagScores {
+		allIDsMap[id] = true
+	}
+
+	var ids []uint
+	for id := range allIDsMap {
+		ids = append(ids, id)
+	}
+
+	if len(ids) == 0 {
+		return []SearchResult{}, hitChunks, nil
+	}
+
+	// 5. 获取笔记详情
+	var notes []models.NoteItem
+	global.DB.Where("id IN ? AND deleted_at IS NULL", ids).Find(&notes)
+
+	// 6. 计算评分
+	results := make([]SearchResult, 0)
+	now := time.Now()
+	for _, n := range notes {
+		vs := vectorScores[n.ID]
+		fs := ftsScores[n.ID]
+		ts := tagScores[n.ID]
+
+		days := now.Sub(n.UpdatedAt).Hours() / 24
+		rs := float32(0.0)
+		if days < 365 {
+			rs = float32(math.Max(0, 1.0-(days/365.0)))
+		}
+
+		vsWeight, fsWeight, tsWeight, rsWeight := float32(0.5), float32(0.25), float32(0.15), float32(0.1)
+		if vs == 0 && fs == 0 && ts > 0 {
+			vsWeight, fsWeight, tsWeight, rsWeight = 0.0, 0.0, 0.8, 0.2
+		}
+
+		res := SearchResult{
+			NoteItem:     n,
+			VectorScore:  vs,
+			FtsScore:     fs,
+			TagScore:     ts,
+			RecencyScore: rs,
+		}
+		res.Score = vs*vsWeight + fs*fsWeight + ts*tsWeight + rs*rsWeight
+		results = append(results, res)
+	}
+
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Score > results[j].Score
+	})
+
+	if len(results) > limit {
+		results = results[:limit]
+	}
+
+	return results, hitChunks, nil
 }

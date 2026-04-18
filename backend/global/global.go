@@ -31,4 +31,11 @@ type AppConfig struct {
 	PaddleToken      string `json:"paddle_token"`
 	SysPassword      string `json:"sys_password"` // 访问系统所需密码
 	JwtSecret        string `json:"jwt_secret"`   // JWT 加密密钥
+
+	// 分片配置
+	ChunkMaxSize    int `json:"chunk_max_size"`    // 单片最大字符数，默认 500
+	ChunkMinSize    int `json:"chunk_min_size"`    // 单片最小字符数，默认 100
+	ChunkOverlap    int `json:"chunk_overlap"`     // 重叠字符数，默认 50
+	ChunkMaxPerDoc  int `json:"chunk_max_per_doc"` // 单文档最大分片数，默认 100
+	RagContextLimit int `json:"rag_context_limit"` // RAG 上下文长度限制，默认 12000
 }

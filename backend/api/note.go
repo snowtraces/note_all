@@ -182,8 +182,11 @@ func (a *NoteApi) SoftDelete(c *gin.Context) {
 		if err := tx.Delete(&models.NoteItem{}, id).Error; err != nil {
 			return err
 		}
-		// 同步删除向量索引
-		if err := tx.Where("note_id = ?", id).Delete(&models.NoteEmbedding{}).Error; err != nil {
+		// 同步删除分片向量索引
+		if err := tx.Where("note_id = ?", id).Delete(&models.NoteChunk{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("chunk_id IN (SELECT id FROM note_chunks WHERE note_id = ?)", id).Delete(&models.NoteChunkEmbedding{}).Error; err != nil {
 			return err
 		}
 		return nil
@@ -214,8 +217,11 @@ func (a *NoteApi) HardDelete(c *gin.Context) {
 		if err := tx.Unscoped().Where("note_id = ?", id).Delete(&models.NoteTag{}).Error; err != nil {
 			return err
 		}
-		// 2. 物理删除向量索引
-		if err := tx.Unscoped().Where("note_id = ?", id).Delete(&models.NoteEmbedding{}).Error; err != nil {
+		// 2. 物理删除分片向量索引
+		if err := tx.Unscoped().Where("note_id = ?", id).Delete(&models.NoteChunk{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Unscoped().Exec("DELETE FROM note_chunk_embeddings WHERE chunk_id IN (SELECT id FROM note_chunks WHERE note_id = ?)", id).Error; err != nil {
 			return err
 		}
 		// 3. 物理删除主记录

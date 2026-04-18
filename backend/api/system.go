@@ -16,8 +16,20 @@ type SystemApi struct{}
 var rebuildMu sync.Mutex
 var rebuildRunning bool
 
-// RebuildEmbeddings 清空并重建所有向量索引
+// RebuildEmbeddings 清空并重建所有向量索引（包含分片向量）
+// 需要认证且系统密码已配置才能触发（防止未授权的资源消耗操作）
 func (s *SystemApi) RebuildEmbeddings(c *gin.Context) {
+	// 安全检查：必须配置密码且用户已认证
+	if global.Config.SysPassword == "" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "系统未配置密码，无法执行敏感操作"})
+		return
+	}
+	userID, exists := c.Get("user_id")
+	if !exists || userID == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未授权访问"})
+		return
+	}
+
 	rebuildMu.Lock()
 	if rebuildRunning {
 		rebuildMu.Unlock()
@@ -34,13 +46,16 @@ func (s *SystemApi) RebuildEmbeddings(c *gin.Context) {
 			rebuildMu.Unlock()
 		}()
 
-		log.Println("[System] 向量全量重建任务开始...")
-		global.DB.Exec("DELETE FROM note_embeddings")
+		log.Println("[System] 分片向量全量重建任务开始...")
+		// 清空分片向量
+		global.DB.Exec("DELETE FROM note_chunk_embeddings")
+		global.DB.Exec("DELETE FROM note_chunks")
 
-		if err := service.BackfillNoteEmbeddings(); err != nil {
-			log.Printf("[System] 向量重建失败: %v", err)
+		// 重建分片向量
+		if err := service.BackfillNoteChunks(); err != nil {
+			log.Printf("[System] 分片向量重建失败: %v", err)
 		} else {
-			log.Println("[System] 向量全量重建完毕。")
+			log.Println("[System] 分片向量全量重建任务完成")
 		}
 	}()
 
@@ -49,8 +64,8 @@ func (s *SystemApi) RebuildEmbeddings(c *gin.Context) {
 
 // GetEmbeddingStatus 获取向量索引状态
 func (s *SystemApi) GetEmbeddingStatus(c *gin.Context) {
-	var total int64
-	global.DB.Raw("SELECT COUNT(*) FROM note_embeddings").Scan(&total)
+	var chunkTotal int64
+	global.DB.Raw("SELECT COUNT(*) FROM note_chunk_embeddings").Scan(&chunkTotal)
 
 	var noteTotal int64
 	global.DB.Raw("SELECT COUNT(*) FROM note_items WHERE status IN ('analyzed', 'done') AND deleted_at IS NULL").Scan(&noteTotal)
@@ -60,10 +75,12 @@ func (s *SystemApi) GetEmbeddingStatus(c *gin.Context) {
 	rebuildMu.Unlock()
 
 	c.JSON(http.StatusOK, gin.H{
-		"embedding_count": total,
-		"note_count":      noteTotal,
-		"is_rebuilding":   running,
-		"vector_ext":      global.VectorExtLoaded,
-		"model_id":        global.Config.EmbeddingModelID,
+		"chunk_count":       chunkTotal,
+		"note_count":        noteTotal,
+		"is_rebuilding":     running,
+		"vector_ext":        global.VectorExtLoaded,
+		"model_id":          global.Config.EmbeddingModelID,
+		"chunk_max_size":    global.Config.ChunkMaxSize,
+		"rag_context_limit": global.Config.RagContextLimit,
 	})
 }

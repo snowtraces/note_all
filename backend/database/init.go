@@ -77,13 +77,13 @@ func InitSystem() {
 	sqlDB.SetMaxIdleConns(1)
 	sqlDB.SetConnMaxLifetime(time.Hour)
 
-	// 1.5 初始化 sqlite-vector 向量索引
-	initVectorIndex(sqlDB)
-
 	// 自动拉起表结构与触发器
 	if err := models.SetupDBWithFTS(db); err != nil {
 		log.Fatalf("无法初始化数据库 FTS5 全文索引模型结构: %v", err)
 	}
+
+	// 1.5 初始化 sqlite-vector 向量索引（表创建后再初始化）
+	initVectorIndex(sqlDB)
 
 	global.DB = db
 	log.Println("SQLite 与 FTS5 全文索引模型初始化完毕。")
@@ -112,7 +112,7 @@ func InitSystem() {
 	}()
 }
 
-// initVectorIndex 检查 sqlite-vector 扩展是否已加载，并初始化向量索引
+// initVectorIndex 检查 sqlite-vector 扩展是否已加载，并初始化分片向量索引
 func initVectorIndex(sqlDB *sql.DB) {
 	// 检查扩展是否已由驱动自动加载
 	var version string
@@ -122,12 +122,15 @@ func initVectorIndex(sqlDB *sql.DB) {
 	}
 	log.Printf("[Vector] sqlite-vector v%s 加载成功", version)
 
-	// 初始化向量索引: 384 维 Float32 向量，余弦距离
-	if _, err := sqlDB.Exec("SELECT vector_init('note_embeddings', 'embedding', 'type=FLOAT32,dimension=384,distance=COSINE')"); err != nil {
+	// 清理旧的文档级向量表（已废弃）
+	sqlDB.Exec("DROP TABLE IF EXISTS note_embeddings")
+
+	// 初始化分片向量索引: 512 维 Float32 向量（BGE-small-zh-v1.5），余弦距离
+	if _, err := sqlDB.Exec("SELECT vector_init('note_chunk_embeddings', 'embedding', 'type=FLOAT32,dimension=512,distance=COSINE')"); err != nil {
 		log.Printf("[Vector] vector_init 失败: %v", err)
 		return
 	}
-	log.Println("[Vector] 向量索引初始化完毕 (384d, FLOAT32, COSINE)")
+	log.Println("[Vector] 分片向量索引初始化完毕 (512d, FLOAT32, COSINE)")
 
 	global.VectorExtLoaded = true
 }
