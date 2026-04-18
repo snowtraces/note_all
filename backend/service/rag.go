@@ -15,7 +15,7 @@ import (
 	"note_all_backend/pkg/synonym"
 )
 
-// SearchResult 混合检索结果项 (使用匿名嵌套实现 JSON 扁平化，匹配前端渲染)
+// SearchResult 混合检索结果项
 type SearchResult struct {
 	models.NoteItem
 	Score        float32 `json:"score"`
@@ -23,7 +23,6 @@ type SearchResult struct {
 	FtsScore     float32 `json:"fts_score"`
 	TagScore     float32 `json:"tag_score"`
 	RecencyScore float32 `json:"recency_score"`
-	LinkScore    float32 `json:"link_score"`
 }
 
 // UpdateNoteEmbedding 生成或更新笔记的向量索引
@@ -33,19 +32,15 @@ func UpdateNoteEmbedding(nID uint) error {
 		return err
 	}
 
-	// 拼接内容: ai_summary + ocr_text
 	content := fmt.Sprintf("%s\n%s", note.AiSummary, note.OcrText)
 	hash := fmt.Sprintf("%x", sha256.Sum256([]byte(content)))
 
-	// 检查是否已有且 hash 一致
 	var existing models.NoteEmbedding
-	if err := global.DB.Where("note_id = ?", nID).First(&existing).Error; err == nil {
-		if existing.Hash == hash {
-			return nil // 无需更新
-		}
+	found := global.DB.Where("note_id = ?", nID).First(&existing).Error == nil
+	if found && existing.Hash == hash {
+		return nil
 	}
 
-	// 调用接口获取向量
 	vec, err := pkg.GetEmbedding(content)
 	if err != nil {
 		return fmt.Errorf("failed to get embedding: %v", err)
@@ -56,20 +51,23 @@ func UpdateNoteEmbedding(nID uint) error {
 		return err
 	}
 
-	embedding := models.NoteEmbedding{
+	if found {
+		existing.Embedding = blob
+		existing.Hash = hash
+		return global.DB.Save(&existing).Error
+	}
+
+	return global.DB.Create(&models.NoteEmbedding{
 		NoteID:    nID,
 		Embedding: blob,
 		Hash:      hash,
-	}
-
-	return global.DB.Save(&embedding).Error
+	}).Error
 }
 
 // BackfillNoteEmbeddings 补全历史笔记的向量索引
 func BackfillNoteEmbeddings() error {
 	var notes []models.NoteItem
-	// 找到所有已分析但没有向量记录的笔记
-	err := global.DB.Where("status IN ? AND id NOT IN (SELECT note_id FROM note_embeddings)", []string{"analyzed", "done"}).Find(&notes).Error
+	err := global.DB.Where("status IN ? AND deleted_at IS NULL AND id NOT IN (SELECT note_id FROM note_embeddings)", []string{"analyzed", "done"}).Find(&notes).Error
 	if err != nil {
 		return err
 	}
@@ -85,75 +83,104 @@ func BackfillNoteEmbeddings() error {
 		} else {
 			log.Printf("[RAG] 补全向量成功 (ID:%d)", n.ID)
 		}
-		// 避免请求过快，稍微停顿一下（如果模型服务在本地，其实不需要太久）
 		time.Sleep(100 * time.Millisecond)
 	}
 	return nil
 }
 
-// HybridSearch 混合检索实现
+// HybridSearch 单关键词混合检索
 func HybridSearch(query string, limit int) ([]SearchResult, error) {
-	// 1. 获取查询向量
-	queryVec, err := pkg.GetEmbedding(query)
-	if err != nil {
-		log.Printf("[HybridSearch] GetEmbedding failed: %v, falling back to non-vector search", err)
-	}
+	return BatchHybridSearch([]string{query}, limit)
+}
 
-	// 2. 向量检索 (全量拉取向量，内存计算相似度，适用于个人中小规模)
-	var embeddings []models.NoteEmbedding
-	global.DB.Find(&embeddings)
-
+// BatchHybridSearch 批量混合检索，合并多关键词查询
+func BatchHybridSearch(queries []string, limit int) ([]SearchResult, error) {
+	// 1. 向量检索 (只对第一个 query)
 	vectorScores := make(map[uint]float32)
-	if queryVec != nil {
-		for _, e := range embeddings {
-			vec, err := models.BytesToFloat32(e.Embedding)
-			if err == nil {
-				score := models.CosineSimilarity(queryVec, vec)
-				if score > 0.5 { // 恢复基础阈值，保证基准召回
-					vectorScores[e.NoteID] = score
+	if len(queries) > 0 {
+		queryVec, err := pkg.GetEmbedding(queries[0])
+		if err != nil {
+			log.Printf("[BatchHybridSearch] GetEmbedding failed: %v", err)
+		} else if queryVec != nil {
+			if global.VectorExtLoaded {
+				queryBlob, _ := models.Float32ToBytes(queryVec)
+				var vecResults []struct {
+					NoteID   uint    `gorm:"column:note_id"`
+					Distance float32 `gorm:"column:distance"`
 				}
+				global.DB.Raw(`
+					SELECT ne.note_id, v.distance
+					FROM vector_full_scan('note_embeddings', 'embedding', ?, 50) AS v
+					JOIN note_embeddings AS ne ON ne.id = v.rowid
+					JOIN note_items AS n ON n.id = ne.note_id
+					WHERE n.deleted_at IS NULL AND n.status IN ('analyzed', 'done')
+				`, queryBlob).Scan(&vecResults)
+				for _, r := range vecResults {
+					score := float32(1.0 - float64(r.Distance)/2.0)
+					if score > 0.73 {
+						vectorScores[r.NoteID] = score
+					}
+				}
+				log.Printf("[BatchHybridSearch] Vector hits: %d (sqlite-vector)", len(vectorScores))
+			} else {
+				var embeddings []models.NoteEmbedding
+				global.DB.Find(&embeddings)
+				for _, e := range embeddings {
+					vec, err := models.BytesToFloat32(e.Embedding)
+					if err == nil {
+						score := models.CosineSimilarity(queryVec, vec)
+						if score > 0.73 {
+							vectorScores[e.NoteID] = score
+						}
+					}
+				}
+				log.Printf("[BatchHybridSearch] Vector hits: %d (fallback)", len(vectorScores))
 			}
 		}
 	}
-	log.Printf("[HybridSearch] Vector hits: %d", len(vectorScores))
 
-	// 3. FTS5 全文搜索
+	// 2. FTS5 全文搜索 (合并所有 queries)
+	ftsScores := make(map[uint]float32)
+	ftsQueries := make([]string, 0, len(queries))
+	for _, q := range queries {
+		ftsQueries = append(ftsQueries, "\""+strings.ReplaceAll(q, "\"", "")+"\"")
+	}
+	ftsQuery := strings.Join(ftsQueries, " OR ")
 	var ftsResults []struct {
 		ID    uint
 		Score float32
 	}
-	// SQLite FTS5 bm25() 返回负值，越小越相关
-	// 针对特殊字符（如 #）包裹引号以避免 syntax error
-	ftsQuery := "\"" + strings.ReplaceAll(query, "\"", "") + "\""
 	global.DB.Raw("SELECT rowid as id, -bm25(note_fts) as score FROM note_fts WHERE note_fts MATCH ? ORDER BY score DESC LIMIT 50", ftsQuery).Scan(&ftsResults)
-	ftsScores := make(map[uint]float32)
 	for _, r := range ftsResults {
-		ftsScores[r.ID] = r.Score
+		if existing, ok := ftsScores[r.ID]; !ok || r.Score > existing {
+			ftsScores[r.ID] = r.Score
+		}
 	}
-	log.Printf("[HybridSearch] FTS5 hits: %d", len(ftsScores))
+	log.Printf("[BatchHybridSearch] FTS5 hits: %d", len(ftsScores))
 
-	// 4. Tag 检索 (使用分词后的词组进行匹配)
-	// 注意：此处不再调用会触发 AI 或复杂改写的 QueryRewrite，直接调用同义词包的分词
-	expandedTags := synonym.RewriteQuery(query)
+	// 3. Tag 检索 (合并所有 queries 的扩展词)
+	allTags := make([]string, 0)
+	for _, q := range queries {
+		allTags = append(allTags, synonym.RewriteQuery(q)...)
+	}
+	allTags = uniqueStrings(allTags)
 	var tagHits []struct {
 		NoteID uint
 		Count  int
 	}
 	global.DB.Table("note_tags").
 		Select("note_id, COUNT(*) as count").
-		Where("tag IN ?", expandedTags).
+		Where("tag IN ?", allTags).
 		Joins("JOIN note_items ON note_items.id = note_tags.note_id").
 		Where("note_items.deleted_at IS NULL AND note_items.status IN ? AND note_items.is_archived = ?", []string{"analyzed", "done"}, false).
 		Group("note_id").Scan(&tagHits)
-
 	tagScores := make(map[uint]float32)
 	for _, r := range tagHits {
-		// 标签命中的基础分提高，确保标签相关的笔记排在前面
 		tagScores[r.NoteID] = float32(r.Count) * 5.0
 	}
-	log.Printf("[HybridSearch] Tag hits: %d for tokens: %v", len(tagScores), expandedTags)
+	log.Printf("[BatchHybridSearch] Tag hits: %d for tags: %v", len(tagScores), allTags)
 
-	// 5. 汇总所有笔记并计算最终评分
+	// 4. 合并所有 ID
 	allIDsMap := make(map[uint]bool)
 	for id := range vectorScores {
 		allIDsMap[id] = true
@@ -174,35 +201,12 @@ func HybridSearch(query string, limit int) ([]SearchResult, error) {
 		return []SearchResult{}, nil
 	}
 
+	// 5. 获取笔记详情
 	var notes []models.NoteItem
-	// 取消 is_archived 强过滤：只要明确搜到（关键词或标签匹配）就返回，保证召回率
-	global.DB.Where("id IN ?", ids).Find(&notes)
-	log.Printf("[HybridSearch] DB notes found: %d", len(notes))
+	global.DB.Where("id IN ? AND deleted_at IS NULL", ids).Find(&notes)
+	log.Printf("[BatchHybridSearch] Notes found: %d", len(notes))
 
-	// 计算 Link Score (基于图连接度)
-	linkCounts := make(map[uint]int)
-	var links []struct {
-		SourceID uint
-		Count    int
-	}
-	global.DB.Table("note_links").Select("source_id, COUNT(*) as count").Where("source_id IN ?", ids).Group("source_id").Scan(&links)
-	for _, l := range links {
-		linkCounts[l.SourceID] = l.Count
-	}
-
-	// 计算被引用的次数
-	var backlinkCounts []struct {
-		Target string
-		Count  int
-	}
-	global.DB.Table("note_links").Select("target, COUNT(*) as count").Where("target IN (SELECT original_name FROM note_items WHERE id IN ?)", ids).Group("target").Scan(&backlinkCounts)
-
-	backlinkMap := make(map[string]int)
-	for _, bl := range backlinkCounts {
-		backlinkMap[bl.Target] = bl.Count
-	}
-
-	// 计算最终评分并构建结果集
+	// 6. 计算评分
 	results := make([]SearchResult, 0)
 	now := time.Now()
 	for _, n := range notes {
@@ -210,17 +214,16 @@ func HybridSearch(query string, limit int) ([]SearchResult, error) {
 		fs := ftsScores[n.ID]
 		ts := tagScores[n.ID]
 
-		// Recency Score: 越近的分数越高 (0-1)
 		days := now.Sub(n.UpdatedAt).Hours() / 24
 		rs := float32(0.0)
 		if days < 365 {
 			rs = float32(math.Max(0, 1.0-(days/365.0)))
 		}
 
-		// Link Score: 基于出链和入链 (归一化)
-		ls := float32(linkCounts[n.ID]+backlinkMap[n.OriginalName]) / 10.0
-		if ls > 1.0 {
-			ls = 1.0
+		// 动态权重：纯 Tag 命中时提高 TagScore 权重
+		vsWeight, fsWeight, tsWeight, rsWeight := float32(0.5), float32(0.25), float32(0.15), float32(0.1)
+		if vs == 0 && fs == 0 && ts > 0 {
+			vsWeight, fsWeight, tsWeight, rsWeight = 0.0, 0.0, 0.8, 0.2
 		}
 
 		res := SearchResult{
@@ -229,22 +232,23 @@ func HybridSearch(query string, limit int) ([]SearchResult, error) {
 			FtsScore:     fs,
 			TagScore:     ts,
 			RecencyScore: rs,
-			LinkScore:    ls,
 		}
-		// 综合重排权重：只要有任意一项得分 > 0，保底能排在后面展示
-		res.Score = vs*0.4 + fs*0.2 + ts*0.1 + rs*0.1 + ls*0.2
+		res.Score = vs*vsWeight + fs*fsWeight + ts*tsWeight + rs*rsWeight
 		results = append(results, res)
 	}
 
-	// 排序
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].Score > results[j].Score
 	})
 
+	if len(results) > limit {
+		results = results[:limit]
+	}
+
 	return results, nil
 }
 
-// IntentDetection 优化版：短语优先 + 权重 + 多动词组合
+// IntentDetection 意图检测
 func IntentDetection(query string) string {
 	query = strings.ToLower(strings.TrimSpace(query))
 	if query == "" {
@@ -303,7 +307,6 @@ func IntentDetection(query string) string {
 		}
 	}
 
-	// 1. 如果有明确关键词命中的最高分，优先返回该意图
 	bestIntent := ""
 	maxScore := 0
 	for intent, score := range scores {
@@ -316,7 +319,6 @@ func IntentDetection(query string) string {
 		return bestIntent
 	}
 
-	// 2. 无明确关键词，检查是否包含疑问词/标点
 	qMarkers := []string{"?", "？", "如何", "什么是", "怎么", "为什么", "谁", "哪里", "哪个", "是否", "吗"}
 	for _, m := range qMarkers {
 		if strings.Contains(query, m) {
@@ -324,17 +326,13 @@ func IntentDetection(query string) string {
 		}
 	}
 
-	// 3. 默认意图：笔记录入/收录
 	return "record"
 }
 
 // QueryRewrite 扩展查询意图
 func QueryRewrite(query string) []string {
-	// 1. 同义词库扩展 (基于分词和 FTS 同义词表)
 	synonyms := synonym.RewriteQuery(query)
 	log.Printf("[QueryRewrite] Final: %s -> %v", query, synonyms)
-
-	// 去重并限制数量
 	return uniqueStrings(synonyms)
 }
 
@@ -364,49 +362,39 @@ func BuildRAGContext(results []SearchResult) string {
 	}
 
 	var sb strings.Builder
-	// 按 ID 去重并按分数排序已在 HybridSearch 完成
-	// 这里可以考虑按主题分组（通过标签）
-
 	for i, res := range results {
 		sb.WriteString(fmt.Sprintf("[%d] 标题: %s\n摘要: %s\n内容: %s\n\n",
 			i+1, res.OriginalName, res.AiSummary, res.OcrText))
-
-		// 简单的长度控制，防止撑爆 Context (限制在 8000 token 左右)
 		if sb.Len() > 20000 {
 			break
 		}
 	}
-
 	return sb.String()
 }
 
 // RAGAsk 执行完整的 RAG 问答流程
 func RAGAsk(query string) (string, []SearchResult, string, error) {
-	// 1. 意图检测
 	intent := IntentDetection(query)
 	log.Printf("[RAG] Detected intent: %s", intent)
 
-	// 2. 查询改写与检索
-	uniqueResults := make(map[uint]SearchResult)
-
-	// 首先执行一次改写获取所有扩展词 (包括同义词)
 	expandedQueries := []string{query}
 	if intent == "search" || intent == "explore" {
-		expandedQueries = QueryRewrite(query) // 返回值已包含原始 query
+		expandedQueries = QueryRewrite(query)
 	}
 
-	for _, q := range expandedQueries {
-		// 增加单次检索上限，提高召回率
-		hits, _ := HybridSearch(q, 10)
-		for _, h := range hits {
-			if existing, ok := uniqueResults[h.ID]; !ok || h.Score > existing.Score {
-				uniqueResults[h.ID] = h
-			}
-		}
+	// 使用 BatchHybridSearch 合并所有扩展词
+	hits, err := BatchHybridSearch(expandedQueries, 20)
+	if err != nil {
+		log.Printf("[RAG] BatchHybridSearch failed: %v", err)
 	}
-	log.Printf("[RAG] Unique hits gathered: %d", len(uniqueResults))
 
-	// 4. 图谱扩展 (针对 top 结果拉取关联项)
+	uniqueResults := make(map[uint]SearchResult)
+	for _, h := range hits {
+		uniqueResults[h.ID] = h
+	}
+	log.Printf("[RAG] Initial hits: %d", len(uniqueResults))
+
+	// 图谱扩展
 	allHits := make([]SearchResult, 0, len(uniqueResults))
 	for _, h := range uniqueResults {
 		allHits = append(allHits, h)
@@ -417,22 +405,19 @@ func RAGAsk(query string) (string, []SearchResult, string, error) {
 		allHits = allHits[:10]
 	}
 
-	// Graph Expansion: 对 Top 3 的关联项进行补充
-	log.Printf("[RAG] Proceeding with %d unique hits from retrieval", len(uniqueResults))
+	log.Printf("[RAG] Proceeding with %d hits", len(allHits))
 	for i := 0; i < 3 && i < len(allHits); i++ {
 		related, _ := GetRelatedNotes(allHits[i].ID)
 		if len(related) > 0 {
-			log.Printf("[RAG] Graph expand from #%d (%s): found %d related notes", i+1, allHits[i].OriginalName, len(related))
+			log.Printf("[RAG] Graph expand from #%d (%s): found %d related", i+1, allHits[i].OriginalName, len(related))
 		}
 		for _, rn := range related {
 			if _, ok := uniqueResults[rn.ID]; !ok {
-				// 幽灵评分，保证其在上下文末尾
-				uniqueResults[rn.ID] = SearchResult{NoteItem: rn, Score: 0.1, LinkScore: 1.0}
+				uniqueResults[rn.ID] = SearchResult{NoteItem: rn, Score: 0.1}
 			}
 		}
 	}
 
-	// 重新整理结果
 	finalHits := make([]SearchResult, 0, len(uniqueResults))
 	for _, h := range uniqueResults {
 		finalHits = append(finalHits, h)
@@ -441,9 +426,8 @@ func RAGAsk(query string) (string, []SearchResult, string, error) {
 
 	log.Printf("[RAG] Final context hits: %d", len(finalHits))
 
-	// 5. 构建上下文并问答
 	context := BuildRAGContext(finalHits)
-	log.Printf("[AskAI] Context length: %d\n", len(context))
+	log.Printf("[AskAI] Context length: %d", len(context))
 
 	systemPrompt := "你是一个专注于个人知识库的智能助手，同时具备深厚的通用知识储备。你会优先基于【参考笔记上下文】来回答用户的问题，以体现出你对用户个人资料的了解；如果数据中没有直接答案，请结合由于你作为大模型本身的通用智慧来流畅地回答，无需由于缺乏引用而反复道歉。请用简洁、深刻的口吻进行回复，并支持 Markdown 格式排版。\n\n"
 	if context != "" {

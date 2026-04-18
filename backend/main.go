@@ -26,16 +26,7 @@ func main() {
 	service.InitActiveWeixinBots()
 	log.Println("Note-All 后端底层架构组件初始化成功...")
 
-	// // 1.5 启动向量索引补全
-	// go func() {
-	// 	// 等待 python embedding 服务启动 (如果是刚拉起来可能需要点时间)
-	// 	time.Sleep(10 * time.Second)
-	// 	if err := service.BackfillNoteEmbeddings(); err != nil {
-	// 		log.Printf("[RAG] 历史向量补全失败: %v", err)
-	// 	} else {
-	// 		log.Println("[RAG] 历史向量补全任务处理完毕。")
-	// 	}
-	// }()
+	// 1.5 向量重建已移至设置页面 (POST /api/system/embedding/rebuild)
 
 	// 2. 装载网络层路由 (Gin)
 	r := router.SetupRouter()

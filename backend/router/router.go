@@ -115,6 +115,11 @@ func SetupRouter() *gin.Engine {
 		apiGroup.PUT("/templates/:id", templateApi.Update)
 		apiGroup.DELETE("/templates/:id", templateApi.Delete)
 		apiGroup.POST("/templates/:id/active", templateApi.SetActive)
+
+		// 11. 系统管理
+		systemApi := new(api.SystemApi)
+		apiGroup.GET("/system/embedding/status", systemApi.GetEmbeddingStatus)
+		apiGroup.POST("/system/embedding/rebuild", systemApi.RebuildEmbeddings)
 	}
 
 	// ====================== 静态资源与 SPA 路由逻辑 ======================

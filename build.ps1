@@ -31,7 +31,7 @@ if ($Module -eq "all" -or $Module -eq "backend") {
     Push-Location "backend"
     if (!$SkipDeps) { go mod tidy }
     $ExePath = Join-Path $TargetDir "note_all_backend.exe"
-    go build -o $ExePath main.go
+    go build -tags "fts5" -o $ExePath main.go
     if ($LASTEXITCODE -ne 0) { $Status.Backend = "Failed"; Pop-Location; exit 1 }
     
     if (Test-Path "config.json.example") { Copy-Item -Force "config.json.example" $TargetDir }

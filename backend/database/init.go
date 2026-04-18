@@ -1,9 +1,11 @@
 package database
 
 import (
+	"database/sql"
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"note_all_backend/global"
@@ -11,9 +13,33 @@ import (
 	"note_all_backend/pkg/synonym"
 	"note_all_backend/storage"
 
-	"github.com/glebarez/sqlite"
+	sqlite3 "github.com/mattn/go-sqlite3"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
+
+// getVectorExtPath 根据操作系统和架构确定 sqlite-vector 扩展路径
+func getVectorExtPath() string {
+	var extPath string
+	switch runtime.GOOS {
+	case "windows":
+		extPath = filepath.Join(".", "libs", "vector")
+	case "linux":
+		if runtime.GOARCH == "arm64" {
+			extPath = filepath.Join(".", "libs", "linux-arm64", "vector")
+		} else {
+			extPath = filepath.Join(".", "libs", "linux-x86_64", "vector")
+		}
+	default:
+		extPath = filepath.Join(".", "libs", "vector")
+	}
+
+	absPath, err := filepath.Abs(extPath)
+	if err != nil {
+		return ""
+	}
+	return absPath
+}
 
 // InitSystem 初始化所有后台的基石依赖（DB 连接、系统文件目录、服务引擎）
 func InitSystem() {
@@ -23,7 +49,21 @@ func InitSystem() {
 		log.Fatalf("无法创建数据库目录: %v", err)
 	}
 
-	db, err := gorm.Open(sqlite.Open(filepath.Join(dbPath, "note_all.db")), &gorm.Config{})
+	// 注册自定义 SQLite 驱动，自动加载 sqlite-vector 扩展
+	extPath := getVectorExtPath()
+	driverName := "sqlite3_custom"
+	if extPath != "" {
+		sql.Register(driverName, &sqlite3.SQLiteDriver{
+			Extensions: []string{extPath},
+		})
+	} else {
+		sql.Register(driverName, &sqlite3.SQLiteDriver{})
+	}
+
+	db, err := gorm.Open(&sqlite.Dialector{
+		DriverName: driverName,
+		DSN:        filepath.Join(dbPath, "note_all.db"),
+	}, &gorm.Config{})
 	if err != nil {
 		log.Fatalf("无法连接到 SQLite: %v", err)
 	}
@@ -36,6 +76,9 @@ func InitSystem() {
 	sqlDB.SetMaxOpenConns(1)
 	sqlDB.SetMaxIdleConns(1)
 	sqlDB.SetConnMaxLifetime(time.Hour)
+
+	// 1.5 初始化 sqlite-vector 向量索引
+	initVectorIndex(sqlDB)
 
 	// 自动拉起表结构与触发器
 	if err := models.SetupDBWithFTS(db); err != nil {
@@ -68,3 +111,24 @@ func InitSystem() {
 		}
 	}()
 }
+
+// initVectorIndex 检查 sqlite-vector 扩展是否已加载，并初始化向量索引
+func initVectorIndex(sqlDB *sql.DB) {
+	// 检查扩展是否已由驱动自动加载
+	var version string
+	if err := sqlDB.QueryRow("SELECT vector_version()").Scan(&version); err != nil {
+		log.Printf("[Vector] sqlite-vector 扩展未加载，向量检索将使用回退模式")
+		return
+	}
+	log.Printf("[Vector] sqlite-vector v%s 加载成功", version)
+
+	// 初始化向量索引: 384 维 Float32 向量，余弦距离
+	if _, err := sqlDB.Exec("SELECT vector_init('note_embeddings', 'embedding', 'type=FLOAT32,dimension=384,distance=COSINE')"); err != nil {
+		log.Printf("[Vector] vector_init 失败: %v", err)
+		return
+	}
+	log.Println("[Vector] 向量索引初始化完毕 (384d, FLOAT32, COSINE)")
+
+	global.VectorExtLoaded = true
+}
+

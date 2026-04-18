@@ -15,6 +15,9 @@ var (
 
 	// WorkerChan 后台任务通道，用于实现阻塞排队逻辑，避免并发过高触发 429
 	WorkerChan chan func()
+
+	// VectorExtLoaded 标记 sqlite-vector 扩展是否加载成功
+	VectorExtLoaded bool
 )
 
 type AppConfig struct {

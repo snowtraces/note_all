@@ -433,24 +433,12 @@ function App() {
                               <BookOpen size={10} /> 智能引证
                             </div>
                             <div className="flex flex-col gap-2">
-                              {chat.references.map(ref => {
-                                const token = getAuthToken();
-                                const refFileUrl = `/api/file/${ref.storage_id}${token ? `?token=${token}` : ''}`;
-                                return (
-                                  <div
+                              {chat.references.map(ref => (
+                                <div
                                     key={ref.id}
                                     onClick={() => setSelectedItem(ref)}
                                     className="flex items-center gap-3 p-2 rounded-lg bg-white/[0.02] border border-white/5 hover:bg-white/5 hover:border-primeAccent/20 transition-all cursor-pointer"
                                   >
-                                    {ref.file_type?.includes('image') ? (
-                                      <div className="w-10 h-10 rounded border border-white/10 overflow-hidden shrink-0 bg-black/40">
-                                        <img src={refFileUrl} className="w-full h-full object-cover" alt="" />
-                                      </div>
-                                    ) : (
-                                      <div className="w-10 h-10 rounded border border-white/10 flex items-center justify-center shrink-0 bg-white/5 text-white/20">
-                                        <BookOpen size={14} />
-                                      </div>
-                                    )}
                                     <div className="min-w-0 flex-1">
                                       <div className="flex items-center justify-between gap-2 mb-1">
                                         <div className="flex flex-wrap gap-1 max-h-[16px] overflow-hidden">
@@ -465,8 +453,7 @@ function App() {
                                       <div className="text-[11px] text-white/70 leading-snug line-clamp-2">{ref.ai_summary || '碎片内容细节...'}</div>
                                     </div>
                                   </div>
-                                );
-                              })}
+                                ))}
                             </div>
                           </div>
                         )}

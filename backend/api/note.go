@@ -177,7 +177,18 @@ func (a *NoteApi) Search(c *gin.Context) {
 // SoftDelete 逻辑删除（移至回收站）
 func (a *NoteApi) SoftDelete(c *gin.Context) {
 	id := c.Param("id")
-	if err := global.DB.Delete(&models.NoteItem{}, id).Error; err != nil {
+	err := global.DB.Transaction(func(tx *gorm.DB) error {
+		// 逻辑删除主记录
+		if err := tx.Delete(&models.NoteItem{}, id).Error; err != nil {
+			return err
+		}
+		// 同步删除向量索引
+		if err := tx.Where("note_id = ?", id).Delete(&models.NoteEmbedding{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "逻辑删除失败: " + err.Error()})
 		return
 	}
@@ -203,7 +214,11 @@ func (a *NoteApi) HardDelete(c *gin.Context) {
 		if err := tx.Unscoped().Where("note_id = ?", id).Delete(&models.NoteTag{}).Error; err != nil {
 			return err
 		}
-		// 2. 物理删除主记录
+		// 2. 物理删除向量索引
+		if err := tx.Unscoped().Where("note_id = ?", id).Delete(&models.NoteEmbedding{}).Error; err != nil {
+			return err
+		}
+		// 3. 物理删除主记录
 		if err := tx.Unscoped().Delete(&models.NoteItem{}, id).Error; err != nil {
 			return err
 		}
@@ -214,7 +229,7 @@ func (a *NoteApi) HardDelete(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "永久删除失败: " + err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "已永久销毁此记录及关联标签"})
+	c.JSON(http.StatusOK, gin.H{"message": "已永久销毁此记录及关联数据"})
 }
 
 // Trash 获取回收站内的逻辑删除记录
