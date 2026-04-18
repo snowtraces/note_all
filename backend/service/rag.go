@@ -547,6 +547,11 @@ func selectExpandChunks(noteID uint, hitChunks []ChunkSearchResult, allChunks []
 
 // RAGAsk 执行完整的 RAG 问答流程
 func RAGAsk(query string) (string, []SearchResult, string, error) {
+	return RAGAskWithHistory(query, nil)
+}
+
+// RAGAskWithHistory 执行带历史对话的 RAG 问答流程
+func RAGAskWithHistory(query string, history []ConversationMessage) (string, []SearchResult, string, error) {
 	intent := IntentDetection(query)
 	log.Printf("[RAG] Detected intent: %s", intent)
 
@@ -616,9 +621,23 @@ func RAGAsk(query string) (string, []SearchResult, string, error) {
 		systemPrompt += "（当前没有找到与问题直接相关的笔记碎片记录）"
 	}
 
-	answer, err := pkg.AskAI([]map[string]string{
-		{"role": "user", "content": query},
-	}, systemPrompt)
+	// 构建消息列表：先加入历史对话，最后加入当前问题
+	messages := make([]map[string]string, 0)
+	for _, msg := range history {
+		if msg.Role == "user" || msg.Role == "assistant" {
+			messages = append(messages, map[string]string{
+				"role":    msg.Role,
+				"content": msg.Content,
+			})
+		}
+	}
+	// 添加当前问题
+	messages = append(messages, map[string]string{
+		"role":    "user",
+		"content": query,
+	})
+
+	answer, err := pkg.AskAI(messages, systemPrompt)
 
 	return answer, finalHits, intent, err
 }

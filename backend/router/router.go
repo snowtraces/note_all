@@ -59,6 +59,7 @@ func SetupRouter() *gin.Engine {
 
 		noteApi := new(api.NoteApi)
 		templateApi := new(api.TemplateApi)
+		agentApi := new(api.AgentApi)
 
 		// 1. 上传文件生成新解析工单
 		apiGroup.POST("/upload", noteApi.Upload)
@@ -95,6 +96,12 @@ func SetupRouter() *gin.Engine {
 		apiGroup.GET("/chat/sessions", noteApi.ListChatSessions)
 		apiGroup.GET("/chat/session/:id", noteApi.GetChatMessages)
 		apiGroup.DELETE("/chat/session/:id", noteApi.DeleteChatSession)
+
+		// 6.5 Agent 多轮对话
+		apiGroup.POST("/agent/ask", agentApi.AgentAsk)
+		apiGroup.GET("/agent/sessions", agentApi.ListAgentSessions)
+		apiGroup.GET("/agent/session/:id", agentApi.GetAgentSessionMessages)
+		apiGroup.DELETE("/agent/session/:id", agentApi.DeleteAgentSession)
 
 		// 7. 灵感与拼图 (Phase 3)
 		apiGroup.GET("/serendipity", noteApi.Serendipity)

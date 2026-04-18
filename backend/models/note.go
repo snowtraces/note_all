@@ -57,7 +57,11 @@ type ChatSession struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 
-	Title string `gorm:"size:255;not null" json:"title"` // 通常是第一句提问的缩写
+	Title         string `gorm:"size:255;not null" json:"title"`            // 通常是第一句提问的缩写
+	ContextSummary string `gorm:"type:text" json:"context_summary"`         // 历史对话压缩摘要
+	ActiveDocs     string `gorm:"size:255" json:"active_docs"`              // 当前关注文档ID JSON数组
+	ActiveTopic    string `gorm:"size:255" json:"active_topic"`             // 当前话题关键词
+	LastIntent     string `gorm:"size:32" json:"last_intent"`               // 上轮意图类型
 }
 
 // ChatMessage 存储对话中的每一条消息
@@ -68,6 +72,9 @@ type ChatMessage struct {
 	Content       string     `gorm:"type:text;not null" json:"content"`
 	CreatedAt     time.Time  `json:"created_at"`
 	References    []NoteItem `gorm:"many2many:chat_message_references;" json:"references"`
+	Intent        string     `gorm:"size:32" json:"intent"`           // 该轮意图类型
+	ToolCalls     string     `gorm:"type:text" json:"tool_calls"`     // 工具调用JSON
+	Confidence    float32    `gorm:"default:0" json:"confidence"`     // 意图置信度
 }
 
 // SetupDBWithFTS 初始化数据库结构，包括建立 FTS5 虚拟表及与基础表联动的触发器

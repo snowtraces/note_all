@@ -349,7 +349,7 @@ type AskQuery struct {
 	SessionID uint                `json:"session_id"`
 }
 
-// Ask 是 RAG 核心端点：集成意图检测、查询改写、混合检索与上下文构建
+// Ask 是 RAG 核心端点：集成多轮对话 Agent
 func (a *NoteApi) Ask(c *gin.Context) {
 	var body AskQuery
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -362,6 +362,7 @@ func (a *NoteApi) Ask(c *gin.Context) {
 		return
 	}
 
+	// 提取最后一条用户消息
 	query := ""
 	for i := len(body.Messages) - 1; i >= 0; i-- {
 		if body.Messages[i]["role"] == "user" {
@@ -375,48 +376,29 @@ func (a *NoteApi) Ask(c *gin.Context) {
 		return
 	}
 
-	// 执行增强 RAG 流程
-	answer, results, intent, err := service.RAGAsk(query)
+	// 调用多轮对话 Agent
+	response, err := service.AgentAsk(body.SessionID, query)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "AI 执行失败: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Agent 执行失败: " + err.Error()})
 		return
 	}
 
-	// 处理引用项转换
+	// 转换 references 为前端兼容格式
 	var references []models.NoteItem
-	for _, r := range results {
-		references = append(references, r.NoteItem)
-	}
-
-	// 持久化存储
-	sessionID := body.SessionID
-	if sessionID == 0 {
-		session := models.ChatSession{Title: query}
-		if len([]rune(session.Title)) > 30 {
-			session.Title = string([]rune(session.Title)[:30]) + "..."
+	for _, ref := range response.References {
+		var note models.NoteItem
+		if global.DB.First(&note, ref.DocumentID).Error == nil {
+			references = append(references, note)
 		}
-		global.DB.Create(&session)
-		sessionID = session.ID
 	}
-
-	// 记录本次交互
-	global.DB.Create(&models.ChatMessage{
-		ChatSessionID: sessionID,
-		Role:          "user",
-		Content:       query,
-	})
-	global.DB.Create(&models.ChatMessage{
-		ChatSessionID: sessionID,
-		Role:          "assistant",
-		Content:       answer,
-		References:    references,
-	})
 
 	c.JSON(http.StatusOK, gin.H{
-		"data":       answer,
-		"session_id": sessionID,
+		"data":       response.Content,
+		"session_id": response.SessionID,
 		"references": references,
-		"intent":     intent,
+		"intent":     response.Intent,
+		"confidence": response.Confidence,
+		"tool_calls": response.ToolCalls,
 	})
 }
 
