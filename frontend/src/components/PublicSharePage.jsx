@@ -26,7 +26,7 @@ export default function PublicSharePage({ shareId }) {
 
    if (loading) {
       return (
-         <div className="h-screen w-full flex flex-col items-center justify-center bg-[#050505] text-white">
+         <div className="h-screen w-full flex flex-col items-center justify-center bg-base text-white">
             <div className="w-16 h-16 border-4 border-primeAccent/20 border-t-primeAccent animate-spin rounded-full mb-6"></div>
             <div className="text-silverText/40 uppercase tracking-[0.3em] text-[10px] font-mono animate-pulse">正在获取加密内容...</div>
          </div>
@@ -35,7 +35,7 @@ export default function PublicSharePage({ shareId }) {
 
    if (error) {
       return (
-         <div className="h-screen w-full flex flex-col items-center justify-center bg-[#050505] p-10 text-center">
+         <div className="h-screen w-full flex flex-col items-center justify-center bg-base p-10 text-center">
             <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-8 rotate-12">
                <AlertCircle className="w-10 h-10 text-red-500" strokeWidth={1.5} />
             </div>
@@ -52,7 +52,7 @@ export default function PublicSharePage({ shareId }) {
    }
 
    return (
-      <div className="min-h-screen w-full bg-[#080808] text-white font-sans selection:bg-primeAccent selection:text-black pb-20 overflow-x-hidden">
+      <div className="min-h-screen w-full bg-sidebar text-white font-sans selection:bg-primeAccent selection:text-black pb-20 overflow-x-hidden">
          {/* Top Branding Section */}
          <div className="w-full h-[300px] absolute top-0 left-0 bg-gradient-to-b from-primeAccent/5 to-transparent pointer-events-none"></div>
 
@@ -114,7 +114,7 @@ export default function PublicSharePage({ shareId }) {
                      <h4 className="text-[12px] text-white/40 uppercase tracking-[0.1m] font-mono">原始记录全貌 · FULL INTELLECT</h4>
                      <div className="flex-1 h-px bg-white/5"></div>
                   </div>
-                  <div className="bg-[#0c0c0c] border border-white/5 rounded-[40px] p-8 lg:p-10 text-white/92 text-[16px] leading-9 font-normal selection:bg-primeAccent selection:text-black shadow-inner markdown-ocr">
+                  <div className="bg-card border border-white/5 rounded-[40px] p-8 lg:p-10 text-white/92 text-[16px] leading-9 font-normal selection:bg-primeAccent selection:text-black shadow-inner markdown-ocr">
                      <MarkdownRenderer content={item.ocr_text} />
                   </div>
                </div>

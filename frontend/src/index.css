@@ -2,69 +2,195 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============ 全局基础变量 (Grayscale System) ============ */
+
+:root {
+  /* 基础品牌变量 */
+  --prime-accent: rgb(102, 252, 241);
+  --prime-accent-dim: #45a29e;
+  
+  /* 统一暗色模式背景 (所有主题通用) */
+  --dark-bg-base: #050505;
+  --dark-bg-main: #0a0a0a;
+  --dark-bg-sidebar: #080808;
+  --dark-bg-card: #0c0c0c;
+  --dark-bg-panel: #0f0f0f;
+  --dark-bg-modal: rgba(17, 17, 17, 0.85);
+  --dark-bg-header: rgba(26, 26, 26, 0.7);
+  --dark-bg-code: #1e1e1e;
+  --dark-bg-code-header: #2a2a2a;
+  --dark-bg-graph: #161616;
+  --dark-text-primary: #ffffff;
+  --dark-text-secondary: rgba(255, 255, 255, 0.9);
+  --dark-border-subtle: rgba(255, 255, 255, 0.08);
+
+  /* 统一亮色模式背景 (所有主题通用) */
+  --light-bg-base: #f8fafc;
+  --light-bg-main: #ffffff;
+  --light-bg-sidebar: #f8fafc;
+  --light-bg-card: #ffffff;
+  --light-bg-panel: #ffffff;
+  --light-bg-modal: #ffffff;
+  --light-bg-header: #ffffff;
+  --light-bg-code: #f8fafc;
+  --light-bg-code-header: #f1f5f9;
+  --light-bg-graph: #ffffff;
+  --light-text-primary: #000000;
+  --light-text-secondary: #4b5563;
+  --light-border-subtle: #e5e7eb;
+}
+
+/* ============ 模式切换分配 ============ */
+
+[data-mode="dark"] {
+  --bg-base: var(--dark-bg-base);
+  --bg-main: var(--dark-bg-main);
+  --bg-sidebar: var(--dark-bg-sidebar);
+  --bg-card: var(--dark-bg-card);
+  --bg-panel: var(--dark-bg-panel);
+  --bg-modal: var(--dark-bg-modal);
+  --bg-header: var(--dark-bg-header);
+  --bg-code: var(--dark-bg-code);
+  --bg-code-header: var(--dark-bg-code-header);
+  --bg-graph: var(--dark-bg-graph);
+  --text-primary: var(--dark-text-primary);
+  --text-secondary: var(--dark-text-secondary);
+  --border-subtle: var(--dark-border-subtle);
+  --silver-text: rgb(197, 198, 199);
+  --prime-base: var(--dark-bg-base);
+  --glass-bg: rgba(31, 40, 51, 0.45);
+  --glass-border: rgba(197, 198, 199, 0.1);
+  --input-bg: rgba(11, 12, 16, 0.6);
+  --input-border: color-mix(in srgb, var(--prime-accent), transparent 80%);
+  --bg-table-header: rgba(255, 255, 255, 0.04);
+  --bg-table-row-hover: color-mix(in srgb, var(--prime-accent), transparent 95%);
+}
+
+[data-mode="light"] {
+  --bg-base: var(--light-bg-base);
+  --bg-main: var(--light-bg-main);
+  --bg-sidebar: var(--light-bg-sidebar);
+  --bg-card: var(--light-bg-card);
+  --bg-panel: var(--light-bg-panel);
+  --bg-modal: var(--light-bg-modal);
+  --bg-header: var(--light-bg-header);
+  --bg-code: var(--light-bg-code);
+  --bg-code-header: var(--light-bg-code-header);
+  --bg-graph: var(--light-bg-graph);
+  --text-primary: var(--light-text-primary);
+  --text-secondary: var(--light-text-secondary);
+  --border-subtle: var(--light-border-subtle);
+  --silver-text: rgb(71, 85, 105);
+  --prime-base: var(--light-bg-base);
+  --glass-bg: rgba(255, 255, 255, 0.95);
+  --glass-border: rgba(15, 23, 42, 0.1);
+  --input-bg: rgba(255, 255, 255, 0.95);
+  --input-border: color-mix(in srgb, var(--prime-accent), transparent 60%);
+  --bg-table-header: rgba(15, 23, 42, 0.04);
+  --bg-table-row-hover: color-mix(in srgb, var(--prime-accent), transparent 90%);
+}
+
+/* ============ 主题色装饰 (Accent System) ============ */
+
+/* 赛博朋克：暗色使用霓虹青，亮色使用深青以防刺眼 */
+[data-theme="cyber"] {
+  --prime-accent: rgb(102, 252, 241);
+  --prime-accent-dim: #45a29e;
+}
+[data-theme="cyber"][data-mode="light"] {
+  --prime-accent: #0891b2;
+  --prime-accent-dim: #0e7490;
+}
+
+/* 午夜蓝调：亮色使用更稳重的深蓝色 */
+[data-theme="blue"] {
+  --prime-accent: rgb(59, 130, 246);
+  --prime-accent-dim: #2563eb;
+}
+[data-theme="blue"][data-mode="light"] {
+  --prime-accent: #2563eb;
+  --prime-accent-dim: #1d4ed8;
+}
+
+/* 森林绿意：亮色使用更沉稳的翠绿色 */
+[data-theme="forest"] {
+  --prime-accent: rgb(16, 185, 129);
+  --prime-accent-dim: #059669;
+}
+[data-theme="forest"][data-mode="light"] {
+  --prime-accent: #059669;
+  --prime-accent-dim: #047857;
+}
+
+/* ============ 基础样式与原子类重写 ============ */
+
 @layer base {
   body {
-    @apply bg-primeBase text-silverText antialiased;
+    @apply antialiased;
+    background-color: var(--bg-base);
+    color: var(--text-primary);
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
   }
 }
 
-/* 玻璃质感输入框和底层 */
+/* 强制覆盖亮色模式下的文字颜色与不透明度，确保最佳阅读对比度 */
+[data-mode="light"] .text-white { color: #000000 !important; }
+[data-mode="light"] .text-white\/80 { color: #1f2937 !important; }
+[data-mode="light"] .text-white\/60,
+[data-mode="light"] .text-silverText\/60 { color: #4b5563 !important; }
+[data-mode="light"] .text-textSecondary\/40,
+[data-mode="light"] .text-silverText\/40 { color: #6b7280 !important; }
+[data-mode="light"] .text-textSecondary\/30,
+[data-mode="light"] .text-silverText\/30 { color: #9ca3af !important; }
+[data-mode="light"] .text-textSecondary\/20,
+[data-mode="light"] .text-silverText\/20 { color: #6b7280 !important; } /* 关键辅助信息：如日期，保持高对比度 */
+[data-mode="light"] .text-white\/5 { color: var(--border-subtle) !important; }
+
+/* 亮色模式下输入框通用样式 */
+input, textarea, select {
+  background: #ffffff;
+  color: #000000;
+  border: 1px solid var(--border-subtle);
+}
+[data-mode="light"] input::placeholder,
+[data-mode="light"] textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+/* 玻璃质感面板 */
 .glass-panel {
-  background: rgba(31, 40, 51, 0.45);
+  background: var(--bg-modal);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(197, 198, 199, 0.1);
+  border: 1px solid var(--border-subtle);
 }
 
 .glass-input {
-  background: rgba(11, 12, 16, 0.6);
+  background: var(--input-bg);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(102, 252, 241, 0.2);
+  border: 1px solid var(--input-border);
   transition: all 0.3s ease;
 }
 
 .glass-input:focus {
-  border-color: rgba(102, 252, 241, 0.8);
-  box-shadow: 0 0 15px rgba(102, 252, 241, 0.15);
+  border-color: var(--prime-accent);
+  box-shadow: 0 0 15px color-mix(in srgb, var(--prime-accent), transparent 85%);
   outline: none;
 }
 
-/* 渐变文本高亮 */
-.text-gradient {
-  background: linear-gradient(135deg, #66fcf1, #45a29e);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-/* 呼吸光上传按钮 */
-@keyframes pulseGlow {
-  0% { box-shadow: 0 0 5px rgba(102, 252, 241, 0.2); }
-  50% { box-shadow: 0 0 20px rgba(102, 252, 241, 0.6); }
-  100% { box-shadow: 0 0 5px rgba(102, 252, 241, 0.2); }
-}
-.btn-upload {
-  animation: pulseGlow 3s infinite;
-}
-
-/* 自定义滚动条隐形极简 */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+/* 滚动条 */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(197, 198, 199, 0.2);
+  background: color-mix(in srgb, var(--text-primary), transparent 80%);
   border-radius: 10px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(197, 198, 199, 0.4);
+  background: color-mix(in srgb, var(--text-primary), transparent 60%);
 }
 
-/* 全局 Markdown 渲染排版：科技感 GFM 表格与排版 */
+/* ============ Markdown 内容区 (Grayscale Background with Accent Decorations) ============ */
 .markdown-content {
   @apply leading-relaxed;
 }
@@ -74,58 +200,54 @@
   border-spacing: 0;
   margin: 1.2rem 0;
   font-size: 13px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-subtle);
   border-radius: 10px;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--bg-header);
 }
 .markdown-content th,
 .markdown-content td {
   padding: 10px 14px;
   text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border-subtle);
 }
-.markdown-content tr:last-child td {
-  border-bottom: none;
-}
+.markdown-content tr:last-child td { border-bottom: none; }
 .markdown-content th {
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(102, 252, 241, 0.9);
-  font-weight: 600;
+  background: var(--bg-table-header);
+  color: var(--text-primary);
+  font-weight: 700;
   letter-spacing: 0.02em;
 }
-.markdown-content td {
-  color: rgba(255, 255, 255, 0.85);
-}
-.markdown-content tr:nth-child(even) td {
-  background: rgba(255, 255, 255, 0.01);
-}
-.markdown-content tr:hover td {
-  background: rgba(102, 252, 241, 0.03);
-}
-.markdown-content p {
-  margin: 0.8em 0;
-}
+.markdown-content td { color: var(--text-primary); }
+.markdown-content tr:nth-child(even) td { background: var(--bg-table-header); }
+.markdown-content tr:hover td { background: var(--bg-table-row-hover); }
+
+.markdown-content p { margin: 0.8em 0; color: var(--text-primary); }
 .markdown-content h1, .markdown-content h2, .markdown-content h3 {
-  color: rgba(102, 252, 241, 0.8);
+  color: var(--text-primary);
   margin: 1.2em 0 0.6em;
-  font-weight: 600;
-}
-.markdown-content ul, .markdown-content ol {
-  @apply space-y-1.5 my-3;
-}
-.markdown-content li {
-  @apply ml-4 list-disc marker:text-primeAccent/40;
-}
-.markdown-content :not(pre) > code {
-  font-size: 11px;
-  @apply bg-white/5 px-1.5 py-0.5 rounded text-primeAccent/90 mx-0.5;
+  font-weight: 700;
 }
 
-/* AI 总结区的简单排版 */
-.ai-summary-markdown p {
-  margin-bottom: 0.8em;
+.markdown-content ul::marker,
+.markdown-content ol::marker,
+.markdown-content li::marker {
+  color: var(--text-secondary);
 }
-.ai-summary-markdown p:last-child {
-  margin-bottom: 0;
+
+.markdown-content ul, .markdown-content ol { @apply space-y-1.5 my-3; }
+.markdown-content li { margin-left: 1rem; list-style-type: disc; }
+
+.markdown-content :not(pre) > code {
+  font-size: 11px;
+  background: var(--bg-code);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  margin: 0 0.125rem;
 }
+
+/* AI 总结区 */
+.ai-summary-markdown p { margin-bottom: 0.8em; }
+.ai-summary-markdown p:last-child { margin-bottom: 0; }

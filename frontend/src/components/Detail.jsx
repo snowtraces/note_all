@@ -92,8 +92,8 @@ export default function Detail({
   return (
     <div className="w-full h-full flex flex-col animate-in fade-in zoom-in-95 duration-300">
       {/* 顶栏控制 */}
-      <div className="flex items-center justify-between px-5 py-2.5 border-b border-white/5 bg-[#0a0a0a] shrink-0">
-        <div className="font-medium text-white/80 tracking-wide flex items-center gap-2 text-[15px]">
+      <div className="flex items-center justify-between px-5 py-2.5 border-b border-borderSubtle bg-main shrink-0">
+        <div className="font-medium text-textPrimary tracking-wide flex items-center gap-2 text-[15px]">
           <BrainCircuit size={18} className="text-primeAccent" /> 碎片的完整映射
         </div>
         <div className="flex gap-3">
@@ -141,11 +141,11 @@ export default function Detail({
 
       {/* 内容区 */}
       <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
-        <div className="flex-1 p-5 lg:p-6 overflow-y-auto custom-scrollbar lg:border-r border-white/5 bg-[#0a0a0a]">
+        <div className="flex-1 p-5 lg:p-6 overflow-y-auto custom-scrollbar lg:border-r border-borderSubtle bg-main">
           {/* AI 分析框架 */}
           <div className="mb-5">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-[11px] text-silverText/50 uppercase tracking-widest font-mono flex items-center gap-2 bg-white/[0.03] inline-flex px-3 py-1 rounded-full border border-white/5">
+              <h3 className="text-[11px] text-textSecondary uppercase tracking-widest font-mono flex items-center gap-2 bg-sidebar inline-flex px-3 py-1 rounded-full border border-borderSubtle">
                   <BrainCircuit size={12} /> AI 智能总结
               </h3>
               <div className="flex items-center gap-2">
@@ -162,11 +162,11 @@ export default function Detail({
                   value={selectedTemplateId} 
                   onChange={(e) => setSelectedTemplateId(e.target.value)}
                   disabled={isReprocessing}
-                  className="bg-black/30 border border-white/10 text-silverText/80 text-[11px] rounded px-2 py-1 outline-none focus:border-primeAccent/30"
+                  className="bg-sidebar border border-borderSubtle text-textSecondary text-[11px] rounded px-2 py-1 outline-none focus:border-primeAccent/30"
                 >
-                  <option value="" className="bg-[#1a1a1a] text-white/90">(默认激活模板)</option>
+                  <option value="" className="bg-header text-textPrimary">(默认激活模板)</option>
                   {templates.map(t => (
-                    <option key={t.id} value={t.id} className="bg-[#1a1a1a] text-white/90">{t.name} {t.is_active ? '(激活)' : ''}</option>
+                    <option key={t.id} value={t.id} className="bg-header text-textPrimary">{t.name} {t.is_active ? '(激活)' : ''}</option>
                   ))}
                 </select>
 
@@ -180,7 +180,7 @@ export default function Detail({
                 </button>
               </div>
             </div>
-            <div className="text-silverText/90 text-[14px] leading-relaxed font-normal bg-gradient-to-b from-white/[0.04] to-transparent px-4 py-3 rounded-xl border border-white/5 ai-summary-markdown">
+            <div className="text-textSecondary text-[14px] leading-relaxed font-normal bg-card px-4 py-3 rounded-xl border border-borderSubtle ai-summary-markdown">
               <MarkdownRenderer content={item.ai_summary || "暂无相关摘要..."} />
             </div>
           </div>
@@ -189,7 +189,7 @@ export default function Detail({
           <div className="mb-4">
             <div className="flex items-center justify-between border-b border-primeAccent/20 pb-2 mb-3">
               <h2 className="text-[11px] text-primeAccent uppercase tracking-[0.2em] font-bold flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-primeAccent animate-pulse shadow-[0_0_10px_rgba(var(--color-prime-accent),0.8)]"></span> 
+                <span className="w-1.5 h-1.5 rounded-full bg-primeAccent animate-pulse shadow-[0_0_10px_color-mix(in_srgb,var(--prime-accent),transparent_20%)]"></span> 
                 {item.original_url ? '源网页正文推断' : 'OCR 核心视觉提取文本'}
               </h2>
               
@@ -199,7 +199,7 @@ export default function Detail({
                     href={item.original_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1 bg-primeAccent/10 hover:bg-primeAccent/20 text-primeAccent transition-colors rounded-md text-[10px] font-mono border border-primeAccent/20 uppercase shadow-[0_0_10px_rgba(var(--color-prime-accent),0.1)]"
+                    className="flex items-center gap-1.5 px-3 py-1 bg-primeAccent/10 hover:bg-primeAccent/20 text-primeAccent transition-colors rounded-md text-[10px] font-mono border border-primeAccent/20 uppercase shadow-[0_0_10px_color-mix(in_srgb,var(--prime-accent),transparent_90%)]"
                     title="直达原文"
                   >
                     <ExternalLink size={12} /> 直达源网址
@@ -207,7 +207,7 @@ export default function Detail({
                 )}
                 <button
                   onClick={() => setIsRawMode(!isRawMode)}
-                  className="flex items-center gap-1.5 px-3 py-1 bg-white/5 hover:bg-white/10 text-silverText/80 hover:text-white transition-colors rounded-md text-[10px] font-mono border border-white/5 uppercase"
+                  className="flex items-center gap-1.5 px-3 py-1 bg-sidebar hover:bg-card text-textSecondary hover:text-textPrimary transition-colors rounded-md text-[10px] font-mono border border-borderSubtle uppercase"
                   title={isRawMode ? "切换为 Markdown 预览" : "查看原始提取文本"}
                 >
                   {isRawMode ? <><FileText size={12} /> 预览模式</> : <><Code size={12} /> RAW 模式</>}
@@ -215,13 +215,13 @@ export default function Detail({
               </div>
             </div>
             
-            <div className="text-white/95 text-[14px] leading-[1.7] tracking-wide bg-[#111] px-5 py-4 rounded-xl border border-primeAccent/10 selection:bg-primeAccent selection:text-black mt-1 shadow-inner">
+            <div className="text-textPrimary text-[14px] leading-[1.7] tracking-wide bg-modal px-5 py-4 rounded-xl border border-borderSubtle selection:bg-primeAccent selection:text-black mt-1 shadow-inner">
               {isRawMode ? (
                 <div className="relative group/edit">
                   <textarea 
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
-                    className="w-full min-h-[400px] outline-none bg-transparent resize-y whitespace-pre-wrap font-mono text-[13px] text-silverText/80 break-words custom-scrollbar"
+                    className="w-full min-h-[400px] outline-none bg-transparent resize-y whitespace-pre-wrap font-mono text-[13px] text-textSecondary break-words custom-scrollbar"
                     placeholder="未能提取到或尚未进行 OCR 文本识别..."
                   />
                   {editValue !== item.ocr_text && (
@@ -245,12 +245,12 @@ export default function Detail({
         </div>
 
         {/* 源侧边区 (分层结构，底部固定) */}
-        <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 bg-[#0f0f0f]/80 flex flex-col h-full relative border-l border-white/5">
+        <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 bg-panel/80 flex flex-col h-full relative border-l border-borderSubtle">
           {/* 上部可滚动元数据区 */}
           <div className="flex-1 overflow-y-auto p-5 custom-scrollbar scrollbar-hide flex flex-col gap-4">
             {/* 图像源展示 (缩小高度) */}
-            <div className="w-full h-[180px] shrink-0 bg-[#000] border border-white/5 rounded-2xl flex items-center justify-center relative overflow-hidden group shadow-[0_10px_30px_rgba(0,0,0,0.5)] text-center">
-            <div className="absolute top-3 left-3 bg-white/10 backdrop-blur-md px-2 py-0.5 rounded text-[10px] text-white/60 tracking-widest uppercase font-mono z-10 pointer-events-none border border-white/5 shadow-md">源视觉</div>
+            <div className="w-full h-[180px] shrink-0 bg-sidebar border border-borderSubtle rounded-2xl flex items-center justify-center relative overflow-hidden group shadow-lg shadow-black/10 dark:shadow-black/40 text-center">
+            <div className="absolute top-3 left-3 bg-modal/50 backdrop-blur-md px-2 py-0.5 rounded text-[10px] text-textSecondary tracking-widest uppercase font-mono z-10 pointer-events-none border border-borderSubtle shadow-md">源视觉</div>
             
             {item.file_type?.includes('image') ? (
               <img 
@@ -270,24 +270,24 @@ export default function Detail({
           {/* 底部元数据 */}
           <div className="shrink-0 flex flex-col gap-4">
             <div>
-              <div className="text-[10px] text-silverText/40 uppercase mb-2 font-mono flex items-center gap-2">语义印记 (Tags)</div>
+              <div className="text-[10px] text-textSecondary/50 uppercase mb-2 font-mono flex items-center gap-2">语义印记 (Tags)</div>
               <div className="flex flex-wrap gap-1.5 max-h-[80px] overflow-y-auto custom-scrollbar">
                 {item.ai_tags ? (
                   item.ai_tags.split(',').map((tag, idx) => (
-                    <span key={idx} className="bg-white/5 text-silverText/80 border border-white/10 px-2 py-1 rounded-md text-[11px] font-medium hover:bg-white/10 transition-colors cursor-default whitespace-nowrap">
+                    <span key={idx} className="bg-sidebar text-textSecondary border border-borderSubtle px-2 py-1 rounded-md text-[11px] font-medium hover:bg-card transition-colors cursor-default whitespace-nowrap">
                       #{tag.trim()}
                     </span>
                   ))
                 ) : (
-                  <span className="text-silverText/30 text-[11px] italic bg-white/5 px-2 py-1 rounded-md">无标签记录</span>
+                  <span className="text-textSecondary/30 text-[11px] italic bg-sidebar px-2 py-1 rounded-md">无标签记录</span>
                 )}
               </div>
             </div>
 
-            <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 space-y-4">
+            <div className="bg-card border border-borderSubtle rounded-xl p-4 space-y-4">
               <div>
-                <div className="text-[10px] text-silverText/40 uppercase mb-1 font-mono">初次记录落点时间</div>
-                <div className="text-silverText/80 text-[11px] font-mono bg-black/20 px-2 py-1 rounded inline-block">
+                <div className="text-[10px] text-textSecondary/50 uppercase mb-1 font-mono">初次记录落点时间</div>
+                <div className="text-textSecondary text-[11px] font-mono bg-sidebar px-2 py-1 rounded inline-block">
                   {item.created_at || item.CreatedAt ? new Date(item.created_at || item.CreatedAt).toLocaleString('zh-CN', { hour12: false }) : '未知时间'}
                 </div>
               </div>
@@ -295,7 +295,7 @@ export default function Detail({
             {/* 相关灵感发现 (Phase 4) */}
             {relatedItems.length > 0 && (
               <div className="pt-2 animate-in fade-in slide-in-from-top-2 duration-700">
-                <div className="text-[10px] text-silverText/40 uppercase mb-3 font-mono flex items-center gap-2">
+                <div className="text-[10px] text-textSecondary/50 uppercase mb-3 font-mono flex items-center gap-2">
                   <Link size={10} className="text-primeAccent" /> 相关灵感发现
                 </div>
                 <div className="space-y-2">
@@ -303,12 +303,12 @@ export default function Detail({
                     <div 
                       key={rel.id}
                       onClick={() => setSelectedItem(rel)}
-                      className="p-3 bg-white/[0.03] border border-white/5 rounded-xl hover:border-primeAccent/30 hover:bg-primeAccent/5 transition-all cursor-pointer group/rel"
+                      className="p-3 bg-sidebar border border-borderSubtle rounded-xl hover:border-primeAccent/30 hover:bg-primeAccent/5 transition-all cursor-pointer group/rel"
                     >
-                      <div className="text-[11px] text-white/50 group-hover/rel:text-white/80 transition-colors line-clamp-2 leading-snug">
+                      <div className="text-[11px] text-textSecondary/70 group-hover/rel:text-textPrimary transition-colors line-clamp-2 leading-snug">
                          {rel.ai_summary || rel.original_name}
                       </div>
-                      <div className="mt-2 text-[9px] font-mono text-silverText/20 group-hover/rel:text-primeAccent/50 transition-colors">
+                      <div className="mt-2 text-[9px] font-mono text-textSecondary/20 group-hover/rel:text-primeAccent/50 transition-colors">
                          {new Date(rel.created_at || rel.CreatedAt).toLocaleDateString()}
                       </div>
                     </div>
@@ -342,15 +342,15 @@ export default function Detail({
         </div>
 
         {/* 底部固定批注与标记已读区 */}
-        <div className="p-5 border-t border-white/10 bg-[#0c0c0c] shrink-0 flex flex-col gap-3">
-            <div className="text-[10px] text-silverText/40 uppercase font-mono flex items-center gap-2">
+        <div className="p-5 border-t border-borderSubtle bg-card shrink-0 flex flex-col gap-3">
+            <div className="text-[10px] text-textSecondary/50 uppercase font-mono flex items-center gap-2">
               <ClipboardEdit size={10} className="text-primeAccent" /> 手动批注与回响
             </div>
             <textarea
               value={annotation}
               onChange={(e) => setAnnotation(e.target.value)}
               placeholder="在此记录你的对此碎片的深度思考或执行备忘..."
-              className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-[12px] text-white/80 focus:outline-none focus:border-primeAccent/30 min-h-[100px] resize-none transition-all"
+              className="w-full bg-sidebar border border-borderSubtle rounded-xl p-3 text-[12px] text-textPrimary focus:outline-none focus:border-primeAccent/30 min-h-[100px] resize-none transition-all"
             />
             <button
               onClick={async () => {
@@ -361,7 +361,7 @@ export default function Detail({
               disabled={isSubmittingStatus}
               className={`w-full py-3 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all ${item.status === 'done'
                   ? 'bg-green-500/20 text-green-400 border border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.1)]'
-                  : 'bg-primeAccent text-black hover:bg-primeAccent/90 shadow-[0_0_20px_rgba(var(--color-prime-accent),0.3)]'
+                  : 'bg-primeAccent text-black hover:bg-primeAccent/90 shadow-[0_0_20px_color-mix(in_srgb,var(--prime-accent),transparent_70%)]'
                 }`}
             >
               {isSubmittingStatus ? (

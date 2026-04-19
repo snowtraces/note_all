@@ -247,11 +247,11 @@ export default function GraphView({ onNodeClick, onClose, data: initialData, onD
   }, [onNodeClick]);
 
   return (
-    <div className="w-full h-full relative bg-[#161616] overflow-hidden" ref={containerRef}>
+    <div className="w-full h-full relative bg-base0 overflow-hidden" ref={containerRef}>
         
         {/* 全屏加载指示器，取代原本粗暴的 return 拦截从而保护下方容器能被 ResizeObserver 检测 */}
         {loading && graphData.nodes.length === 0 && (
-            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center text-silverText/60 bg-[#161616]">
+            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center text-silverText/60 bg-base0">
                 <BrainCircuit size={48} className="animate-spin mb-4 text-[#4caf50]/40" />
                 <span className="text-sm tracking-widest uppercase">Initializing Canvas...</span>
             </div>

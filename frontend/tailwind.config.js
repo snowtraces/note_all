@@ -7,11 +7,27 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primeBase: '#0b0c10',     // 极暗色主底
-        primePanel: '#1f2833',    // 深灰色稍微高光浮层
-        primeAccent: '#66fcf1',   // 高贵的赛博青
-        primeAccentDim: '#45a29e',// 青色降阶
-        silverText: '#c5c6c7',    // 白银字符，防刺眼
+        // 使用 CSS 变量实现多主题切换
+        primeBase: 'var(--prime-base)',
+        primePanel: 'var(--prime-panel)',
+        primeAccent: 'color-mix(in srgb, var(--prime-accent), transparent calc(100% - <alpha-value> * 100%))',
+        primeAccentDim: 'var(--prime-accent-dim)',
+        silverText: 'color-mix(in srgb, var(--silver-text), transparent calc(100% - <alpha-value> * 100%))',
+        // 语义化背景色
+        base: 'var(--bg-base)',
+        main: 'var(--bg-main)',
+        sidebar: 'var(--bg-sidebar)',
+        card: 'var(--bg-card)',
+        panel: 'var(--bg-panel)',
+        modal: 'var(--bg-modal)',
+        header: 'var(--bg-header)',
+        code: 'var(--bg-code)',
+        codeHeader: 'var(--bg-code-header)',
+        graph: 'var(--bg-graph)',
+        // 文字颜色
+        textPrimary: 'var(--text-primary)',
+        textSecondary: 'var(--text-secondary)',
+        borderSubtle: 'var(--border-subtle)',
       },
       fontFamily: {
         sans: ['"Inter"', 'system-ui', '"PingFang SC"', '"Microsoft YaHei"', 'sans-serif'], // 理工科极简美学排版

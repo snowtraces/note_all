@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
     X,
-    Beaker,
     Wand2,
     Save,
     Trash2,
@@ -224,42 +223,17 @@ export default function LabView({
 
     /* ---------------- empty state ---------------- */
 
-    if (basket.length === 0 && !result) {
-        return (
-            <div className="flex-1 flex flex-col items-center justify-center bg-[#080808] p-10 text-center">
 
-                <div className="w-20 h-20 rounded-full bg-primeAccent/10 flex items-center justify-center mb-6 animate-pulse">
-                    <Beaker size={40} className="text-primeAccent/40" />
-                </div>
-
-                <h2 className="text-xl font-bold text-white mb-2">
-                    实验室目前是空的
-                </h2>
-
-                <p className="text-silverText/40 max-w-md">
-                    请先在主界面挑选一些碎片加入实验室。
-                </p>
-
-                <button
-                    onClick={onClose}
-                    className="mt-8 px-6 py-2 bg-white/5 border border-white/10 rounded-full text-sm hover:bg-white/10 transition-all"
-                >
-                    返回素材区
-                </button>
-
-            </div>
-        );
-    }
 
     /* ---------------- UI ---------------- */
 
     return (
 
-        <div className="h-full w-full flex flex-col bg-[#050505] overflow-hidden">
+        <div className="h-full w-full flex flex-col bg-base overflow-hidden">
 
             {/* Header */}
 
-            <div className="flex items-center justify-between px-8 py-4 border-b border-white/5 bg-[#080808]/80 backdrop-blur">
+            <div className="flex items-center justify-between px-8 py-4 border-b border-white/5 bg-sidebar/80 backdrop-blur">
 
                 <div className="flex items-center gap-3">
 
@@ -377,7 +351,7 @@ export default function LabView({
 
                 {/* Result */}
 
-                <div className="flex-1 min-w-0 bg-[#080808] flex flex-col">
+                <div className="flex-1 min-w-0 bg-sidebar flex flex-col">
 
                     {result ? (
 

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check, Plus, Trash2, Edit2, AlertCircle, Cpu, FileText, RefreshCw, Database, Zap, Loader2 } from 'lucide-react';
+import { X, Check, Plus, Trash2, Edit2, AlertCircle, Cpu, FileText, RefreshCw, Database, Zap, Loader2, Palette, Sun, Moon } from 'lucide-react';
 import { getTemplates, createTemplate, updateTemplate, deleteTemplate, setActiveTemplate } from '../api/templateApi';
 import { getEmbeddingStatus, rebuildEmbeddings } from '../api/systemApi';
+import { useTheme, MODES } from '../context/ThemeContext';
 
 const TABS = [
+  { id: 'appearance', label: '外观', icon: Palette },
   { id: 'templates', label: 'AI 模板', icon: FileText },
   { id: 'vector', label: '向量引擎', icon: Cpu },
 ];
@@ -15,6 +17,8 @@ function TemplatesTab() {
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [formData, setFormData] = useState({ name: '', system_prompt: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { mode } = useTheme();
+  const isLight = mode === 'light';
 
   useEffect(() => { loadTemplates(); }, []);
 
@@ -77,8 +81,10 @@ function TemplatesTab() {
   return (
     <div className="flex flex-1 overflow-hidden min-h-[400px]">
       {/* List Sidebar */}
-      <div className="w-1/3 border-r border-white/5 bg-[#0a0a0a] flex flex-col p-4 gap-3 overflow-y-auto custom-scrollbar">
-        <div className="text-[11px] font-mono text-silverText/40 uppercase tracking-widest pl-2 mb-1 flex justify-between items-center">
+      <div
+        style={{ backgroundColor: isLight ? '#f8fafc' : 'var(--bg-sidebar)' }}
+        className={`w-1/3 border-r flex flex-col p-4 gap-3 overflow-y-auto custom-scrollbar backdrop-blur ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
+        <div className={`text-[11px] font-mono uppercase tracking-widest pl-2 mb-1 flex justify-between items-center ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>
           <span>可用模板</span>
           <button
             onClick={() => {
@@ -94,12 +100,14 @@ function TemplatesTab() {
         </div>
 
         {loading ? (
-          <div className="text-center text-sm py-10 text-silverText/40 animate-pulse">加载中...</div>
+          <div className={`text-center text-sm py-10 animate-pulse ${isLight ? 'text-slate-400' : 'text-silverText/40'}`}>加载中...</div>
         ) : templates.map(t => (
           <div
             key={t.id}
             className={`group p-3 rounded-xl border cursor-pointer transition-all flex flex-col gap-2 relative ${
-              editingTemplate?.id === t.id ? 'bg-white/10 border-white/20' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05]'
+              editingTemplate?.id === t.id
+                ? isLight ? 'bg-slate-100 border-slate-300' : 'bg-white/10 border-white/20'
+                : isLight ? 'bg-white border-slate-200 hover:bg-slate-50' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05]'
             }`}
             onClick={() => {
               setEditingTemplate(t);
@@ -107,9 +115,9 @@ function TemplatesTab() {
             }}
           >
             <div className="flex items-center justify-between pr-8">
-              <div className="font-medium text-white/90 text-[14px] flex items-center gap-2">
+              <div className={`font-medium text-[14px] flex items-center gap-2 ${isLight ? 'text-slate-800' : 'text-white/90'}`}>
                 {t.name}
-                {t.is_builtin && <span className="text-[9px] bg-white/10 px-1.5 py-0.5 rounded text-silverText/60">内置</span>}
+                {t.is_builtin && <span className={`text-[9px] px-1.5 py-0.5 rounded ${isLight ? 'bg-slate-200 text-slate-500' : 'bg-white/10 text-silverText/60'}`}>内置</span>}
               </div>
             </div>
 
@@ -121,14 +129,14 @@ function TemplatesTab() {
               ) : (
                 <button
                   onClick={(e) => { e.stopPropagation(); handleSetActive(t.id); }}
-                  className="text-[10px] opacity-0 group-hover:opacity-100 bg-white/10 hover:bg-white/20 text-white/80 px-2 py-0.5 rounded-full transition-all"
+                  className={`text-[10px] opacity-0 group-hover:opacity-100 px-2 py-0.5 rounded-full transition-all ${isLight ? 'bg-slate-200 hover:bg-slate-300 text-slate-600' : 'bg-white/10 hover:bg-white/20 text-white/80'}`}
                 >
                   使用
                 </button>
               )}
             </div>
 
-            <div className="text-[12px] text-silverText/40 line-clamp-2 pr-2">
+            <div className={`text-[12px] line-clamp-2 pr-2 ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>
               {t.system_prompt}
             </div>
           </div>
@@ -136,11 +144,13 @@ function TemplatesTab() {
       </div>
 
       {/* Edit Panel */}
-      <div className="flex-1 bg-[#111] p-6 flex flex-col">
+      <div
+        style={{ backgroundColor: 'var(--bg-modal)' }}
+        className={`flex-1 p-6 flex flex-col backdrop-blur`}>
         {editingTemplate !== null ? (
           <div className="flex flex-col h-full gap-5">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white/90">
+              <h3 className={`text-lg font-semibold ${isLight ? 'text-slate-800' : 'text-white/90'}`}>
                 {editingTemplate.id ? '编辑模板' : '创建新模板'}
               </h3>
               {editingTemplate.id && !editingTemplate.is_builtin && (
@@ -161,19 +171,19 @@ function TemplatesTab() {
             )}
 
             <div className="flex flex-col gap-2">
-              <label className="text-[13px] text-silverText/60 font-medium">模板名称</label>
+              <label className={`text-[13px] font-medium ${isLight ? 'text-slate-600' : 'text-silverText/60'}`}>模板名称</label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                 disabled={editingTemplate.is_builtin}
-                className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:border-primeAccent/50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`rounded-xl px-4 py-3 text-sm focus:border-primeAccent/50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${isLight ? 'bg-slate-50 border border-slate-200 text-slate-800' : 'bg-[var(--input-bg)] border border-[var(--glass-border)] text-white'}`}
                 placeholder="例如：论文阅读理解"
               />
             </div>
 
             <div className="flex flex-col gap-2 flex-1 min-h-0">
-              <label className="text-[13px] text-silverText/60 font-medium flex justify-between">
+              <label className={`text-[13px] font-medium flex justify-between ${isLight ? 'text-slate-600' : 'text-silverText/60'}`}>
                 <span>提示词内容 (System Prompt)</span>
                 <span className="text-[11px] text-primeAccent/70 font-mono hidden md:inline">建议必须保留 JSON 输出约束，以确保数据格式化</span>
               </label>
@@ -181,13 +191,13 @@ function TemplatesTab() {
                 value={formData.system_prompt}
                 onChange={(e) => setFormData(prev => ({ ...prev, system_prompt: e.target.value }))}
                 disabled={editingTemplate.is_builtin}
-                className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-[13px] font-mono leading-relaxed text-white focus:border-primeAccent/50 focus:outline-none flex-1 resize-none disabled:opacity-50 disabled:cursor-not-allowed custom-scrollbar"
+                className={`rounded-xl px-4 py-3 text-[13px] font-mono leading-relaxed focus:border-primeAccent/50 focus:outline-none flex-1 resize-none disabled:opacity-50 disabled:cursor-not-allowed custom-scrollbar ${isLight ? 'bg-slate-50 border border-slate-200 text-slate-800' : 'bg-[var(--input-bg)] border border-[var(--glass-border)] text-white'}`}
                 placeholder="请输入大模型的 System Prompt 定义..."
               />
             </div>
 
             {!editingTemplate.is_builtin && (
-              <div className="flex justify-end pt-2 border-t border-white/5">
+              <div className={`flex justify-end pt-2 border-t ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
                 <button
                   onClick={handleCreateOrUpdate}
                   disabled={isSubmitting}
@@ -199,7 +209,7 @@ function TemplatesTab() {
             )}
           </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-silverText/30 gap-4 opacity-50">
+          <div className={`flex-1 flex flex-col items-center justify-center gap-4 opacity-50 ${isLight ? 'text-slate-400' : 'text-silverText/30'}`}>
             <Edit2 size={48} strokeWidth={1} />
             <p className="text-sm">在左侧选择一个模板进行查看或编辑，或点击新建</p>
           </div>
@@ -214,6 +224,8 @@ function VectorTab() {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [rebuilding, setRebuilding] = useState(false);
+  const { mode } = useTheme();
+  const isLight = mode === 'light';
 
   const loadStatus = async () => {
     try {
@@ -245,7 +257,7 @@ function VectorTab() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-silverText/40 animate-pulse">
+      <div className={`flex-1 flex items-center justify-center animate-pulse ${isLight ? 'text-slate-400' : 'text-silverText/40'}`}>
         加载中...
       </div>
     );
@@ -261,8 +273,8 @@ function VectorTab() {
 
         {/* Status Cards */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-white/[0.03] border border-white/5 rounded-xl p-5">
-            <div className="text-[11px] text-silverText/40 uppercase tracking-wider mb-3 font-mono">向量扩展</div>
+          <div className={`rounded-xl p-5 ${isLight ? 'bg-slate-50 border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
+            <div className={`text-[11px] uppercase tracking-wider mb-3 font-mono ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>向量扩展</div>
             <div className="flex items-center gap-3">
               {status?.vector_ext ? (
                 <>
@@ -278,34 +290,34 @@ function VectorTab() {
             </div>
           </div>
 
-          <div className="bg-white/[0.03] border border-white/5 rounded-xl p-5">
-            <div className="text-[11px] text-silverText/40 uppercase tracking-wider mb-3 font-mono">Embedding 模型</div>
+          <div className={`rounded-xl p-5 ${isLight ? 'bg-slate-50 border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
+            <div className={`text-[11px] uppercase tracking-wider mb-3 font-mono ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>Embedding 模型</div>
             <div className="flex items-center gap-2">
               <Zap size={14} className="text-primeAccent" />
-              <span className="text-white/80 text-sm font-mono">{status?.model_id || '-'}</span>
+              <span className={`text-sm font-mono ${isLight ? 'text-slate-700' : 'text-white/80'}`}>{status?.model_id || '-'}</span>
             </div>
           </div>
         </div>
 
         {/* Chunk Progress Card */}
-        <div className="bg-white/[0.03] border border-white/5 rounded-xl p-5 space-y-4">
+        <div className={`rounded-xl p-5 space-y-4 ${isLight ? 'bg-slate-50 border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
           <div className="flex items-center justify-between">
-            <div className="text-[11px] text-silverText/40 uppercase tracking-wider font-mono">分片向量索引</div>
-            <span className="text-white/60 text-sm font-mono">
+            <div className={`text-[11px] uppercase tracking-wider font-mono ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>分片向量索引</div>
+            <span className={`text-sm font-mono ${isLight ? 'text-slate-600' : 'text-white/60'}`}>
               {status?.chunk_count ?? 0} 个分片 / {status?.note_count ?? 0} 篇笔记
             </span>
           </div>
-          <div className="text-[13px] text-silverText/60">
+          <div className={`text-[13px] ${isLight ? 'text-slate-500' : 'text-silverText/60'}`}>
             平均每篇 {chunkPerNote} 个分片 · 粒度 {status?.chunk_max_size || 500} 字 · 上下文限制 {status?.rag_context_limit || 12000} 字
           </div>
         </div>
 
         {/* Rebuild Action */}
-        <div className="bg-white/[0.03] border border-white/5 rounded-xl p-5 space-y-4">
+        <div className={`rounded-xl p-5 space-y-4 ${isLight ? 'bg-slate-50 border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
           <div className="flex items-start justify-between">
             <div>
-              <h4 className="text-white/90 font-medium text-[15px] mb-1.5">全量重建向量索引</h4>
-              <p className="text-[13px] text-silverText/40 leading-relaxed">
+              <h4 className={`font-medium text-[15px] mb-1.5 ${isLight ? 'text-slate-800' : 'text-white/90'}`}>全量重建向量索引</h4>
+              <p className={`text-[13px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>
                 清空并重建文档向量 + 分片向量索引。<br />
                 适用于切换模型、修复数据不一致等场景。
               </p>
@@ -317,7 +329,7 @@ function VectorTab() {
             disabled={rebuilding}
             className={`w-full flex items-center justify-center gap-2.5 py-3 rounded-xl font-semibold text-sm transition-all ${
               rebuilding
-                ? 'bg-white/5 text-silverText/40 cursor-not-allowed'
+                ? isLight ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/5 text-silverText/40 cursor-not-allowed'
                 : 'bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 border border-primeAccent/20'
             }`}
           >
@@ -340,16 +352,113 @@ function VectorTab() {
   );
 }
 
+// ============ Tab: 外观设置 ============
+function AppearanceTab() {
+  const { theme, mode, setTheme, setMode, themes } = useTheme();
+  const isLight = mode === 'light';
+
+  return (
+    <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
+      <div className="max-w-xl mx-auto space-y-8">
+        {/* 配色风格选择 */}
+        <div>
+          <h3 className={`text-[13px] font-mono uppercase tracking-wider mb-4 ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>配色风格</h3>
+          <div className="grid grid-cols-3 gap-4">
+            {themes.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTheme(t.id)}
+                className={`group relative p-4 rounded-xl border transition-all ${
+                  theme === t.id
+                    ? isLight ? 'bg-slate-100 border-slate-300 ring-2 ring-[var(--prime-accent)]' : 'bg-white/10 border-white/20 ring-2 ring-[var(--prime-accent)]'
+                    : isLight ? 'bg-white border-slate-200 hover:bg-slate-50' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10'
+                }`}
+              >
+                {/* 预览色块 */}
+                <div className="flex items-center justify-center mb-3">
+                  <div
+                    className="w-12 h-12 rounded-lg shadow-lg"
+                    style={{
+                      background: `linear-gradient(135deg, ${t.accent}, ${t.accent}88)`,
+                      boxShadow: `0 4px 12px ${t.accent}40`,
+                    }}
+                  />
+                </div>
+                {/* 名称 */}
+                <div className="text-center">
+                  <div className={`text-[14px] font-medium ${isLight ? 'text-slate-800' : 'text-white/90'}`}>{t.name}</div>
+                  <div className={`text-[11px] mt-1 ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>{t.description}</div>
+                </div>
+                {/* 激活指示 */}
+                {theme === t.id && (
+                  <div className="absolute top-2 right-2">
+                    <Check size={14} className="text-[var(--prime-accent)]" />
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 亮度模式切换 */}
+        <div>
+          <h3 className={`text-[13px] font-mono uppercase tracking-wider mb-4 ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>亮度模式</h3>
+          <div className="flex gap-4">
+            <button
+              onClick={() => setMode('dark')}
+              className={`flex items-center gap-3 px-5 py-3 rounded-xl border transition-all ${
+                mode === 'dark'
+                  ? isLight ? 'bg-slate-100 border-slate-300 ring-2 ring-[var(--prime-accent)]' : 'bg-white/10 border-white/20 ring-2 ring-[var(--prime-accent)]'
+                  : isLight ? 'bg-white border-slate-200 hover:bg-slate-50' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05]'
+              }`}
+            >
+              <Moon size={18} className={isLight ? 'text-slate-500' : 'text-silverText/60'} />
+              <span className={`text-[14px] font-medium ${isLight ? 'text-slate-800' : 'text-white/90'}`}>暗色模式</span>
+              {mode === 'dark' && <Check size={14} className="text-[var(--prime-accent)]" />}
+            </button>
+            <button
+              onClick={() => setMode('light')}
+              className={`flex items-center gap-3 px-5 py-3 rounded-xl border transition-all ${
+                mode === 'light'
+                  ? isLight ? 'bg-slate-100 border-slate-300 ring-2 ring-[var(--prime-accent)]' : 'bg-white/10 border-white/20 ring-2 ring-[var(--prime-accent)]'
+                  : isLight ? 'bg-white border-slate-200 hover:bg-slate-50' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05]'
+              }`}
+            >
+              <Sun size={18} className={isLight ? 'text-slate-500' : 'text-silverText/60'} />
+              <span className={`text-[14px] font-medium ${isLight ? 'text-slate-800' : 'text-white/90'}`}>亮色模式</span>
+              {mode === 'light' && <Check size={14} className="text-[var(--prime-accent)]" />}
+            </button>
+          </div>
+        </div>
+
+        {/* 当前配置显示 */}
+        <div className={`rounded-xl p-4 ${isLight ? 'bg-slate-50 border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
+          <div className={`text-[11px] uppercase tracking-wider mb-2 font-mono ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>当前配置</div>
+          <div className={`text-[13px] ${isLight ? 'text-slate-700' : 'text-white/80'}`}>
+            {themes.find(t => t.id === theme)?.name} · {MODES.find(m => m.id === mode)?.name}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ============ Main Settings Modal ============
 export default function SettingsModal({ onClose }) {
-  const [activeTab, setActiveTab] = useState('templates');
+  const [activeTab, setActiveTab] = useState('appearance');
+  const { mode } = useTheme();
+  const isLight = mode === 'light';
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-[#111] border border-white/10 rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div
+        style={{ backgroundColor: 'var(--bg-modal)' }}
+        className={`backdrop-blur-xl border rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
 
         {/* Header with Tabs */}
-        <div className="flex items-center justify-between px-6 py-3 border-b border-white/5 bg-[#1a1a1a]">
+        <div
+          style={{ backgroundColor: 'var(--bg-header)' }}
+          className={`flex items-center justify-between px-6 py-3 border-b backdrop-blur ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
           <div className="flex items-center gap-1">
             {TABS.map(tab => (
               <button
@@ -357,8 +466,8 @@ export default function SettingsModal({ onClose }) {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all ${
                   activeTab === tab.id
-                    ? 'bg-white/10 text-white'
-                    : 'text-silverText/50 hover:text-white/80 hover:bg-white/5'
+                    ? isLight ? 'bg-slate-200 text-slate-800' : 'bg-white/10 text-white'
+                    : isLight ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-100' : 'text-silverText/50 hover:text-white/80 hover:bg-white/5'
                 }`}
               >
                 <tab.icon size={15} />
@@ -366,13 +475,14 @@ export default function SettingsModal({ onClose }) {
               </button>
             ))}
           </div>
-          <button onClick={onClose} className="p-2 text-silverText/50 hover:text-white rounded-lg hover:bg-white/5 transition-colors">
+          <button onClick={onClose} className={`p-2 rounded-lg transition-colors ${isLight ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-100' : 'text-silverText/50 hover:text-white hover:bg-white/5'}`}>
             <X size={20} />
           </button>
         </div>
 
         {/* Tab Content */}
         <div className="flex flex-1 overflow-hidden min-h-[400px]">
+          {activeTab === 'appearance' && <AppearanceTab />}
           {activeTab === 'templates' && <TemplatesTab />}
           {activeTab === 'vector' && <VectorTab />}
         </div>

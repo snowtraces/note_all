@@ -60,7 +60,7 @@ export default function ShareModal({ item, onClose }) {
       />
 
       {/* Modal Content */}
-      <div className="relative w-full max-w-lg bg-[#0f0f0f] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+      <div className="relative w-full max-w-lg bg-panel border border-white/10 rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
         <div className="px-8 pt-8 pb-6 border-b border-white/5 bg-white/[0.02]">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-xl font-light tracking-widest text-white uppercase flex items-center gap-3">

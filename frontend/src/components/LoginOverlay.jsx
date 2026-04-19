@@ -25,7 +25,7 @@ const LoginOverlay = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-[#050505] flex items-center justify-center p-6 font-sans">
+    <div className="fixed inset-0 z-[9999] bg-base flex items-center justify-center p-6 font-sans">
       {/* Background Decorative Elements */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primeAccent/5 rounded-full blur-[120px] pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primeAccent/5 rounded-full blur-[120px] pointer-events-none"></div>

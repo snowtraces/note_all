@@ -32,7 +32,7 @@ export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipity
 
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-start py-8 text-silverText/20 bg-[#080808] relative overflow-y-auto custom-scrollbar">
+    <div className="w-full h-full flex flex-col items-center justify-start py-8 text-silverText/20 bg-sidebar relative overflow-y-auto custom-scrollbar">
       {/* 背景光晕 */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primeAccent/5 rounded-full blur-[100px] pointer-events-none" />
 
@@ -41,16 +41,16 @@ export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipity
         <div className="w-12 h-12 mb-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] flex items-center justify-center shadow-xl">
           <BrainCircuit size={22} className="text-primeAccent/30" />
         </div>
-        <h2 className="text-lg tracking-wide mb-1 opacity-60 text-white uppercase font-mono">Note All AI</h2>
-        <p className="text-[11px] font-mono opacity-35 text-center leading-relaxed mb-6 tracking-widest uppercase">
+        <h2 className="text-lg tracking-wide mb-1 text-textPrimary uppercase font-mono">Note All AI</h2>
+        <p className="text-[11px] font-mono text-textSecondary/60 text-center leading-relaxed mb-6 tracking-widest uppercase">
           碎片随手记 · AI 即刻懂
         </p>
 
         {/* ================= Ask AI 大搜索框 ================= */}
         <div className="w-full max-w-xl relative group mb-8">
           <div className="absolute -inset-[1px] bg-gradient-to-r from-primeAccent/30 via-primeAccent/10 to-transparent rounded-2xl blur-md opacity-20 group-hover:opacity-40 transition-opacity duration-500"></div>
-          <div className="relative flex items-center bg-black/50 border border-white/10 rounded-2xl px-5 h-[60px] w-full shadow-2xl focus-within:border-primeAccent/60 focus-within:bg-black/80 transition-all duration-300">
-            <Sparkles size={18} className="text-primeAccent/70 mr-3 shrink-0" />
+          <div className="relative flex items-center bg-card border border-borderSubtle rounded-2xl px-5 h-[62px] w-full shadow-2xl focus-within:border-primeAccent/50 focus-within:ring-4 focus-within:ring-primeAccent/5 transition-all duration-300">
+            <Sparkles size={18} className="text-primeAccent mr-3 shrink-0 opacity-60 group-focus-within:opacity-100 transition-opacity" />
             <input
               type="text"
               value={askInput}
@@ -62,7 +62,7 @@ export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipity
                 }
               }}
               placeholder="向 AI 咨询关于你的笔记内容..."
-              className="flex-1 bg-transparent border-none outline-none text-[15px] text-white placeholder-silverText/30 tracking-wide"
+              className="flex-1 bg-transparent border-none outline-none text-[15px] text-textPrimary placeholder-textSecondary/40 tracking-wide"
             />
             {askInput.trim() && (
               <button 
@@ -82,11 +82,11 @@ export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipity
         {serendipity && (
           <div className="w-full mb-8 animate-in fade-in slide-in-from-bottom-4 duration-1200 cursor-default">
             
-            <div className="bg-gradient-to-br from-black/80 to-[#111] border border-white/5 rounded-2xl p-px relative overflow-hidden group shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+            <div className="bg-gradient-to-br from-borderSubtle to-transparent border border-borderSubtle rounded-2xl p-px relative overflow-hidden group shadow-xl">
                {/* 边缘细微的高亮线条效果 */}
               <div className="absolute inset-x-0 -top-px h-px w-full bg-gradient-to-r from-transparent via-primeAccent/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
               
-              <div className="bg-[#050505]/95 backdrop-blur-xl rounded-[15px] p-5 md:p-6 relative z-10 flex flex-col gap-4">
+              <div className="bg-card backdrop-blur-xl rounded-[15px] p-5 md:p-6 relative z-10 flex flex-col gap-4">
                 
                 {/* 装饰水印 */}
                 <div className="absolute top-6 right-6 p-4 opacity-[0.05] sm:opacity-[0.08] -rotate-12 group-hover:rotate-0 transition-transform duration-700 pointer-events-none text-white">
@@ -100,8 +100,8 @@ export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipity
                        <Inbox size={14} className="text-primeAccent" />
                     </div>
                     <div>
-                      <h3 className="text-[12px] font-mono text-silverText/90 tracking-widest uppercase font-medium">待处理灵感</h3>
-                      <p className="text-[9px] text-silverText/40 uppercase tracking-wider">检阅碎片 · 转化为常驻记忆</p>
+                      <h3 className="text-[12px] font-mono text-textPrimary tracking-widest uppercase font-medium">待处理灵感</h3>
+                      <p className="text-[9px] text-textSecondary/40 uppercase tracking-wider">检阅碎片 · 转化为常驻记忆</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -115,7 +115,7 @@ export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipity
                             >
                               <ChevronLeft size={14} />
                             </button>
-                            <span className="text-[10px] font-mono text-silverText/40 min-w-[36px] text-center">
+                            <span className="text-[10px] font-mono text-textSecondary/60 min-w-[36px] text-center">
                               {page} / {Math.ceil(serendipityData.total / 9)}
                             </span>
                             <button 
@@ -144,7 +144,7 @@ export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipity
                         <div 
                           key={ref.id}
                           onClick={() => onItemClick?.(ref)}
-                          className="flex flex-col gap-2 p-4 rounded-xl bg-white/[0.03] border border-white/10 hover:border-primeAccent/40 hover:bg-primeAccent/5 transition-all cursor-pointer group/ref shadow-md h-full min-h-[130px] relative"
+                          className="flex flex-col gap-2 p-4 rounded-xl bg-transparent border border-borderSubtle hover:border-primeAccent/50 hover:bg-primeAccent/5 transition-all cursor-pointer group/ref h-full min-h-[130px] relative"
                         >
                           {/* 加入 Lab 按钮 */}
                           <button 
@@ -152,7 +152,7 @@ export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipity
                             className={`absolute top-3 right-3 p-1.5 rounded-lg border transition-all ${
                                 labBasket.includes(ref.id) 
                                 ? 'bg-primeAccent/20 border-primeAccent/40 text-primeAccent shadow-[0_0_10px_rgba(255,215,0,0.2)]' 
-                                : 'bg-white/5 border-white/5 text-silverText/20 hover:text-silverText/60 hover:bg-white/10'
+                                : 'bg-sidebar border-borderSubtle text-textSecondary/30 hover:text-textPrimary hover:bg-card'
                             }`}
                             title="加入实验室合成篮"
                           >
@@ -160,12 +160,12 @@ export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipity
                           </button>
 
                           <div className="flex items-center mb-1">
-                            <span className="text-[9px] text-silverText/30 font-mono tracking-wider group-hover/ref:text-primeAccent/60 transition-colors bg-white/5 px-1.5 py-0.5 rounded leading-none">
+                            <span className="text-[9px] text-textSecondary font-mono tracking-wider group-hover/ref:text-primeAccent/60 transition-colors bg-sidebar px-1.5 py-0.5 rounded leading-none border border-borderSubtle">
                               {ref.created_at || ref.CreatedAt ? new Date(ref.created_at || ref.CreatedAt).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }) : '未知时间'}
                             </span>
                           </div>
 
-                          <div className="text-[12.5px] text-silverText/80 leading-relaxed line-clamp-2 group-hover/ref:text-white transition-colors flex-1 pr-6">
+                          <div className="text-[12.5px] text-textSecondary/80 leading-relaxed line-clamp-2 group-hover/ref:text-textPrimary transition-colors flex-1 pr-6">
                             {ref.ai_summary || ref.original_name}
                           </div>
 

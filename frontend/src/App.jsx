@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import 'katex/dist/katex.min.css';
 import './index.css';
-import { Search, BrainCircuit, X, MessageSquare, BookOpen, FlaskConical } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 import { getTrash, searchNotes, deleteNote, restoreNote, uploadNote, createTextNote, updateNoteText, updateNoteStatus, askAI, getChatMessages, batchArchiveNotes } from './api/noteApi';
 import { useDataPoller } from './hooks/useDataPoller';
 import Sidebar from './components/Sidebar';
@@ -16,7 +16,7 @@ import NavRail from './components/NavRail';
 import LoginOverlay from './components/LoginOverlay';
 import PublicSharePage from './components/PublicSharePage';
 import WeixinView from './components/WeixinView';
-import { checkAuth, getAuthToken } from './api/authApi';
+import { checkAuth } from './api/authApi';
 
 function App() {
   const [query, setQuery] = useState('');
@@ -294,7 +294,7 @@ function App() {
 
   if (isAuthChecking) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-[#050505]">
+      <div className="h-screen w-full flex items-center justify-center bg-base">
          <div className="w-10 h-10 border-4 border-primeAccent/20 border-t-primeAccent animate-spin rounded-full"></div>
       </div>
     );
@@ -305,7 +305,7 @@ function App() {
   }
 
   return (
-    <div className="h-screen w-full flex bg-[#0a0a0a] text-white overflow-hidden font-sans">
+    <div className="h-screen w-full flex bg-main text-white overflow-hidden font-sans">
       <NavRail 
         viewMode={viewMode}
         setViewMode={setViewMode}
@@ -341,9 +341,9 @@ function App() {
       />
 
       {/* 右侧面板 */}
-      <div className="flex-1 flex flex-col bg-[#050505] relative overflow-hidden">
+      <div className="flex-1 flex flex-col bg-base relative overflow-hidden">
         {selectedItem && (
-          <div className="absolute inset-0 z-50 bg-[#050505]">
+          <div className="absolute inset-0 z-50 bg-base">
             <Detail
               item={selectedItem}
               showTrash={showTrash}
@@ -396,9 +396,9 @@ function App() {
 
         {!selectedItem && viewMode !== 'graph' && (
           chatHistory.length > 0 && viewMode === 'chats' ? (
-            <div className="w-full h-full flex flex-col bg-[#080808]">
+            <div className="w-full h-full flex flex-col bg-sidebar">
               {/* 顶栏 */}
-              <div className="flex items-center justify-between px-10 py-5 border-b border-white/5 bg-[#080808]/80 backdrop-blur shrink-0 z-20">
+              <div className="flex items-center justify-between px-10 py-5 border-b border-white/5 bg-sidebar/80 backdrop-blur shrink-0 z-20">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-primeAccent/20 flex items-center justify-center border border-primeAccent/30 shadow-[0_0_10px_rgba(255,215,0,0.1)]">
                     <span className="text-sm">🤖</span>

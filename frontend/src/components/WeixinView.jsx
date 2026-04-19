@@ -81,7 +81,7 @@ export default function WeixinView({ active }) {
 
     if (status === 'confirmed' && loginInfo) {
         return (
-            <div className="w-full h-full flex flex-col bg-[#050505] p-6 lg:p-10 animate-in fade-in duration-700">
+            <div className="w-full h-full flex flex-col bg-base p-6 lg:p-10 animate-in fade-in duration-700">
                 {/* 交互会话流面板 (Full Width Chat View) */}
                 <div className="max-w-5xl mx-auto w-full flex flex-col bg-white/[0.02] border border-white/5 rounded-[32px] overflow-hidden shadow-2xl backdrop-blur-xl flex-1 mb-4">
                     {/* Session Header */}
@@ -162,7 +162,7 @@ export default function WeixinView({ active }) {
 
     // 未登录/等待中 欢迎页 (Welcome / Setup Guide)
     return (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-[#050505] p-10 text-center animate-in fade-in zoom-in duration-1000">
+        <div className="w-full h-full flex flex-col items-center justify-center bg-base p-10 text-center animate-in fade-in zoom-in duration-1000">
             <div className="relative mb-10">
                 <div className="absolute inset-0 bg-primeAccent/20 blur-[100px] rounded-full"></div>
                 <div className="relative w-32 h-32 rounded-[40px] bg-gradient-to-br from-primeAccent/20 to-transparent border border-primeAccent/30 flex items-center justify-center text-primeAccent shadow-2xl">
