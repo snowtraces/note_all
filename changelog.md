@@ -1,6 +1,14 @@
 # Changelog
 
 ## [Unreleased]
+- **Agent 多轮对话系统优化**:
+  - 追问模式加载文档时同步获取分片信息，支持精简上下文传递，减少 LLM 输入 Token。
+  - 新增 `loadDocumentsByIDWithChunks` 函数，从数据库加载文档及其全量分片数据。
+  - 重构 `buildMessagesForLLM` 职责，将文档上下文处理逻辑集中于此函数，消除职责分散。
+  - 新增 `buildDocumentContext` 辅助函数，优先使用分片上下文 (`BuildRAGContextFromChunks`)。
+  - 简化 `callLLMWithStreaming`，移除重复文档处理逻辑，参数签名简化为单参数。
+  - Token 估算改用 `utf8.RuneCountInString`，正确计算中文字符数而非字节长度。
+  - 移除冗余函数 `extractToolResultsFromInfos`，改用完整 `ToolResult` 数据流。
 - **RAG 检索性能优化**:
   - 新增 `BatchHybridSearch` 合并多关键词查询，将 DB 查询次数从 6×N 降至 ~3 次。
   - 移除 `LinkScore` 计算（图扩展阶段已覆盖关联关系），简化评分逻辑。
