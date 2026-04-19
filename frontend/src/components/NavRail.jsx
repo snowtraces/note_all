@@ -105,7 +105,7 @@ export default function NavRail({
       {/* Logo Area */}
       <div className="mb-10 relative group cursor-pointer">
         <div className="absolute inset-0 bg-primeAccent/20 rounded-xl blur-lg group-hover:bg-primeAccent/40 transition-all"></div>
-        <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-primeAccent/20 to-black border border-primeAccent flex items-center justify-center text-primeAccent">
+        <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-primeAccent/20 to-sidebar border border-primeAccent flex items-center justify-center text-primeAccent">
           <BrainCircuit size={24} />
         </div>
       </div>
@@ -135,7 +135,7 @@ export default function NavRail({
 
             {/* Badge */}
             {getBadgeValue(item.id) !== null && (
-              <div className={`absolute top-2.5 right-2.5 w-4 h-4 rounded-full bg-primeAccent text-black text-[9px] font-bold flex items-center justify-center pointer-events-none border-2 border-sidebar`}>
+              <div className={`absolute top-2.5 right-2.5 w-4 h-4 rounded-full bg-primeAccent text-white-fixed dark:text-black text-[9px] font-bold flex items-center justify-center pointer-events-none border-2 border-sidebar`}>
                 {getBadgeValue(item.id)}
               </div>
             )}

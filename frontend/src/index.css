@@ -135,16 +135,26 @@
 
 /* 强制覆盖亮色模式下的文字颜色与不透明度，确保最佳阅读对比度 */
 [data-mode="light"] .text-white { color: #000000 !important; }
-[data-mode="light"] .text-white\/80 { color: #1f2937 !important; }
+[data-mode="light"] .text-white\/80,
+[data-mode="light"] .text-textSecondary\/80 { color: #1f2937 !important; }
 [data-mode="light"] .text-white\/60,
+[data-mode="light"] .text-silverText\/90 { color: #374151 !important; }
 [data-mode="light"] .text-silverText\/60 { color: #4b5563 !important; }
 [data-mode="light"] .text-textSecondary\/40,
 [data-mode="light"] .text-silverText\/40 { color: #6b7280 !important; }
 [data-mode="light"] .text-textSecondary\/30,
 [data-mode="light"] .text-silverText\/30 { color: #9ca3af !important; }
-[data-mode="light"] .text-textSecondary\/20,
-[data-mode="light"] .text-silverText\/20 { color: #6b7280 !important; } /* 关键辅助信息：如日期，保持高对比度 */
+[data-mode="light"] .text-textSecondary\/40,
+[data-mode="light"] .text-white\/40,
+[data-mode="light"] .text-silverText\/40 { color: #6b7280 !important; } /* 关键辅助信息：如日期，保持高对比度 */
 [data-mode="light"] .text-white\/5 { color: var(--border-subtle) !important; }
+
+/* 强制白色文字：用于深色背景上的文字，即使在亮色模式下也保持白色 */
+.text-white-fixed { color: #ffffff !important; }
+[data-mode="light"] .bg-white\/10 { background-color: rgba(15, 23, 42, 0.05) !important; } /* 标签在亮色模式下的浅灰背景 */
+[data-mode="light"] .bg-white\/5 { background-color: rgba(15, 23, 42, 0.03) !important; }
+[data-mode="light"] .border-white\/10 { border-color: var(--border-subtle) !important; }
+[data-mode="light"] .border-white\/5 { border-color: rgba(15, 23, 42, 0.05) !important; }
 
 /* 亮色模式下输入框通用样式 */
 input, textarea, select {
@@ -248,6 +258,11 @@ input, textarea, select {
   margin: 0 0.125rem;
 }
 
-/* AI 总结区 */
+/* OCR 内容区 */
+.markdown-ocr {
+  font-size: 16px;
+  line-height: 1.8;
+}
+
 .ai-summary-markdown p { margin-bottom: 0.8em; }
 .ai-summary-markdown p:last-child { margin-bottom: 0; }

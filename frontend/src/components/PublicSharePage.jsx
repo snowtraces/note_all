@@ -52,20 +52,20 @@ export default function PublicSharePage({ shareId }) {
    }
 
    return (
-      <div className="min-h-screen w-full bg-sidebar text-white font-sans selection:bg-primeAccent selection:text-black pb-20 overflow-x-hidden">
+      <div className="min-h-screen w-full bg-sidebar text-textPrimary font-sans selection:bg-primeAccent selection:text-white-fixed pb-20 overflow-x-hidden">
          {/* Top Branding Section */}
-         <div className="w-full h-[300px] absolute top-0 left-0 bg-gradient-to-b from-primeAccent/5 to-transparent pointer-events-none"></div>
+         <div className="w-full h-[300px] absolute top-0 left-0 bg-gradient-to-b from-primeAccent/10 to-transparent pointer-events-none"></div>
 
          <header className="relative z-10 max-w-5xl mx-auto px-6 pt-12 pb-8 text-center border-b border-white/5">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primeAccent/10 border border-primeAccent/20 mb-8">
                <BrainCircuit className="w-7 h-7 text-primeAccent" strokeWidth={1.5} />
             </div>
-            <h1 className="text-4xl font-light tracking-[0.1em] text-white mb-6 animate-in slide-in-from-bottom-4 duration-500">{item.original_name || 'Note Instance'}</h1>
-            <div className="flex flex-wrap items-center justify-center gap-4 text-silverText/30 text-[10px] uppercase font-mono tracking-widest leading-relaxed">
+            <h1 className="text-4xl font-light tracking-[0.1em] text-textPrimary mb-6 animate-in slide-in-from-bottom-4 duration-500">{item.original_name || 'Note Instance'}</h1>
+            <div className="flex flex-wrap items-center justify-center gap-4 text-textSecondary/40 text-[10px] uppercase font-mono tracking-widest leading-relaxed">
                <span className="flex items-center gap-1.5"><Clock size={12} /> {new Date(item.created_at || item.CreatedAt).toLocaleDateString()}</span>
-               <span className="w-1 h-1 rounded-full bg-white/10 hidden sm:block"></span>
+               <span className="w-1 h-1 rounded-full bg-borderSubtle hidden sm:block"></span>
                <span className="flex items-center gap-1.5"><Globe size={12} /> 公开分享内容</span>
-               <span className="w-1 h-1 rounded-full bg-white/10 hidden sm:block"></span>
+               <span className="w-1 h-1 rounded-full bg-borderSubtle hidden sm:block"></span>
                <span className="flex items-center gap-1.5"><ShieldCheck size={12} /> 加密校验完成</span>
             </div>
          </header>
@@ -111,10 +111,10 @@ export default function PublicSharePage({ shareId }) {
                <div className="animate-in slide-in-from-bottom-8 duration-700 delay-300">
                   <div className="px-10 mb-6 flex items-center gap-4">
                      <div className="w-2 h-2 rounded-full bg-primeAccent/40"></div>
-                     <h4 className="text-[12px] text-white/40 uppercase tracking-[0.1m] font-mono">原始记录全貌 · FULL INTELLECT</h4>
+                     <h4 className="text-[12px] text-textSecondary/50 uppercase tracking-[0.1m] font-mono">原始记录全貌 · FULL INTELLECT</h4>
                      <div className="flex-1 h-px bg-white/5"></div>
                   </div>
-                  <div className="bg-card border border-white/5 rounded-[40px] p-8 lg:p-10 text-white/92 text-[16px] leading-9 font-normal selection:bg-primeAccent selection:text-black shadow-inner markdown-ocr">
+                  <div className="bg-card border border-white/5 rounded-[40px] p-8 lg:p-10 text-textPrimary/90 text-[16px] leading-9 font-normal selection:bg-primeAccent selection:text-white shadow-inner markdown-ocr">
                      <MarkdownRenderer content={item.ocr_text} />
                   </div>
                </div>
@@ -123,8 +123,8 @@ export default function PublicSharePage({ shareId }) {
 
          <footer className="relative z-10 max-w-5xl mx-auto px-6 mt-12 pt-10 border-t border-white/5 text-center">
             <div className="opacity-20 hover:opacity-100 transition-opacity duration-500 cursor-default">
-               <div className="text-[10px] font-mono text-white/50 uppercase tracking-[0.4em] mb-4">Note All Intelligence Engine</div>
-               <div className="text-[9px] text-white/30 lowercase tracking-[0.1em]">private storage · curated knowledge · decentralized thoughts</div>
+               <div className="text-[10px] font-mono text-textSecondary/50 uppercase tracking-[0.4em] mb-4">Note All Intelligence Engine</div>
+               <div className="text-[9px] text-textSecondary/30 lowercase tracking-[0.1em]">private storage · curated knowledge · decentralized thoughts</div>
             </div>
          </footer>
       </div>

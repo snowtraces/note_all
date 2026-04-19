@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink, Link, Zap, Share2, RefreshCw, CheckCircle2, XCircle, ClipboardEdit, Eye } from 'lucide-react';
 import { getAuthToken } from '../api/authApi';
 import MarkdownRenderer from './MarkdownRenderer';
@@ -27,8 +27,17 @@ export default function Detail({
   const [annotation, setAnnotation] = useState(item?.user_comment || '');
   const [isSubmittingStatus, setIsSubmittingStatus] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const textareaRef = useRef(null);
   const token = getAuthToken();
   const fileUrl = item?.storage_id ? `/api/file/${item.storage_id}${token ? `?token=${token}` : ''}` : '';
+
+  // 自动调整文本框高度
+  useEffect(() => {
+    if (isRawMode && textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+    }
+  }, [editValue, isRawMode]);
 
   // 当外部 item 变化时，重新绑定 editValue 和加载关联内容
   useEffect(() => {
@@ -219,21 +228,24 @@ export default function Detail({
               {isRawMode ? (
                 <div className="relative group/edit">
                   <textarea 
+                    ref={textareaRef}
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
-                    className="w-full min-h-[400px] outline-none bg-transparent resize-y whitespace-pre-wrap font-mono text-[13px] text-textSecondary break-words custom-scrollbar"
+                    className="w-full outline-none bg-transparent overflow-hidden whitespace-pre-wrap font-mono text-[13px] text-textSecondary break-words"
                     placeholder="未能提取到或尚未进行 OCR 文本识别..."
                   />
-                  {editValue !== item.ocr_text && (
-                    <button 
-                      onClick={onSaveWrap}
-                      disabled={isSaving}
-                      className="absolute bottom-4 right-4 bg-primeAccent/20 hover:bg-primeAccent/40 text-primeAccent px-4 py-2 rounded-lg flex items-center gap-2 text-xs font-mono border border-primeAccent/30 transition-all backdrop-blur shadow-lg z-10"
-                    >
-                      <Save size={14} />
-                      {isSaving ? "正在保存..." : "保存修改"}
-                    </button>
-                  )}
+                  <div className="sticky bottom-6 right-0 flex justify-end pointer-events-none z-20 pr-4 pb-2">
+                    {editValue !== item.ocr_text && (
+                      <button 
+                        onClick={onSaveWrap}
+                        disabled={isSaving}
+                        className="pointer-events-auto bg-primeAccent/20 hover:bg-primeAccent/80 hover:text-white text-primeAccent px-4 py-2 rounded-lg flex items-center gap-2 text-xs font-mono border border-primeAccent/30 font-bold transition-all backdrop-blur shadow-lg"
+                      >
+                        <Save size={14} />
+                        {isSaving ? "正在保存..." : "保存修改"}
+                      </button>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="markdown-ocr">
@@ -360,8 +372,8 @@ export default function Detail({
               }}
               disabled={isSubmittingStatus}
               className={`w-full py-3 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all ${item.status === 'done'
-                  ? 'bg-green-500/20 text-green-400 border border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.1)]'
-                  : 'bg-primeAccent text-black hover:bg-primeAccent/90 shadow-[0_0_20px_color-mix(in_srgb,var(--prime-accent),transparent_70%)]'
+                  ? 'bg-primeAccent/10 text-primeAccent border border-primeAccent/30 shadow-[0_0_15px_color-mix(in_srgb,var(--prime-accent),transparent_90%)]'
+                  : 'bg-primeAccent text-white-fixed dark:text-black hover:bg-primeAccent/90 shadow-[0_0_20px_color-mix(in_srgb,var(--prime-accent),transparent_70%)]'
                 }`}
             >
               {isSubmittingStatus ? (
