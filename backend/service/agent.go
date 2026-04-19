@@ -51,7 +51,7 @@ func AgentAsk(sessionID uint, query string) (*AgentResponse, error) {
 	return defaultAgent.Ask(sessionID, query)
 }
 
-// Ask 执行问答流程
+// Ask 执行问答流程（使用 QueryLoop 状态机）
 func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 	log.Printf("[Agent] 开始处理: session=%d, query=%s", sessionID, query)
 
@@ -67,45 +67,144 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 		}
 	}
 
-	// 2. 分析意图
+	// 2. 分析意图（在 QueryLoop 之前）
 	intent := a.intentAnalyzer.Analyze(query, session.Messages, session.Context)
 	log.Printf("[Agent] 意图分析: type=%s, confidence=%.2f", intent.Type, intent.Confidence)
 
-	// 3. 根据意图分支处理
-	var toolResults []ToolResult
-	var toolCallInfos []ToolCallInfo
+	// 3. 创建 QueryLoop 状态
+	state := NewQueryState(session.ID, session.Messages, session.Context)
 
+	// 4. 根据意图类型，决定初始工具调用
+	var initialToolCalls []ToolCall
 	switch intent.Type {
 	case IntentMultiStep:
-		// 多步任务：顺序执行子任务
-		toolResults, toolCallInfos = a.executeMultiStep(intent.SubTasks, session)
-
+		// 多步任务：按意图构建工具调用序列
+		for _, subTask := range intent.SubTasks {
+			initialToolCalls = append(initialToolCalls, ToolCall{
+				Tool:       mapSubIntentToTool(subTask.Intent),
+				Parameters: map[string]interface{}{"query": subTask.Query},
+			})
+		}
+	case IntentSearch:
+		initialToolCalls = []ToolCall{{Tool: ToolSearch, Parameters: map[string]interface{}{"query": query}}}
+	case IntentSummarize:
+		initialToolCalls = []ToolCall{{Tool: ToolSummarize, Parameters: map[string]interface{}{"query": query}}}
+	case IntentCompare:
+		initialToolCalls = []ToolCall{{Tool: ToolCompare, Parameters: map[string]interface{}{"query": query}}}
+	case IntentGenerate:
+		initialToolCalls = []ToolCall{{Tool: ToolGenerate, Parameters: map[string]interface{}{"query": query}}}
 	case IntentFollowUp, IntentClarify:
-		// 追问/澄清：重写查询，结合上下文
-		toolResults, toolCallInfos = a.executeFollowUp(query, session, intent)
-
+		// 追问/澄清：使用查询重写
+		rewrite := a.queryRewriter.Rewrite(query, session.Messages, session.Context)
+		initialToolCalls = []ToolCall{{Tool: ToolSearch, Parameters: map[string]interface{}{"query": rewrite.RewrittenQuery}}}
 	case IntentSwitch:
 		// 切换话题：清空上下文
 		session.Context = &SessionContext{}
-		session.Messages = []ConversationMessage{} // 清空历史
-		toolResults, toolCallInfos = a.executeNewTopic(query, session.Messages)
-
-	case IntentNewTopic, IntentSearch, IntentSummarize:
-		// 新话题/检索/总结：原有 RAG 流程，传入历史对话
-		toolResults, toolCallInfos = a.executeNewTopic(query, session.Messages)
-
+		session.Messages = []ConversationMessage{}
+		state = NewQueryState(session.ID, session.Messages, session.Context)
+		initialToolCalls = []ToolCall{{Tool: ToolSearch, Parameters: map[string]interface{}{"query": query}}}
 	default:
-		// 其他：默认 RAG
-		toolResults, toolCallInfos = a.executeNewTopic(query, session.Messages)
+		// 新话题：使用 RAG 流程
+		initialToolCalls = []ToolCall{{Tool: ToolSearch, Parameters: map[string]interface{}{"query": query}}}
 	}
 
-	// 4. 构建最终回复
-	response := a.buildResponse(toolResults, toolCallInfos, intent, session.ID)
+	// 5. 设置初始工具调用
+	state.ActiveToolCalls = initialToolCalls
 
-	// 5. 更新上下文
-	a.updateContext(session.Context, toolResults, intent)
+	// 6. 执行 QueryLoop（多轮循环）
+	maxIterations := 10 // 防止无限循环
+	iterations := 0
 
-	// 6. 保存对话历史
+	var finalResponse *AgentResponse
+	var toolCallInfos []ToolCallInfo
+
+	for iterations < maxIterations {
+		iterations++
+		log.Printf("[Agent] QueryLoop iteration=%d, tool_calls=%d", iterations, len(state.ActiveToolCalls))
+
+		// 如果有待执行的工具调用，先执行工具
+		if len(state.ActiveToolCalls) > 0 {
+			toolResults, infos := a.executeToolCalls(state)
+			toolCallInfos = append(toolCallInfos, infos...)
+
+			// 将工具结果加入消息
+			for _, result := range toolResults {
+				state.Messages = append(state.Messages, ConversationMessage{
+					Role:      "user",
+					Content:   "[工具执行结果]\n" + result.Output,
+					Timestamp: time.Now(),
+				})
+			}
+
+			// 清空已执行的工具调用
+			state.ActiveToolCalls = nil
+			state.TurnCount++
+
+			// 继续循环，让 LLM 处理工具结果
+			continue
+		}
+
+		// 执行 QueryLoop（调用 LLM）
+		result := QueryLoop(state, query)
+
+		switch result.Transition {
+		case TransitionStop:
+			// 正常停止
+			if result.Error != nil {
+				log.Printf("[Agent] QueryLoop 错误: %v", result.Error)
+				// 返回部分结果（如果有）
+				if result.Response != nil {
+					return result.Response, nil
+				}
+				return nil, result.Error
+			}
+			if result.Response != nil {
+				finalResponse = result.Response
+				finalResponse.ToolCalls = toolCallInfos
+				finalResponse.Intent = string(intent.Type)
+				finalResponse.Confidence = intent.Confidence
+			}
+			break
+
+		case TransitionRecover:
+			// 进入恢复分支，继续循环
+			log.Printf("[Agent] 进入恢复分支，继续循环")
+			query = "" // 续写时不需要新 query
+			continue
+
+		case TransitionContinue:
+			// 继续循环
+			continue
+
+		case TransitionInterrupt:
+			// 用户中断
+			log.Printf("[Agent] 用户中断")
+			return nil, fmt.Errorf("用户中断")
+
+		default:
+			log.Printf("[Agent] 未知状态转移: %s", result.Transition)
+			break
+		}
+
+		// 如果有响应，跳出循环
+		if finalResponse != nil {
+			break
+		}
+	}
+
+	// 7. 如果 QueryLoop 没有返回响应，使用 RAG 流程兜底
+	if finalResponse == nil {
+		answer, results, _, err := RAGAskWithHistory(query, session.Messages)
+		if err != nil {
+			return nil, err
+		}
+		finalResponse = a.buildResponse([]ToolResult{{Output: answer, Documents: results}}, toolCallInfos, intent, state.SessionID)
+	}
+
+	// 8. 更新上下文
+	a.updateContext(session.Context, extractToolResultsFromInfos(toolCallInfos), intent)
+
+	// 9. 保存对话历史
 	newSessionID, err := a.sessionManager.SaveTurn(session.ID, ConversationMessage{
 		Role:       "user",
 		Content:    query,
@@ -118,8 +217,8 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 
 	_, err = a.sessionManager.SaveTurn(newSessionID, ConversationMessage{
 		Role:       "assistant",
-		Content:    response.Content,
-		References: extractDocIDsFromResults(toolResults),
+		Content:    finalResponse.Content,
+		References: extractDocIDsFromResponse(finalResponse),
 		Intent:     string(intent.Type),
 		Timestamp:  time.Now(),
 	})
@@ -127,18 +226,57 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 		log.Printf("[Agent] 保存助手消息失败: %v", err)
 	}
 
-	// 7. 更新会话上下文到数据库
+	// 10. 更新会话上下文到数据库
 	a.sessionManager.UpdateContext(newSessionID, session.Context)
 
-	// 8. 检查是否需要压缩历史
+	// 11. 检查是否需要压缩历史
 	a.sessionManager.CompressHistory(newSessionID)
 
-	response.SessionID = newSessionID
+	finalResponse.SessionID = newSessionID
 
 	log.Printf("[Agent] 处理完成: session=%d, intent=%s, refs=%d",
-		newSessionID, intent.Type, len(response.References))
+		newSessionID, intent.Type, len(finalResponse.References))
 
-	return response, nil
+	return finalResponse, nil
+}
+
+// executeToolCalls 执行工具调用序列
+func (a *Agent) executeToolCalls(state *QueryState) ([]ToolResult, []ToolCallInfo) {
+	results := make([]ToolResult, 0)
+	infos := make([]ToolCallInfo, 0)
+
+	for i, call := range state.ActiveToolCalls {
+		result, info := a.toolExecutor.ExecuteWithTiming(i+1, call)
+		results = append(results, result)
+		infos = append(infos, info)
+
+		// 检查是否执行失败
+		if strings.Contains(result.Output, "失败") {
+			log.Printf("[Agent] 工具 [%d] 执行失败，中断后续", i)
+			break
+		}
+	}
+
+	return results, infos
+}
+
+// extractToolResultsFromInfos 从 ToolCallInfo 提取 ToolResult
+func extractToolResultsFromInfos(infos []ToolCallInfo) []ToolResult {
+	results := make([]ToolResult, 0)
+	for _, info := range infos {
+		// 模拟 ToolResult（简化版）
+		results = append(results, ToolResult{Output: info.Output})
+	}
+	return results
+}
+
+// extractDocIDsFromResponse 从响应提取文档 ID
+func extractDocIDsFromResponse(response *AgentResponse) []uint {
+	ids := make([]uint, 0)
+	for _, ref := range response.References {
+		ids = append(ids, ref.DocumentID)
+	}
+	return ids
 }
 
 // executeMultiStep 执行多步任务

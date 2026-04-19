@@ -38,4 +38,10 @@ type AppConfig struct {
 	ChunkOverlap    int `json:"chunk_overlap"`     // 重叠字符数，默认 50
 	ChunkMaxPerDoc  int `json:"chunk_max_per_doc"` // 单文档最大分片数，默认 100
 	RagContextLimit int `json:"rag_context_limit"` // RAG 上下文长度限制，默认 12000
+
+	// 模型窗口配置（上下文治理）
+	LlmContextWindow  int `json:"llm_context_window"`   // 模型上下文窗口大小，默认 32000
+	LlmMaxOutputTokens int `json:"llm_max_output_tokens"` // 输出最大 token 数，默认 8192
+	LlmReservedTokens  int `json:"llm_reserved_tokens"`  // 为输出预留的 token，默认 8000
+	LlmBufferTokens    int `json:"llm_buffer_tokens"`    // 恢复预留 buffer，默认 4000
 }

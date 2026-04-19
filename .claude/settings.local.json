@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go build *)",
+      "Bash(xxd)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\cheng\\.claude\\plans"
+    ]
+  }
+}

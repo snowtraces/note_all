@@ -55,10 +55,23 @@ func NewToolExecutor() *ToolExecutor {
 	return &ToolExecutor{}
 }
 
-// Execute 执行工具调用
+// Execute 执行工具调用（带权限检查）
 func (te *ToolExecutor) Execute(call ToolCall) ToolResult {
 	log.Printf("[ToolExecutor] 执行工具: %s, 参数: %v", call.Tool, call.Parameters)
 
+	// 权限检查
+	pm := NewPermissionManager()
+	permResult := pm.CheckPermission(call.Tool, call.Parameters)
+
+	switch permResult {
+	case PermissionDeny:
+		return ToolResult{Output: "权限拒绝：该工具不允许执行"}
+	case PermissionAsk:
+		// 当前实现：自动允许（后续可接入前端确认流程）
+		log.Printf("[ToolExecutor] 工具 %s 需要确认，自动允许执行", call.Tool)
+	}
+
+	// 执行工具
 	switch call.Tool {
 	case ToolSearch:
 		return te.executeSearch(call)

@@ -1,0 +1,483 @@
+package service
+
+import (
+	"fmt"
+	"log"
+	"strings"
+	"time"
+
+	"note_all_backend/pkg"
+)
+
+// Transition 循环状态转移类型
+type Transition string
+
+const (
+	TransitionContinue  Transition = "continue"  // 继续循环
+	TransitionRecover   Transition = "recover"   // 进入恢复分支
+	TransitionStop      Transition = "stop"      // 正常停止
+	TransitionInterrupt Transition = "interrupt" // 用户中断
+)
+
+// StopReason LLM 响应停止原因
+type StopReason string
+
+const (
+	StopReasonNormal    StopReason = "normal"     // 正常完成
+	StopReasonMaxTokens StopReason = "max_tokens" // 输出截断
+	StopReasonToolUse   StopReason = "tool_use"   // 需要调用工具
+	StopReasonError     StopReason = "error"      // API 错误
+)
+
+// QueryState Query Loop 跨轮状态
+type QueryState struct {
+	SessionID            uint                   // 会话 ID
+	Messages             []ConversationMessage  // 对话历史
+	Context              *SessionContext        // 会话上下文
+	TurnCount            int                    // 当前轮次计数
+	RecoveryCount        int                    // 错误恢复计数
+	HasAttemptedCompact  bool                   // 是否已尝试 compact
+	HasAttemptedRecovery bool                   // 是否已尝试恢复
+	LastStopReason       StopReason             // 上次停止原因
+	ActiveToolCalls      []ToolCall             // 待执行工具调用
+	LastOutput           string                 // 上次输出（用于续写）
+}
+
+// NewQueryState 创建初始状态
+func NewQueryState(sessionID uint, messages []ConversationMessage, context *SessionContext) *QueryState {
+	return &QueryState{
+		SessionID:            sessionID,
+		Messages:             messages,
+		Context:              context,
+		TurnCount:            0,
+		RecoveryCount:        0,
+		HasAttemptedCompact:  false,
+		HasAttemptedRecovery: false,
+		LastStopReason:       StopReasonNormal,
+		ActiveToolCalls:      nil,
+		LastOutput:           "",
+	}
+}
+
+// QueryLoopResult 循环执行结果
+type QueryLoopResult struct {
+	Response   *AgentResponse
+	Transition Transition
+	Error      error
+}
+
+// QueryLoop 主循环入口
+func QueryLoop(state *QueryState, query string) QueryLoopResult {
+	log.Printf("[QueryLoop] 开始: session=%d, turn=%d, query=%s", state.SessionID, state.TurnCount, query)
+
+	// 1. 输入治理：检查 token 预算，决定是否需要 proactive compact
+	if shouldProactiveCompact(state) {
+		log.Printf("[QueryLoop] 触发 proactive compact")
+		if !performProactiveCompact(state) {
+			// compact 失败，尝试截断
+			if !performTruncate(state) {
+				// 截断也失败，熔断
+				return QueryLoopResult{
+					Response:   nil,
+					Transition: TransitionStop,
+					Error:      fmt.Errorf("上下文过长，无法继续"),
+				}
+			}
+		}
+	}
+
+	// 2. 构建消息列表
+	messages := buildMessagesForLLM(state, query)
+
+	// 3. 调用 LLM（带流式处理）
+	llmResult := callLLMWithStreaming(messages)
+
+	// 4. 处理 LLM 响应
+	switch llmResult.StopReason {
+	case StopReasonNormal:
+		// 正常完成，构建响应
+		return handleNormalStop(state, llmResult, query)
+
+	case StopReasonMaxTokens:
+		// 输出截断，进入续写恢复
+		return handleMaxTokens(state, llmResult)
+
+	case StopReasonToolUse:
+		// 需要调用工具，执行后继续循环
+		return handleToolUse(state, llmResult, query)
+
+	case StopReasonError:
+		// API 错误，进入错误恢复
+		return handleError(state, llmResult.Error)
+
+	default:
+		return QueryLoopResult{
+			Response:   nil,
+			Transition: TransitionStop,
+			Error:      fmt.Errorf("未知停止原因: %s", llmResult.StopReason),
+		}
+	}
+}
+
+// LLMResult LLM 调用结果
+type LLMResult struct {
+	Output     string      // 输出文本
+	StopReason StopReason  // 停止原因
+	ToolCalls  []ToolCall  // 工具调用请求
+	Usage      TokenUsage  // Token 使用量
+	Error      error       // 错误信息
+}
+
+// TokenUsage Token 使用统计
+type TokenUsage struct {
+	InputTokens  int
+	OutputTokens int
+	TotalTokens  int
+}
+
+// shouldProactiveCompact 检查是否需要 proactive compact
+func shouldProactiveCompact(state *QueryState) bool {
+	// 计算当前 token 使用量
+	usage := estimateTokenUsage(state.Messages)
+
+	// 预算阈值：模型窗口 - 输出预留 - 恢复预留
+	maxTokens := getModelMaxTokens()
+	reservedTokens := getReservedTokens()
+	bufferTokens := getBufferTokens()
+
+	threshold := maxTokens - reservedTokens - bufferTokens
+
+	if usage > threshold {
+		log.Printf("[QueryLoop] Token 预算告急: usage=%d, threshold=%d", usage, threshold)
+		return true
+	}
+
+	return false
+}
+
+// performProactiveCompact 执行 proactive compact
+func performProactiveCompact(state *QueryState) bool {
+	if state.HasAttemptedCompact {
+		log.Printf("[QueryLoop] 已尝试 compact，跳过")
+		return false
+	}
+
+	state.HasAttemptedCompact = true
+
+	// 调用 session manager 的压缩方法
+	sm := NewSessionManager()
+	if err := sm.CompressHistory(state.SessionID); err != nil {
+		log.Printf("[QueryLoop] Proactive compact 失败: %v", err)
+		return false
+	}
+
+	// 重新加载会话
+	session, err := sm.LoadSession(state.SessionID)
+	if err != nil {
+		log.Printf("[QueryLoop] 重载会话失败: %v", err)
+		return false
+	}
+
+	state.Messages = session.Messages
+	log.Printf("[QueryLoop] Proactive compact 成功，消息数: %d", len(state.Messages))
+	return true
+}
+
+// performTruncate 执行截断（降级策略）
+func performTruncate(state *QueryState) bool {
+	// 截断最早的 2 轮对话
+	if len(state.Messages) <= 4 {
+		log.Printf("[QueryLoop] 消息太少，无法截断")
+		return false
+	}
+
+	// 保留最近 4 轮
+	keepStart := len(state.Messages) - 4
+	if keepStart < 0 {
+		keepStart = 0
+	}
+
+	state.Messages = state.Messages[keepStart:]
+	log.Printf("[QueryLoop] 截断成功，保留 %d 条消息", len(state.Messages))
+	return true
+}
+
+// handleNormalStop 处理正常停止
+func handleNormalStop(state *QueryState, llmResult LLMResult, query string) QueryLoopResult {
+	// 构建响应
+	response := &AgentResponse{
+		Content:   llmResult.Output,
+		SessionID: state.SessionID,
+		Intent:    "normal",
+	}
+
+	// 保存对话历史
+	saveConversationTurn(state, query, llmResult.Output)
+
+	state.TurnCount++
+	state.LastStopReason = StopReasonNormal
+
+	return QueryLoopResult{
+		Response:   response,
+		Transition: TransitionStop,
+		Error:      nil,
+	}
+}
+
+// handleMaxTokens 处理输出截断
+func handleMaxTokens(state *QueryState, llmResult LLMResult) QueryLoopResult {
+	state.RecoveryCount++
+
+	// 检查熔断阈值
+	if state.RecoveryCount > MaxRecoveryAttempts {
+		log.Printf("[QueryLoop] 达到熔断阈值，停止恢复")
+		return QueryLoopResult{
+			Response:   nil,
+			Transition: TransitionStop,
+			Error:      fmt.Errorf("输出截断，已达到恢复上限"),
+		}
+	}
+
+	// 续写策略：保留已输出内容，请求继续
+	state.LastOutput = llmResult.Output
+
+	// 返回继续循环（下次调用会自动处理续写）
+	return QueryLoopResult{
+		Response:   nil,
+		Transition: TransitionRecover,
+		Error:      nil,
+	}
+}
+
+// handleToolUse 处理工具调用
+func handleToolUse(state *QueryState, llmResult LLMResult, query string) QueryLoopResult {
+	// 执行工具
+	toolExecutor := NewToolExecutor()
+	var toolResults []ToolResult
+	var toolCallInfos []ToolCallInfo
+
+	for i, toolCall := range llmResult.ToolCalls {
+		result, info := toolExecutor.ExecuteWithTiming(i+1, toolCall)
+		toolResults = append(toolResults, result)
+		toolCallInfos = append(toolCallInfos, info)
+
+		// 检查是否执行失败
+		if strings.Contains(result.Output, "失败") {
+			log.Printf("[QueryLoop] 工具 [%d] 执行失败，中断后续", i)
+			break
+		}
+	}
+
+	// 将工具结果加入消息，继续循环
+	for _, result := range toolResults {
+		toolResultMsg := ConversationMessage{
+			Role:      "user",
+			Content:   "[工具执行结果]\n" + result.Output,
+			Timestamp: time.Now(),
+		}
+		state.Messages = append(state.Messages, toolResultMsg)
+	}
+
+	state.ActiveToolCalls = nil
+	state.TurnCount++
+
+	// 继续循环，请求 LLM 处理工具结果
+	return QueryLoopResult{
+		Response:   nil,
+		Transition: TransitionContinue,
+		Error:      nil,
+	}
+}
+
+// handleError 处理错误
+func handleError(state *QueryState, err error) QueryLoopResult {
+	state.RecoveryCount++
+
+	// 检查熔断阈值
+	if state.RecoveryCount > MaxRecoveryAttempts {
+		log.Printf("[QueryLoop] 达到熔断阈值，停止恢复")
+		return QueryLoopResult{
+			Response:   nil,
+			Transition: TransitionStop,
+			Error:      err,
+		}
+	}
+
+	// 判断错误类型
+	if isPromptTooLong(err) {
+		// prompt too long：尝试 compact 或 truncate
+		if !state.HasAttemptedCompact {
+			if performProactiveCompact(state) {
+				return QueryLoopResult{
+					Transition: TransitionRecover,
+					Error:      nil,
+				}
+			}
+		}
+
+		// compact 失败，尝试截断
+		if performTruncate(state) {
+			return QueryLoopResult{
+				Transition: TransitionRecover,
+				Error:      nil,
+			}
+		}
+
+		// 都失败，熔断
+		return QueryLoopResult{
+			Transition: TransitionStop,
+			Error:      fmt.Errorf("prompt 太长，无法恢复"),
+		}
+	}
+
+	// 其他错误：直接返回
+	return QueryLoopResult{
+		Transition: TransitionStop,
+		Error:      err,
+	}
+}
+
+// 辅助函数
+
+func buildMessagesForLLM(state *QueryState, query string) []ConversationMessage {
+	messages := make([]ConversationMessage, 0)
+
+	// 复制历史消息
+	for _, msg := range state.Messages {
+		if msg.Role == "user" || msg.Role == "assistant" || msg.Role == "system" {
+			messages = append(messages, msg)
+		}
+	}
+
+	// 添加当前问题
+	messages = append(messages, ConversationMessage{
+		Role:      "user",
+		Content:   query,
+		Timestamp: time.Now(),
+	})
+
+	// 如果有续写需求，添加续写提示
+	if state.LastOutput != "" {
+		messages = append(messages, ConversationMessage{
+			Role:      "system",
+			Content:   "上次输出被截断，已输出内容：" + state.LastOutput + "\n请继续输出，不要重复。",
+			Timestamp: time.Now(),
+		})
+	}
+
+	return messages
+}
+
+func callLLMWithStreaming(messages []ConversationMessage) LLMResult {
+	// 转换消息格式
+	llmMessages := make([]map[string]string, 0)
+	for _, msg := range messages {
+		llmMessages = append(llmMessages, map[string]string{
+			"role":    msg.Role,
+			"content": msg.Content,
+		})
+	}
+
+	// 调用 LLM（目前使用同步调用，后续可改为流式）
+	systemPrompt := buildSystemPrompt()
+	output, err := callLLM(llmMessages, systemPrompt)
+
+	if err != nil {
+		return LLMResult{
+			StopReason: StopReasonError,
+			Error:      err,
+		}
+	}
+
+	// 检查是否包含工具调用意图（简化判断）
+	toolCalls := detectToolCalls(output)
+
+	if len(toolCalls) > 0 {
+		return LLMResult{
+			Output:     output,
+			StopReason: StopReasonToolUse,
+			ToolCalls:  toolCalls,
+		}
+	}
+
+	return LLMResult{
+		Output:     output,
+		StopReason: StopReasonNormal,
+	}
+}
+
+func buildSystemPrompt() string {
+	return "你是一个专注于个人知识库的智能助手。请用简洁、深刻的口吻回复，支持 Markdown 格式。"
+}
+
+func callLLM(messages []map[string]string, systemPrompt string) (string, error) {
+	// 临时使用 pkg.AskAI，后续替换为流式版本
+	return callLLMInternal(messages, systemPrompt)
+}
+
+func detectToolCalls(output string) []ToolCall {
+	// 简化版：通过关键词检测工具调用意图
+	// 实际应解析 LLM 输出的结构化工具调用格式
+	return nil
+}
+
+func estimateTokenUsage(messages []ConversationMessage) int {
+	// 简化估算：字符数 / 4（中文约 2 字符/token）
+	totalChars := 0
+	for _, msg := range messages {
+		totalChars += len(msg.Content)
+	}
+	return totalChars / 2 // 简化估算
+}
+
+func getModelMaxTokens() int {
+	return 32000 // 模型窗口上限
+}
+
+func getReservedTokens() int {
+	return 8000 // 输出预留
+}
+
+func getBufferTokens() int {
+	return 4000 // 恢复预留
+}
+
+func isPromptTooLong(err error) bool {
+	// 检查错误信息是否包含 prompt too long
+	if err == nil {
+		return false
+	}
+	errMsg := err.Error()
+	return strings.Contains(errMsg, "prompt too long") ||
+		strings.Contains(errMsg, "context_length_exceeded") ||
+		strings.Contains(errMsg, "too long")
+}
+
+func saveConversationTurn(state *QueryState, query string, output string) {
+	sm := NewSessionManager()
+
+	// 保存用户消息
+	sm.SaveTurn(state.SessionID, ConversationMessage{
+		Role:      "user",
+		Content:   query,
+		Intent:    "",
+		Timestamp: time.Now(),
+	})
+
+	// 保存助手消息
+	sm.SaveTurn(state.SessionID, ConversationMessage{
+		Role:      "assistant",
+		Content:   output,
+		Intent:    "",
+		Timestamp: time.Now(),
+	})
+}
+
+// MaxRecoveryAttempts 最大恢复尝试次数
+const MaxRecoveryAttempts = 3
+
+// callLLMInternal 内部 LLM 调用（独立接口，不依赖 RAG）
+func callLLMInternal(messages []map[string]string, systemPrompt string) (string, error) {
+	// 直接使用 pkg.AskAI
+	return pkg.AskAI(messages, systemPrompt)
+}

@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 
 	"note_all_backend/global"
@@ -298,6 +299,11 @@ func parseSmartJSON[T any](content string, v *T) error {
 
 // AskAI 直接调用大模型，传入自定义的 system prompt 和对话消息
 func AskAI(messages []map[string]string, systemPrompt string) (string, error) {
+	return AskAIWithConfig(messages, systemPrompt, 0)
+}
+
+// AskAIWithConfig 带配置的 LLM 调用
+func AskAIWithConfig(messages []map[string]string, systemPrompt string, maxTokensOverride int) (string, error) {
 	finalMessages := []map[string]string{
 		{
 			"role":    "system",
@@ -306,13 +312,21 @@ func AskAI(messages []map[string]string, systemPrompt string) (string, error) {
 	}
 	finalMessages = append(finalMessages, messages...)
 
+	maxTokens := global.Config.LlmMaxOutputTokens
+	if maxTokens <= 0 {
+		maxTokens = 8192 // 默认值
+	}
+	if maxTokensOverride > 0 {
+		maxTokens = maxTokensOverride
+	}
+
 	payload := map[string]interface{}{
 		"model":                 global.Config.LlmModelID,
 		"messages":              finalMessages,
 		"stream":                false,
 		"temperature":           0.7,
 		"top_p":                 0.8,
-		"max_completion_tokens": 8192,
+		"max_completion_tokens": maxTokens,
 	}
 
 	payloadBytes, err := json.Marshal(payload)
@@ -337,7 +351,15 @@ func AskAI(messages []map[string]string, systemPrompt string) (string, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("ERNIE API HTTP 状态码异常: %d, Message: %s", resp.StatusCode, string(body))
+		errMsg := string(body)
+		// 检测错误类型
+		if strings.Contains(errMsg, "prompt too long") ||
+			strings.Contains(errMsg, "context_length_exceeded") ||
+			strings.Contains(errMsg, "too long") ||
+			resp.StatusCode == 400 && strings.Contains(errMsg, "length") {
+			return "", &LLMError{Type: ErrorPromptTooLong, Message: errMsg}
+		}
+		return "", fmt.Errorf("ERNIE API HTTP 状态码异常: %d, Message: %s", resp.StatusCode, errMsg)
 	}
 
 	var resData struct {
@@ -345,7 +367,13 @@ func AskAI(messages []map[string]string, systemPrompt string) (string, error) {
 			Message struct {
 				Content string `json:"content"`
 			} `json:"message"`
+			FinishReason string `json:"finish_reason"`
 		} `json:"choices"`
+		Usage struct {
+			PromptTokens     int `json:"prompt_tokens"`
+			CompletionTokens int `json:"completion_tokens"`
+			TotalTokens      int `json:"total_tokens"`
+		} `json:"usage"`
 	}
 
 	bodyBytes, err := io.ReadAll(resp.Body)
@@ -361,7 +389,61 @@ func AskAI(messages []map[string]string, systemPrompt string) (string, error) {
 		return "", fmt.Errorf("大模型没有返回有效的提炼结果")
 	}
 
-	return resData.Choices[0].Message.Content, nil
+	// 检测截断
+	content := resData.Choices[0].Message.Content
+	finishReason := resData.Choices[0].FinishReason
+
+	if finishReason == "length" || finishReason == "max_tokens" {
+		// 输出被截断，返回特殊错误
+		return content, &LLMError{Type: ErrorMaxTokens, Message: "输出被截断", PartialContent: content}
+	}
+
+	return content, nil
+}
+
+// LLMError 大模型错误类型
+type LLMError struct {
+	Type          LLMErrorType
+	Message       string
+	PartialContent string // 截断时的部分内容
+}
+
+// Error 实现 error 接口
+func (e *LLMError) Error() string {
+	return fmt.Sprintf("LLM错误[%s]: %s", e.Type, e.Message)
+}
+
+// LLMErrorType 错误类型枚举
+type LLMErrorType string
+
+const (
+	ErrorPromptTooLong LLMErrorType = "prompt_too_long" // 上下文过长
+	ErrorMaxTokens     LLMErrorType = "max_tokens"      // 输出截断
+	ErrorAPI           LLMErrorType = "api_error"       // API 错误
+)
+
+// IsLLMError 判断是否为特定类型的 LLM 错误
+func IsLLMError(err error, errorType LLMErrorType) bool {
+	if err == nil {
+		return false
+	}
+	llmErr, ok := err.(*LLMError)
+	if !ok {
+		return false
+	}
+	return llmErr.Type == errorType
+}
+
+// GetPartialContent 获取截断时的部分内容
+func GetPartialContent(err error) string {
+	if err == nil {
+		return ""
+	}
+	llmErr, ok := err.(*LLMError)
+	if !ok {
+		return ""
+	}
+	return llmErr.PartialContent
 }
 
 
