@@ -2,6 +2,7 @@ package service
 
 import (
 	"log"
+	"strings"
 )
 
 // PermissionResult 权限判定结果
@@ -136,22 +137,7 @@ func containsSensitiveKeywords(text string) bool {
 	}
 
 	for _, kw := range sensitiveKeywords {
-		if stringsContains(text, kw) {
-			return true
-		}
-	}
-	return false
-}
-
-// stringsContains 字符串包含检查（简化版）
-func stringsContains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && findSubstring(s, substr))
-}
-
-// findSubstring 查找子串
-func findSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
+		if strings.Contains(text, kw) {
 			return true
 		}
 	}

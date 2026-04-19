@@ -67,8 +67,12 @@ func (te *ToolExecutor) Execute(call ToolCall) ToolResult {
 	case PermissionDeny:
 		return ToolResult{Output: "权限拒绝：该工具不允许执行"}
 	case PermissionAsk:
-		// 当前实现：自动允许（后续可接入前端确认流程）
-		log.Printf("[ToolExecutor] 工具 %s 需要确认，自动允许执行", call.Tool)
+		// 高风险工具需要用户确认，返回需要确认的提示
+		permInfo := pm.GetPermissionInfo(call.Tool)
+		return ToolResult{
+			Output: fmt.Sprintf("需要确认：工具 %s 属于高风险操作（%s），请确认是否继续执行。\n工具描述：%s",
+				call.Tool, permInfo.RiskLevel, permInfo.Description),
+		}
 	}
 
 	// 执行工具
@@ -104,14 +108,34 @@ func (te *ToolExecutor) executeSearch(call ToolCall) ToolResult {
 		return ToolResult{Output: "检索失败: " + err.Error()}
 	}
 
-	// 构建输出摘要
-	output := fmt.Sprintf("检索到 %d 篇相关文档", len(results))
-	if len(results) > 0 {
-		topTitles := make([]string, 0, 3)
-		for i := 0; i < 3 && i < len(results); i++ {
-			topTitles = append(topTitles, results[i].OriginalName)
+	// 构建包含文档详情的输出（供 LLM 理解）
+	var output string
+	if len(results) == 0 {
+		output = "未找到相关文档"
+	} else {
+		var sb strings.Builder
+		sb.WriteString(fmt.Sprintf("检索到 %d 篇相关文档：\n\n", len(results)))
+		for i, doc := range results {
+			if i >= 5 { // 只传递前 5 篇详情，避免过长
+				sb.WriteString(fmt.Sprintf("... 还有 %d 篇文档\n", len(results)-i))
+				break
+			}
+			sb.WriteString(fmt.Sprintf("【文档%d】%s\n", i+1, doc.OriginalName))
+			if doc.AiSummary != "" {
+				sb.WriteString(fmt.Sprintf("摘要：%s\n", doc.AiSummary))
+			}
+			if doc.OcrText != "" {
+				// 正确处理 UTF-8：按 rune 截取，避免切分多字节字符
+				runes := []rune(doc.OcrText)
+				if len(runes) > 200 {
+					sb.WriteString(fmt.Sprintf("内容片段：%s...\n", string(runes[:200])))
+				} else {
+					sb.WriteString(fmt.Sprintf("内容：%s\n", doc.OcrText))
+				}
+			}
+			sb.WriteString("\n")
 		}
-		output += fmt.Sprintf("，最相关：%s", strings.Join(topTitles, ", "))
+		output = sb.String()
 	}
 
 	return ToolResult{

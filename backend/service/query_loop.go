@@ -41,6 +41,7 @@ type QueryState struct {
 	LastStopReason       StopReason             // 上次停止原因
 	ActiveToolCalls      []ToolCall             // 待执行工具调用
 	LastOutput           string                 // 上次输出（用于续写）
+	ToolResults          []ToolResult           // 累积的工具结果（含文档数据）
 }
 
 // NewQueryState 创建初始状态
@@ -56,6 +57,7 @@ func NewQueryState(sessionID uint, messages []ConversationMessage, context *Sess
 		LastStopReason:       StopReasonNormal,
 		ActiveToolCalls:      nil,
 		LastOutput:           "",
+		ToolResults:          nil,
 	}
 }
 
@@ -93,9 +95,9 @@ func QueryLoop(state *QueryState, query string) QueryLoopResult {
 	messages := buildMessagesForLLM(state, query)
 	log.Printf("[QueryLoop] 构建消息: %d 条历史 + 当前输入", len(messages)-1)
 
-	// 3. 调用 LLM（带流式处理）
+	// 3. 调用 LLM（带流式处理，传入文档上下文）
 	log.Printf("[QueryLoop] 调用 LLM...")
-	llmResult := callLLMWithStreaming(messages)
+	llmResult := callLLMWithStreaming(messages, state.ToolResults)
 
 	// 4. 处理 LLM 响应
 	log.Printf("[QueryLoop] LLM 响应: stop_reason=%s, output_len=%d", llmResult.StopReason, len(llmResult.Output))
@@ -212,15 +214,20 @@ func performTruncate(state *QueryState) bool {
 func handleNormalStop(state *QueryState, llmResult LLMResult, query string) QueryLoopResult {
 	log.Printf("[QueryLoop] [完成] LLM 正常返回，轮次=%d", state.TurnCount+1)
 
-	// 构建响应
+	// 构建响应（不保存消息，由 Agent 统一管理）
 	response := &AgentResponse{
 		Content:   llmResult.Output,
 		SessionID: state.SessionID,
 		Intent:    "normal",
 	}
 
-	// 保存对话历史
-	saveConversationTurn(state, query, llmResult.Output)
+	// 消息保存由 Agent.Ask() 统一处理，避免重复
+	// 将生成的消息加入状态，供 Agent 保存
+	state.Messages = append(state.Messages, ConversationMessage{
+		Role:      "assistant",
+		Content:   llmResult.Output,
+		Timestamp: time.Now(),
+	})
 
 	state.TurnCount++
 	state.LastStopReason = StopReasonNormal
@@ -255,46 +262,6 @@ func handleMaxTokens(state *QueryState, llmResult LLMResult) QueryLoopResult {
 	return QueryLoopResult{
 		Response:   nil,
 		Transition: TransitionRecover,
-		Error:      nil,
-	}
-}
-
-// handleToolUse 处理工具调用
-func handleToolUse(state *QueryState, llmResult LLMResult, query string) QueryLoopResult {
-	// 执行工具
-	toolExecutor := NewToolExecutor()
-	var toolResults []ToolResult
-	var toolCallInfos []ToolCallInfo
-
-	for i, toolCall := range llmResult.ToolCalls {
-		result, info := toolExecutor.ExecuteWithTiming(i+1, toolCall)
-		toolResults = append(toolResults, result)
-		toolCallInfos = append(toolCallInfos, info)
-
-		// 检查是否执行失败
-		if strings.Contains(result.Output, "失败") {
-			log.Printf("[QueryLoop] 工具 [%d] 执行失败，中断后续", i)
-			break
-		}
-	}
-
-	// 将工具结果加入消息，继续循环
-	for _, result := range toolResults {
-		toolResultMsg := ConversationMessage{
-			Role:      "user",
-			Content:   "[工具执行结果]\n" + result.Output,
-			Timestamp: time.Now(),
-		}
-		state.Messages = append(state.Messages, toolResultMsg)
-	}
-
-	state.ActiveToolCalls = nil
-	state.TurnCount++
-
-	// 继续循环，请求 LLM 处理工具结果
-	return QueryLoopResult{
-		Response:   nil,
-		Transition: TransitionContinue,
 		Error:      nil,
 	}
 }
@@ -378,7 +345,7 @@ func buildMessagesForLLM(state *QueryState, query string) []ConversationMessage 
 	return messages
 }
 
-func callLLMWithStreaming(messages []ConversationMessage) LLMResult {
+func callLLMWithStreaming(messages []ConversationMessage, toolResults []ToolResult) LLMResult {
 	// 转换消息格式
 	llmMessages := make([]map[string]string, 0)
 	for _, msg := range messages {
@@ -389,7 +356,7 @@ func callLLMWithStreaming(messages []ConversationMessage) LLMResult {
 	}
 
 	// 调用 LLM（目前使用同步调用，后续可改为流式）
-	systemPrompt := buildSystemPrompt()
+	systemPrompt := buildSystemPrompt(toolResults)
 	output, err := callLLM(llmMessages, systemPrompt)
 
 	if err != nil {
@@ -416,8 +383,31 @@ func callLLMWithStreaming(messages []ConversationMessage) LLMResult {
 	}
 }
 
-func buildSystemPrompt() string {
-	return "你是一个专注于个人知识库的智能助手。请用简洁、深刻的口吻回复，支持 Markdown 格式。"
+func buildSystemPrompt(toolResults []ToolResult) string {
+	// 基础提示词
+	basePrompt := `你是一个专注于个人知识库的智能助手，同时具备深厚的通用知识储备。
+
+请遵循以下规则：
+1. 优先基于【参考笔记上下文】中的具体内容来回答用户问题
+2. 不要给出空洞的"建议"、"思路"，而是提取具体信息直接回答
+3. 如果文档内容能回答问题，直接给出答案，引用具体信息
+4. 如果文档内容不足以回答问题，说明缺少什么信息
+5. 使用简洁、深刻的口吻回复，支持 Markdown 格式
+
+`
+
+	// 从工具结果中提取文档，构建上下文
+	var allDocs []SearchResult
+	for _, result := range toolResults {
+		allDocs = append(allDocs, result.Documents...)
+	}
+
+	if len(allDocs) > 0 {
+		context := BuildRAGContext(allDocs)
+		return basePrompt + "【参考笔记上下文】开始：\n" + context + "\n【参考笔记上下文】结束"
+	}
+
+	return basePrompt + "（当前没有找到与问题直接相关的笔记碎片记录）"
 }
 
 func callLLM(messages []map[string]string, systemPrompt string) (string, error) {
@@ -425,12 +415,56 @@ func callLLM(messages []map[string]string, systemPrompt string) (string, error) 
 	return callLLMInternal(messages, systemPrompt)
 }
 
+// detectToolCalls 检测 LLM 输出中的工具调用意图
+// TODO: 待实现 - 需要定义工具调用的输出格式和解析逻辑
 func detectToolCalls(output string) []ToolCall {
 	// 简化版：通过关键词检测工具调用意图
 	// 实际应解析 LLM 输出的结构化工具调用格式
 	return nil
 }
 
+// handleToolUse 处理工具调用
+// TODO: 待完善 - 需要支持 LLM 自主决定调用工具的场景
+func handleToolUse(state *QueryState, llmResult LLMResult, query string) QueryLoopResult {
+	// 执行工具
+	toolExecutor := NewToolExecutor()
+	var toolResults []ToolResult
+	var toolCallInfos []ToolCallInfo
+
+	for i, toolCall := range llmResult.ToolCalls {
+		result, info := toolExecutor.ExecuteWithTiming(i+1, toolCall)
+		toolResults = append(toolResults, result)
+		toolCallInfos = append(toolCallInfos, info)
+
+		// 检查是否执行失败
+		if strings.Contains(result.Output, "失败") {
+			log.Printf("[QueryLoop] 工具 [%d] 执行失败，中断后续", i)
+			break
+		}
+	}
+
+	// 将工具结果加入消息（使用 user 角色 + 前缀，兼容 API）
+	for _, result := range toolResults {
+		toolResultMsg := ConversationMessage{
+			Role:      "user",
+			Content:   "[工具执行结果]\n" + result.Output,
+			Timestamp: time.Now(),
+		}
+		state.Messages = append(state.Messages, toolResultMsg)
+	}
+
+	state.ActiveToolCalls = nil
+	state.TurnCount++
+
+	// 继续循环，请求 LLM 处理工具结果
+	return QueryLoopResult{
+		Response:   nil,
+		Transition: TransitionContinue,
+		Error:      nil,
+	}
+}
+
+// estimateTokenUsage 估算 token 使用量
 func estimateTokenUsage(messages []ConversationMessage) int {
 	// 简化估算：字符数 / 4（中文约 2 字符/token）
 	totalChars := 0

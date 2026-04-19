@@ -5,6 +5,9 @@ import (
 	"log"
 	"strings"
 	"time"
+
+	"note_all_backend/global"
+	"note_all_backend/models"
 )
 
 // AgentResponse Agent 响应结构
@@ -102,9 +105,16 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 	case IntentGenerate:
 		initialToolCalls = []ToolCall{{Tool: ToolGenerate, Parameters: map[string]interface{}{"query": query}}}
 	case IntentFollowUp, IntentClarify:
-		// 追问/澄清：使用查询重写
-		rewrite := a.queryRewriter.Rewrite(query, session.Messages, session.Context)
-		initialToolCalls = []ToolCall{{Tool: ToolSearch, Parameters: map[string]interface{}{"query": rewrite.RewrittenQuery}}}
+		// 追问/澄清：如果已有文档，不触发新检索
+		if len(session.Context.ActiveDocuments) > 0 {
+			// 有活跃文档，直接让 LLM 处理（不触发新检索）
+			log.Printf("[Agent] 追问模式: 有 %d 个活跃文档，不触发新检索", len(session.Context.ActiveDocuments))
+			initialToolCalls = nil // 不设置工具调用
+		} else {
+			// 无活跃文档，使用查询重写检索
+			rewrite := a.queryRewriter.Rewrite(query, session.Messages, session.Context)
+			initialToolCalls = []ToolCall{{Tool: ToolSearch, Parameters: map[string]interface{}{"query": rewrite.RewrittenQuery}}}
+		}
 	case IntentSwitch:
 		// 切换话题：清空上下文
 		session.Context = &SessionContext{}
@@ -119,13 +129,30 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 	// 5. 设置初始工具调用
 	state.ActiveToolCalls = initialToolCalls
 
+	// 5.5 追问模式：加载已有文档到 state.ToolResults
+	if len(initialToolCalls) == 0 && len(session.Context.ActiveDocuments) > 0 {
+		// 加载活跃文档内容
+		docs := loadDocumentsByID(session.Context.ActiveDocuments)
+		if len(docs) > 0 {
+			state.ToolResults = []ToolResult{
+				{
+					Output:    BuildRAGContext(docs),
+					Documents: docs,
+				},
+			}
+			log.Printf("[Agent] 加载 %d 个活跃文档到上下文", len(docs))
+		}
+	}
+
 	// 6. 执行 QueryLoop（多轮循环）
 	maxIterations := 10 // 防止无限循环
 	iterations := 0
 
 	var finalResponse *AgentResponse
 	var toolCallInfos []ToolCallInfo
+	var allToolResults []ToolResult // 收集所有工具执行结果
 
+loop:
 	for iterations < maxIterations {
 		iterations++
 		log.Printf("[Agent] QueryLoop iteration=%d, tool_calls=%d", iterations, len(state.ActiveToolCalls))
@@ -134,6 +161,10 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 		if len(state.ActiveToolCalls) > 0 {
 			toolResults, infos := a.executeToolCalls(state)
 			toolCallInfos = append(toolCallInfos, infos...)
+			allToolResults = append(allToolResults, toolResults...) // 收集结果
+
+			// 将工具结果加入状态（供 LLM 获取文档上下文）
+			state.ToolResults = append(state.ToolResults, toolResults...)
 
 			// 将工具结果加入消息
 			for _, result := range toolResults {
@@ -162,17 +193,24 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 				log.Printf("[Agent] QueryLoop 错误: %v", result.Error)
 				// 返回部分结果（如果有）
 				if result.Response != nil {
+					// 合并文档引用
+					result.Response.References = buildReferences(extractDocsFromResults(allToolResults))
+					result.Response.ToolCalls = toolCallInfos
+					result.Response.Intent = string(intent.Type)
+					result.Response.Confidence = intent.Confidence
 					return result.Response, nil
 				}
 				return nil, result.Error
 			}
 			if result.Response != nil {
 				finalResponse = result.Response
+				// 合并文档引用（从工具执行结果中提取）
+				finalResponse.References = buildReferences(extractDocsFromResults(allToolResults))
 				finalResponse.ToolCalls = toolCallInfos
 				finalResponse.Intent = string(intent.Type)
 				finalResponse.Confidence = intent.Confidence
 			}
-			break
+			break loop // 跳出外层 for 循环
 
 		case TransitionRecover:
 			// 进入恢复分支，继续循环
@@ -191,17 +229,18 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 
 		default:
 			log.Printf("[Agent] 未知状态转移: %s", result.Transition)
-			break
-		}
-
-		// 如果有响应，跳出循环
-		if finalResponse != nil {
-			break
+			break loop // 跳出外层 for 循环
 		}
 	}
 
-	// 7. 如果 QueryLoop 没有返回响应，使用 RAG 流程兜底
+	// 7. 检查是否超过最大迭代次数
+	if iterations >= maxIterations && finalResponse == nil {
+		log.Printf("[Agent] [警告] 超过最大迭代次数 %d，QueryLoop 未返回响应，使用 RAG 兜底", maxIterations)
+	}
+
+	// 8. 如果 QueryLoop 没有返回响应，使用 RAG 流程兜底
 	if finalResponse == nil {
+		log.Printf("[Agent] QueryLoop 未返回响应，使用 RAG 流程兜底")
 		answer, results, _, err := RAGAskWithHistory(query, session.Messages)
 		if err != nil {
 			return nil, err
@@ -209,10 +248,10 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 		finalResponse = a.buildResponse([]ToolResult{{Output: answer, Documents: results}}, toolCallInfos, intent, state.SessionID)
 	}
 
-	// 8. 更新上下文
+	// 9. 更新上下文
 	a.updateContext(session.Context, extractToolResultsFromInfos(toolCallInfos), intent)
 
-	// 9. 保存对话历史
+	// 10. 保存对话历史
 	newSessionID, err := a.sessionManager.SaveTurn(session.ID, ConversationMessage{
 		Role:       "user",
 		Content:    query,
@@ -234,10 +273,10 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 		log.Printf("[Agent] 保存助手消息失败: %v", err)
 	}
 
-	// 10. 更新会话上下文到数据库
+	// 11. 更新会话上下文到数据库
 	a.sessionManager.UpdateContext(newSessionID, session.Context)
 
-	// 11. 检查是否需要压缩历史
+	// 12. 检查是否需要压缩历史
 	a.sessionManager.CompressHistory(newSessionID)
 
 	finalResponse.SessionID = newSessionID
@@ -531,6 +570,33 @@ func extractDocIDsFromResults(results []ToolResult) []uint {
 	return uniqueUintIDs(ids)
 }
 
+func extractDocsFromResults(results []ToolResult) []SearchResult {
+	docs := make([]SearchResult, 0)
+	for _, result := range results {
+		docs = append(docs, result.Documents...)
+	}
+	return uniqueSearchResults(docs)
+}
+
+// loadDocumentsByID 从数据库加载文档内容
+func loadDocumentsByID(docIDs []uint) []SearchResult {
+	if len(docIDs) == 0 {
+		return nil
+	}
+
+	var notes []models.NoteItem
+	global.DB.Where("id IN ? AND deleted_at IS NULL", docIDs).Find(&notes)
+
+	results := make([]SearchResult, 0, len(notes))
+	for _, note := range notes {
+		results = append(results, SearchResult{
+			NoteItem: note,
+			Score:    1.0, // 已确认的文档，置信度高
+		})
+	}
+	return results
+}
+
 func uniqueUintIDs(ids []uint) []uint {
 	seen := make(map[uint]bool)
 	result := make([]uint, 0)
@@ -568,8 +634,10 @@ func buildReferences(docs []SearchResult) []ReferenceItem {
 	refs := make([]ReferenceItem, 0, len(docs))
 	for _, doc := range docs {
 		summary := doc.AiSummary
-		if len(summary) > 100 {
-			summary = string([]rune(summary)[:100]) + "..."
+		// 正确计算 rune 数量（中文字符）
+		runes := []rune(summary)
+		if len(runes) > 100 {
+			summary = string(runes[:100]) + "..."
 		}
 		refs = append(refs, ReferenceItem{
 			DocumentID: doc.ID,

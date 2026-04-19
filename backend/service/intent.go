@@ -73,6 +73,16 @@ var clarifyMarkers = []string{
 	"具体说说", "详细解释",
 }
 
+// 操作指令标记词（对已有内容进行操作，不触发新检索）
+var operationMarkers = []string{
+	"表格化", "列表化", "列出", "整理",
+	"归纳", "提炼", "概括", "精简",
+	"换个格式", "换个方式", "重新组织",
+	"分类", "归类", "排序",
+	"简化", "详细", "补充",
+	"换个角度", "换个视角",
+}
+
 // ContainsReference 检测是否包含指代词
 func ContainsReference(query string) bool {
 	query = strings.ToLower(query)
@@ -137,6 +147,17 @@ func (ia *IntentAnalyzer) Analyze(query string, history []ConversationMessage, c
 				Type:       IntentFollowUp,
 				Reference:  ExtractReference(query),
 				Confidence: 0.8,
+			}
+		}
+
+		// 优先级 3.5: 操作指令（对已有内容操作，不触发新检索）
+		for _, marker := range operationMarkers {
+			if strings.Contains(query, marker) {
+				return IntentResult{
+					Type:       IntentFollowUp,
+					Reference:  marker,
+					Confidence: 0.85,
+				}
 			}
 		}
 

@@ -214,10 +214,11 @@ func (sm *SessionManager) CompressHistory(sessionID uint) error {
 		return nil // 无需压缩
 	}
 
-	// 获取早期消息（保留最近 8 条，压缩前面的）
+	// 获取早期消息（保留最近 8 条，压缩前面的），预加载 References 避免 N+1
 	keepCount := MaxKeepTurns * 2
 	var earlyMessages []models.ChatMessage
-	global.DB.Where("chat_session_id = ?", sessionID).
+	global.DB.Preload("References").
+		Where("chat_session_id = ?", sessionID).
 		Order("id ASC").
 		Limit(int(count) - keepCount).
 		Find(&earlyMessages)
@@ -280,11 +281,10 @@ func (sm *SessionManager) extractWorkSemantic(messages []models.ChatMessage) Wor
 		}
 	}
 
-	// 从消息引用中提取活跃文档
+	// 从消息引用中提取活跃文档（使用已预加载的 References）
 	for i := len(messages) - 1; i >= 0; i-- {
-		var refs []models.NoteItem
-		global.DB.Model(&messages[i]).Association("References").Find(&refs)
-		for _, ref := range refs {
+		// References 已在 CompressHistory 中预加载
+		for _, ref := range messages[i].References {
 			if !containsUintSlice(semantic.ActiveDocs, ref.ID) {
 				semantic.ActiveDocs = append(semantic.ActiveDocs, ref.ID)
 				if len(semantic.ActiveDocs) >= 5 {
