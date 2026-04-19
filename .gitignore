@@ -10,6 +10,10 @@ dist/
 *.exe
 *.exe~
 
+# Libraries
+/backend/libs/bge-small-zh-v1.5/
+/backend/libs/gse/
+
 # Node
 node_modules/
 

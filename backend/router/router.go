@@ -127,6 +127,8 @@ func SetupRouter() *gin.Engine {
 		systemApi := new(api.SystemApi)
 		apiGroup.GET("/system/embedding/status", systemApi.GetEmbeddingStatus)
 		apiGroup.POST("/system/embedding/rebuild", systemApi.RebuildEmbeddings)
+		apiGroup.POST("/system/synonym/sync", systemApi.SyncSynonyms)
+		apiGroup.GET("/system/synonym/status", systemApi.GetSynonymStatus)
 	}
 
 	// ====================== 静态资源与 SPA 路由逻辑 ======================

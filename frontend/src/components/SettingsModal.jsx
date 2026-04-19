@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check, Plus, Trash2, Edit2, AlertCircle, Cpu, FileText, RefreshCw, Database, Zap, Loader2, Palette, Sun, Moon } from 'lucide-react';
+import { X, Check, Plus, Trash2, Edit2, AlertCircle, Cpu, FileText, RefreshCw, Database, Zap, Loader2, Palette, Sun, Moon, BookOpen } from 'lucide-react';
 import { getTemplates, createTemplate, updateTemplate, deleteTemplate, setActiveTemplate } from '../api/templateApi';
-import { getEmbeddingStatus, rebuildEmbeddings } from '../api/systemApi';
+import { getEmbeddingStatus, rebuildEmbeddings, getSynonymStatus, syncSynonyms } from '../api/systemApi';
 import { useTheme, MODES } from '../context/ThemeContext';
 
 const TABS = [
   { id: 'appearance', label: '外观', icon: Palette },
   { id: 'templates', label: 'AI 模板', icon: FileText },
   { id: 'vector', label: '向量引擎', icon: Cpu },
+  { id: 'synonym', label: '同义词库', icon: BookOpen },
 ];
 
 // ============ Tab: AI 模板管理 ============
@@ -352,6 +353,124 @@ function VectorTab() {
   );
 }
 
+// ============ Tab: 同义词库 ============
+function SynonymTab() {
+  const [status, setStatus] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const { mode } = useTheme();
+  const isLight = mode === 'light';
+
+  const loadStatus = async () => {
+    try {
+      const data = await getSynonymStatus();
+      setStatus(data);
+      setSyncing(data.is_syncing);
+    } catch (e) {
+      console.error(e);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadStatus();
+    const timer = setInterval(loadStatus, 3000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleSync = async () => {
+    if (!window.confirm('确定要同步同义词词典？\n\n此操作会从哈工大同义词词林导入数据到数据库。\n过程可能需要数秒，请查看后端日志了解进度。')) return;
+    try {
+      setSyncing(true);
+      await syncSynonyms();
+    } catch (e) {
+      alert(e.message);
+      setSyncing(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className={`flex-1 flex items-center justify-center animate-pulse ${isLight ? 'text-slate-400' : 'text-silverText/40'}`}>
+        加载中...
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
+      <div className="max-w-2xl mx-auto space-y-6">
+
+        {/* Status Cards */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className={`rounded-xl p-5 ${isLight ? 'bg-slate-50 border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
+            <div className={`text-[11px] uppercase tracking-wider mb-3 font-mono ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>词条总数</div>
+            <div className="flex items-center gap-3">
+              <BookOpen size={14} className="text-primeAccent" />
+              <span className={`text-sm font-mono ${isLight ? 'text-slate-700' : 'text-white/80'}`}>{status?.synonym_count ?? 0} 个</span>
+            </div>
+          </div>
+
+          <div className={`rounded-xl p-5 ${isLight ? 'bg-slate-50 border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
+            <div className={`text-[11px] uppercase tracking-wider mb-3 font-mono ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>同义词组</div>
+            <div className="flex items-center gap-3">
+              <Database size={14} className="text-primeAccent" />
+              <span className={`text-sm font-mono ${isLight ? 'text-slate-700' : 'text-white/80'}`}>{status?.group_count ?? 0} 组</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Info Card */}
+        <div className={`rounded-xl p-5 ${isLight ? 'bg-slate-50 border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
+          <div className={`text-[11px] uppercase tracking-wider mb-3 font-mono ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>词典来源</div>
+          <div className={`text-[13px] leading-relaxed ${isLight ? 'text-slate-600' : 'text-silverText/60'}`}>
+            哈工大社会计算与信息检索研究中心同义词词林扩展版
+          </div>
+          <div className={`text-[12px] mt-2 ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>
+            用于搜索时的同义词扩展，提升语义匹配能力
+          </div>
+        </div>
+
+        {/* Sync Action */}
+        <div className={`rounded-xl p-5 space-y-4 ${isLight ? 'bg-slate-50 border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
+          <div className="flex items-start justify-between">
+            <div>
+              <h4 className={`font-medium text-[15px] mb-1.5 ${isLight ? 'text-slate-800' : 'text-white/90'}`}>手动同步同义词</h4>
+              <p className={`text-[13px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>
+                从词典文件导入同义词数据到数据库。<br />
+                若数据库已有数据，将跳过导入。
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className={`w-full flex items-center justify-center gap-2.5 py-3 rounded-xl font-semibold text-sm transition-all ${
+              syncing
+                ? isLight ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/5 text-silverText/40 cursor-not-allowed'
+                : 'bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 border border-primeAccent/20'
+            }`}
+          >
+            {syncing ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                同步进行中，请查看后端日志...
+              </>
+            ) : (
+              <>
+                <RefreshCw size={16} />
+                同步同义词词典
+              </>
+            )}
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 // ============ Tab: 外观设置 ============
 function AppearanceTab() {
   const { theme, mode, setTheme, setMode, themes } = useTheme();
@@ -481,10 +600,11 @@ export default function SettingsModal({ onClose }) {
         </div>
 
         {/* Tab Content */}
-        <div className="flex flex-1 overflow-hidden min-h-[400px]">
+        <div className="flex h-[500px] overflow-hidden">
           {activeTab === 'appearance' && <AppearanceTab />}
           {activeTab === 'templates' && <TemplatesTab />}
           {activeTab === 'vector' && <VectorTab />}
+          {activeTab === 'synonym' && <SynonymTab />}
         </div>
 
       </div>

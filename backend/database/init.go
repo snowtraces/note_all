@@ -10,7 +10,6 @@ import (
 
 	"note_all_backend/global"
 	"note_all_backend/models"
-	"note_all_backend/pkg/synonym"
 	"note_all_backend/storage"
 
 	sqlite3 "github.com/mattn/go-sqlite3"
@@ -103,13 +102,7 @@ func InitSystem() {
 	global.Storage = storage.NewSnowStorage(storageDataPath)
 	log.Println("本地底层文件服务 SnowStorage (基于块存储机制) 启动成功。")
 
-	// 3. 异步导入同义词
-	go func() {
-		synonymFile := filepath.Join(".", "哈工大社会计算与信息检索研究中心同义词词林扩展版.txt")
-		if err := synonym.ImportSynonyms(synonymFile); err != nil {
-			log.Printf("[Synonym] 导入同义词失败: %v", err)
-		}
-	}()
+	// 3. 同义词导入已改为前端手动触发（见 SystemApi.SyncSynonyms）
 }
 
 // initVectorIndex 检查 sqlite-vector 扩展是否已加载，并初始化分片向量索引
@@ -134,4 +127,3 @@ func initVectorIndex(sqlDB *sql.DB) {
 
 	global.VectorExtLoaded = true
 }
-

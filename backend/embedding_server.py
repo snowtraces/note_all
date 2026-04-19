@@ -13,7 +13,8 @@ CORS(app)
 
 # 加载 BGE-small-zh 模型
 # 如果本地没有模型文件，会自动从 HuggingFace 下载
-model_name = 'BAAI/bge-small-zh-v1.5'
+# model_name = 'BAAI/bge-small-zh-v1.5'
+model_name = './libs/bge-small-zh-v1.5'
 print(f"Loading model: {model_name}...")
 model = SentenceTransformer(model_name)
 print("Model loaded successfully.")

@@ -13,7 +13,7 @@ import (
 var segmenter gse.Segmenter
 
 func init() {
-	err := segmenter.LoadDict()
+	err := segmenter.LoadDict("./libs/gse/zh/s_1.txt", "./libs/gse/zh/t_1.txt")
 	if err != nil {
 		log.Printf("[Synonym] 载入分词字典失败: %v", err)
 	}
