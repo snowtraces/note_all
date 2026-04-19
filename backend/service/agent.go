@@ -53,23 +53,31 @@ func AgentAsk(sessionID uint, query string) (*AgentResponse, error) {
 
 // Ask 执行问答流程（使用 QueryLoop 状态机）
 func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
-	log.Printf("[Agent] 开始处理: session=%d, query=%s", sessionID, query)
+	log.Printf("[Agent] ========== 开始处理 ==========")
+	log.Printf("[Agent] 会话ID: %d, 用户输入: %q", sessionID, query)
 
 	// 1. 加载会话历史
 	session, err := a.sessionManager.LoadSession(sessionID)
 	if err != nil {
-		log.Printf("[Agent] 加载会话失败: %v", err)
-		// 创建新会话继续
+		log.Printf("[Agent] [警告] 加载会话失败: %v，创建新会话", err)
 		session = &ConversationSession{
 			ID:       0,
 			Messages: []ConversationMessage{},
 			Context:  &SessionContext{},
 		}
+	} else {
+		log.Printf("[Agent] 会话历史: %d 条消息, %d 个活跃文档", len(session.Messages), len(session.Context.ActiveDocuments))
 	}
 
 	// 2. 分析意图（在 QueryLoop 之前）
 	intent := a.intentAnalyzer.Analyze(query, session.Messages, session.Context)
-	log.Printf("[Agent] 意图分析: type=%s, confidence=%.2f", intent.Type, intent.Confidence)
+	log.Printf("[Agent] 意图分析结果: type=%s, confidence=%.2f", intent.Type, intent.Confidence)
+	if intent.Type == IntentMultiStep && len(intent.SubTasks) > 0 {
+		log.Printf("[Agent] 多步任务拆解: %d 个子任务", len(intent.SubTasks))
+		for i, sub := range intent.SubTasks {
+			log.Printf("[Agent]   子任务[%d]: intent=%s, query=%q", i+1, sub.Intent, sub.Query)
+		}
+	}
 
 	// 3. 创建 QueryLoop 状态
 	state := NewQueryState(session.ID, session.Messages, session.Context)
@@ -234,30 +242,58 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 
 	finalResponse.SessionID = newSessionID
 
-	log.Printf("[Agent] 处理完成: session=%d, intent=%s, refs=%d",
-		newSessionID, intent.Type, len(finalResponse.References))
+	log.Printf("[Agent] ========== 处理完成 ==========")
+	log.Printf("[Agent] 会话ID: %d, 意图: %s, 置信度: %.2f", newSessionID, intent.Type, intent.Confidence)
+	log.Printf("[Agent] 引用文档: %d 个, 工具调用: %d 次", len(finalResponse.References), len(finalResponse.ToolCalls))
+	log.Printf("[Agent] 回复摘要: %q", truncateOutput(finalResponse.Content, 100))
 
 	return finalResponse, nil
 }
 
 // executeToolCalls 执行工具调用序列
 func (a *Agent) executeToolCalls(state *QueryState) ([]ToolResult, []ToolCallInfo) {
+	log.Printf("[Agent] 执行工具调用序列: %d 个工具", len(state.ActiveToolCalls))
 	results := make([]ToolResult, 0)
 	infos := make([]ToolCallInfo, 0)
 
 	for i, call := range state.ActiveToolCalls {
+		log.Printf("[Agent] 工具[%d]: %s, 参数摘要: %v", i+1, call.Tool, summarizeParams(call.Parameters))
 		result, info := a.toolExecutor.ExecuteWithTiming(i+1, call)
 		results = append(results, result)
 		infos = append(infos, info)
 
 		// 检查是否执行失败
 		if strings.Contains(result.Output, "失败") {
-			log.Printf("[Agent] 工具 [%d] 执行失败，中断后续", i)
+			log.Printf("[Agent] [警告] 工具[%d] 执行失败: %s", i+1, result.Output)
 			break
 		}
+		log.Printf("[Agent] 工具[%d] 完成: 耗时%dms, 输出摘要: %q", i+1, info.Duration, truncateOutput(result.Output, 50))
 	}
 
 	return results, infos
+}
+
+// summarizeParams 生成参数摘要（避免过长）
+func summarizeParams(params map[string]interface{}) string {
+	if params == nil {
+		return "nil"
+	}
+	if len(params) == 0 {
+		return "{}"
+	}
+	keys := make([]string, 0, len(params))
+	for k := range params {
+		keys = append(keys, k)
+	}
+	return fmt.Sprintf("{%s}", strings.Join(keys, ","))
+}
+
+// truncateOutput 截断输出（避免日志过长）
+func truncateOutput(output string, maxLen int) string {
+	if len(output) <= maxLen {
+		return output
+	}
+	return output[:maxLen] + "..."
 }
 
 // extractToolResultsFromInfos 从 ToolCallInfo 提取 ToolResult

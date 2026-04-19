@@ -68,15 +68,18 @@ type QueryLoopResult struct {
 
 // QueryLoop 主循环入口
 func QueryLoop(state *QueryState, query string) QueryLoopResult {
-	log.Printf("[QueryLoop] 开始: session=%d, turn=%d, query=%s", state.SessionID, state.TurnCount, query)
+	log.Printf("[QueryLoop] ───── 轮次 %d ─────", state.TurnCount+1)
+	log.Printf("[QueryLoop] 输入: %q", query)
 
 	// 1. 输入治理：检查 token 预算，决定是否需要 proactive compact
 	if shouldProactiveCompact(state) {
-		log.Printf("[QueryLoop] 触发 proactive compact")
+		log.Printf("[QueryLoop] [预算] Token 预算告急，触发 proactive compact")
 		if !performProactiveCompact(state) {
 			// compact 失败，尝试截断
+			log.Printf("[QueryLoop] [预算] Compact 失败，尝试截断")
 			if !performTruncate(state) {
 				// 截断也失败，熔断
+				log.Printf("[QueryLoop] [熔断] 无法处理上下文过长")
 				return QueryLoopResult{
 					Response:   nil,
 					Transition: TransitionStop,
@@ -88,11 +91,14 @@ func QueryLoop(state *QueryState, query string) QueryLoopResult {
 
 	// 2. 构建消息列表
 	messages := buildMessagesForLLM(state, query)
+	log.Printf("[QueryLoop] 构建消息: %d 条历史 + 当前输入", len(messages)-1)
 
 	// 3. 调用 LLM（带流式处理）
+	log.Printf("[QueryLoop] 调用 LLM...")
 	llmResult := callLLMWithStreaming(messages)
 
 	// 4. 处理 LLM 响应
+	log.Printf("[QueryLoop] LLM 响应: stop_reason=%s, output_len=%d", llmResult.StopReason, len(llmResult.Output))
 	switch llmResult.StopReason {
 	case StopReasonNormal:
 		// 正常完成，构建响应
@@ -204,6 +210,8 @@ func performTruncate(state *QueryState) bool {
 
 // handleNormalStop 处理正常停止
 func handleNormalStop(state *QueryState, llmResult LLMResult, query string) QueryLoopResult {
+	log.Printf("[QueryLoop] [完成] LLM 正常返回，轮次=%d", state.TurnCount+1)
+
 	// 构建响应
 	response := &AgentResponse{
 		Content:   llmResult.Output,
@@ -217,6 +225,7 @@ func handleNormalStop(state *QueryState, llmResult LLMResult, query string) Quer
 	state.TurnCount++
 	state.LastStopReason = StopReasonNormal
 
+	log.Printf("[QueryLoop] ───── 轮次结束 ─────")
 	return QueryLoopResult{
 		Response:   response,
 		Transition: TransitionStop,
@@ -227,6 +236,7 @@ func handleNormalStop(state *QueryState, llmResult LLMResult, query string) Quer
 // handleMaxTokens 处理输出截断
 func handleMaxTokens(state *QueryState, llmResult LLMResult) QueryLoopResult {
 	state.RecoveryCount++
+	log.Printf("[QueryLoop] [截断] 输出被截断，进入续写恢复 (recovery=%d)", state.RecoveryCount)
 
 	// 检查熔断阈值
 	if state.RecoveryCount > MaxRecoveryAttempts {

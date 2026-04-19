@@ -176,10 +176,8 @@ func BatchHybridSearch(queries []string, limit int) ([]SearchResult, error) {
 						}
 					}
 				}
-				log.Printf("[BatchHybridSearch] Chunk vector hits: %d docs, %d chunks (sqlite-vector)", len(vectorScores), len(vecResults))
 			} else {
 				// sqlite-vector 未加载，跳过向量检索，仅使用 FTS5 + Tag
-				log.Printf("[BatchHybridSearch] sqlite-vector not loaded, skip vector search")
 			}
 		}
 	}
@@ -201,7 +199,6 @@ func BatchHybridSearch(queries []string, limit int) ([]SearchResult, error) {
 			ftsScores[r.ID] = r.Score
 		}
 	}
-	log.Printf("[BatchHybridSearch] FTS5 hits: %d", len(ftsScores))
 
 	// 3. Tag 检索 (合并所有 queries 的扩展词)
 	allTags := make([]string, 0)
@@ -223,7 +220,6 @@ func BatchHybridSearch(queries []string, limit int) ([]SearchResult, error) {
 	for _, r := range tagHits {
 		tagScores[r.NoteID] = float32(r.Count) * 5.0
 	}
-	log.Printf("[BatchHybridSearch] Tag hits: %d for tags: %v", len(tagScores), allTags)
 
 	// 4. 合并所有 ID
 	allIDsMap := make(map[uint]bool)
@@ -249,7 +245,6 @@ func BatchHybridSearch(queries []string, limit int) ([]SearchResult, error) {
 	// 5. 获取笔记详情
 	var notes []models.NoteItem
 	global.DB.Where("id IN ? AND deleted_at IS NULL", ids).Find(&notes)
-	log.Printf("[BatchHybridSearch] Notes found: %d", len(notes))
 
 	// 6. 计算评分
 	results := make([]SearchResult, 0)
@@ -553,7 +548,6 @@ func RAGAsk(query string) (string, []SearchResult, string, error) {
 // RAGAskWithHistory 执行带历史对话的 RAG 问答流程
 func RAGAskWithHistory(query string, history []ConversationMessage) (string, []SearchResult, string, error) {
 	intent := IntentDetection(query)
-	log.Printf("[RAG] Detected intent: %s", intent)
 
 	expandedQueries := []string{query}
 	if intent == "search" || intent == "explore" {
@@ -563,14 +557,13 @@ func RAGAskWithHistory(query string, history []ConversationMessage) (string, []S
 	// 使用分片级混合检索
 	hits, hitChunks, err := BatchHybridSearchWithChunks(expandedQueries, 20)
 	if err != nil {
-		log.Printf("[RAG] BatchHybridSearchWithChunks failed: %v", err)
+		log.Printf("[RAG] [错误] 检索失败: %v", err)
 	}
 
 	uniqueResults := make(map[uint]SearchResult)
 	for _, h := range hits {
 		uniqueResults[h.ID] = h
 	}
-	log.Printf("[RAG] Initial hits: %d", len(uniqueResults))
 
 	// 图谱扩展
 	allHits := make([]SearchResult, 0, len(uniqueResults))
@@ -583,11 +576,9 @@ func RAGAskWithHistory(query string, history []ConversationMessage) (string, []S
 		allHits = allHits[:10]
 	}
 
-	log.Printf("[RAG] Proceeding with %d hits", len(allHits))
 	for i := 0; i < 3 && i < len(allHits); i++ {
 		related, _ := GetRelatedNotes(allHits[i].ID)
 		if len(related) > 0 {
-			log.Printf("[RAG] Graph expand from #%d (%s): found %d related", i+1, allHits[i].OriginalName, len(related))
 		}
 		for _, rn := range related {
 			if _, ok := uniqueResults[rn.ID]; !ok {
@@ -602,16 +593,13 @@ func RAGAskWithHistory(query string, history []ConversationMessage) (string, []S
 	}
 	sort.Slice(finalHits, func(i, j int) bool { return finalHits[i].Score > finalHits[j].Score })
 
-	log.Printf("[RAG] Final context hits: %d", len(finalHits))
 
 	// 使用分片上下文构建（如果有分片命中）
 	var context string
 	if len(hitChunks) > 0 {
 		context = BuildRAGContextFromChunks(finalHits, hitChunks)
-		log.Printf("[AskAI] Context length (chunk-based): %d", len(context))
 	} else {
 		context = BuildRAGContext(finalHits)
-		log.Printf("[AskAI] Context length (document-based): %d", len(context))
 	}
 
 	systemPrompt := "你是一个专注于个人知识库的智能助手，同时具备深厚的通用知识储备。你会优先基于【参考笔记上下文】来回答用户的问题，以体现出你对用户个人资料的了解；如果数据中没有直接答案，请结合由于你作为大模型本身的通用智慧来流畅地回答，无需由于缺乏引用而反复道歉。请用简洁、深刻的口吻进行回复，并支持 Markdown 格式排版。\n\n"
@@ -687,10 +675,8 @@ func BatchHybridSearchWithChunks(queries []string, limit int) ([]SearchResult, m
 						}
 					}
 				}
-				log.Printf("[BatchHybridSearchWithChunks] Chunk vector hits: %d docs, %d chunks", len(vectorScores), len(vecResults))
 			} else {
 				// sqlite-vector 未加载，跳过向量检索，仅使用 FTS5 + Tag
-				log.Printf("[BatchHybridSearchWithChunks] sqlite-vector not loaded, skip vector search")
 			}
 		}
 	}
@@ -712,7 +698,6 @@ func BatchHybridSearchWithChunks(queries []string, limit int) ([]SearchResult, m
 			ftsScores[r.ID] = r.Score
 		}
 	}
-	log.Printf("[BatchHybridSearchWithChunks] FTS5 hits: %d", len(ftsScores))
 
 	// 3. Tag 检索
 	allTags := make([]string, 0)
