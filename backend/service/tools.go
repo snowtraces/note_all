@@ -31,8 +31,9 @@ type ToolCall struct {
 
 // ToolResult 工具执行结果
 type ToolResult struct {
-	Output    string         // 输出内容
-	Documents []SearchResult // 涉及的文档
+	Output    string                       // 输出内容
+	Documents []SearchResult               // 涉及的文档
+	HitChunks map[uint][]ChunkSearchResult // 命中的分片（key 为文档 ID）
 	Metadata  map[string]interface{}
 }
 
@@ -94,53 +95,36 @@ func (te *ToolExecutor) Execute(call ToolCall) ToolResult {
 	}
 }
 
-// executeSearch 执行检索
+// executeSearch 执行检索（返回分片结果，避免完整大文档）
 func (te *ToolExecutor) executeSearch(call ToolCall) ToolResult {
 	query, _ := call.Parameters["query"].(string)
 	if query == "" {
 		return ToolResult{Output: "检索查询为空"}
 	}
 
-	// 使用现有混合检索
-	results, err := HybridSearch(query, 20)
+	// 使用分片级混合检索（返回文档 + 命中分片）
+	results, hitChunks, err := BatchHybridSearchWithChunks([]string{query}, 20)
 	if err != nil {
 		log.Printf("[ToolExecutor] 检索失败: %v", err)
 		return ToolResult{Output: "检索失败: " + err.Error()}
 	}
 
-	// 构建包含文档详情的输出（供 LLM 理解）
+	// 构建简短输出摘要
 	var output string
 	if len(results) == 0 {
 		output = "未找到相关文档"
 	} else {
-		var sb strings.Builder
-		sb.WriteString(fmt.Sprintf("检索到 %d 篇相关文档：\n\n", len(results)))
-		for i, doc := range results {
-			if i >= 5 { // 只传递前 5 篇详情，避免过长
-				sb.WriteString(fmt.Sprintf("... 还有 %d 篇文档\n", len(results)-i))
-				break
-			}
-			sb.WriteString(fmt.Sprintf("【文档%d】%s\n", i+1, doc.OriginalName))
-			if doc.AiSummary != "" {
-				sb.WriteString(fmt.Sprintf("摘要：%s\n", doc.AiSummary))
-			}
-			if doc.OcrText != "" {
-				// 正确处理 UTF-8：按 rune 截取，避免切分多字节字符
-				runes := []rune(doc.OcrText)
-				if len(runes) > 200 {
-					sb.WriteString(fmt.Sprintf("内容片段：%s...\n", string(runes[:200])))
-				} else {
-					sb.WriteString(fmt.Sprintf("内容：%s\n", doc.OcrText))
-				}
-			}
-			sb.WriteString("\n")
+		topTitles := make([]string, 0, 3)
+		for i := 0; i < 3 && i < len(results); i++ {
+			topTitles = append(topTitles, results[i].OriginalName)
 		}
-		output = sb.String()
+		output = fmt.Sprintf("检索到 %d 篇相关文档，最相关：%s", len(results), strings.Join(topTitles, ", "))
 	}
 
 	return ToolResult{
 		Output:    output,
 		Documents: results,
+		HitChunks: hitChunks,
 		Metadata:  map[string]interface{}{"query": query, "count": len(results)},
 	}
 }

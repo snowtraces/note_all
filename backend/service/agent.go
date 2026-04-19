@@ -129,28 +129,37 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 	// 5. 设置初始工具调用
 	state.ActiveToolCalls = initialToolCalls
 
-	// 5.5 追问模式：加载已有文档到 state.ToolResults
+	// 提前声明，供追问模式和循环使用
+	var finalResponse *AgentResponse
+	var toolCallInfos []ToolCallInfo
+	var allToolResults []ToolResult // 收集所有工具执行结果
+
+	// 5.5 追问模式：加载已有文档到 state.ToolResults 和 allToolResults（含分片）
 	if len(initialToolCalls) == 0 && len(session.Context.ActiveDocuments) > 0 {
-		// 加载活跃文档内容
-		docs := loadDocumentsByID(session.Context.ActiveDocuments)
+		// 加载活跃文档内容（含分片信息，用于精简上下文）
+		docs, hitChunks := loadDocumentsByIDWithChunks(session.Context.ActiveDocuments)
 		if len(docs) > 0 {
-			state.ToolResults = []ToolResult{
-				{
-					Output:    BuildRAGContext(docs),
-					Documents: docs,
-				},
+			// 优先使用分片上下文，若无分片则使用完整文档
+			var output string
+			if len(hitChunks) > 0 {
+				output = BuildRAGContextFromChunks(docs, hitChunks)
+			} else {
+				output = BuildRAGContext(docs)
 			}
-			log.Printf("[Agent] 加载 %d 个活跃文档到上下文", len(docs))
+			toolResult := ToolResult{
+				Output:    output,
+				Documents: docs,
+				HitChunks: hitChunks,
+			}
+			state.ToolResults = []ToolResult{toolResult}
+			allToolResults = []ToolResult{toolResult} // 同时加入收集列表，用于构建 References
+			log.Printf("[Agent] 加载 %d 个活跃文档到上下文（含 %d 个分片）", len(docs), len(hitChunks))
 		}
 	}
 
 	// 6. 执行 QueryLoop（多轮循环）
 	maxIterations := 10 // 防止无限循环
 	iterations := 0
-
-	var finalResponse *AgentResponse
-	var toolCallInfos []ToolCallInfo
-	var allToolResults []ToolResult // 收集所有工具执行结果
 
 loop:
 	for iterations < maxIterations {
@@ -248,8 +257,8 @@ loop:
 		finalResponse = a.buildResponse([]ToolResult{{Output: answer, Documents: results}}, toolCallInfos, intent, state.SessionID)
 	}
 
-	// 9. 更新上下文
-	a.updateContext(session.Context, extractToolResultsFromInfos(toolCallInfos), intent)
+	// 9. 更新上下文（使用完整的工具结果，包含 Documents）
+	a.updateContext(session.Context, allToolResults, intent)
 
 	// 10. 保存对话历史
 	newSessionID, err := a.sessionManager.SaveTurn(session.ID, ConversationMessage{
@@ -333,16 +342,6 @@ func truncateOutput(output string, maxLen int) string {
 		return output
 	}
 	return output[:maxLen] + "..."
-}
-
-// extractToolResultsFromInfos 从 ToolCallInfo 提取 ToolResult
-func extractToolResultsFromInfos(infos []ToolCallInfo) []ToolResult {
-	results := make([]ToolResult, 0)
-	for _, info := range infos {
-		// 模拟 ToolResult（简化版）
-		results = append(results, ToolResult{Output: info.Output})
-	}
-	return results
 }
 
 // extractDocIDsFromResponse 从响应提取文档 ID
@@ -595,6 +594,41 @@ func loadDocumentsByID(docIDs []uint) []SearchResult {
 		})
 	}
 	return results
+}
+
+// loadDocumentsByIDWithChunks 从数据库加载文档内容及其分片信息
+func loadDocumentsByIDWithChunks(docIDs []uint) ([]SearchResult, map[uint][]ChunkSearchResult) {
+	if len(docIDs) == 0 {
+		return nil, nil
+	}
+
+	var notes []models.NoteItem
+	global.DB.Where("id IN ? AND deleted_at IS NULL", docIDs).Find(&notes)
+
+	results := make([]SearchResult, 0, len(notes))
+	hitChunks := make(map[uint][]ChunkSearchResult)
+
+	for _, note := range notes {
+		results = append(results, SearchResult{
+			NoteItem: note,
+			Score:    1.0,
+		})
+
+		// 加载文档的所有分片（作为"命中分片"使用）
+		var chunks []models.NoteChunk
+		global.DB.Where("note_id = ?", note.ID).Order("chunk_index").Find(&chunks)
+		for _, chunk := range chunks {
+			hitChunks[note.ID] = append(hitChunks[note.ID], ChunkSearchResult{
+				ChunkID:    chunk.ID,
+				NoteID:     note.ID,
+				Content:    chunk.Content,
+				Heading:    chunk.Heading,
+				ChunkIndex: chunk.ChunkIndex,
+				Score:      1.0,
+			})
+		}
+	}
+	return results, hitChunks
 }
 
 func uniqueUintIDs(ids []uint) []uint {
