@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -77,8 +78,8 @@ func (s *SnowStorage) Open(id string) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	// 将数据包装成 ReadCloser
-	return &nopCloser{strings.NewReader(string(data))}, nil
+	// 将数据包装成 ReadCloser（使用 bytes.NewReader 正确处理二进制数据）
+	return io.NopCloser(bytes.NewReader(data)), nil
 }
 
 // nopCloser 是一个没有实际关闭操作的 ReadCloser 实现
@@ -435,7 +436,7 @@ func (fm *FileManager) writeAt(path string, data []byte, offset int64) error {
 	return nil
 }
 
-// readAt 从指定位置读取 size 字节（带读锁）
+// readAt 从指定位置读取 size 字节（使用原子 ReadAt 操作，避免并发竞争）
 func (fm *FileManager) readAt(path string, offset int64, size int) ([]byte, error) {
 	handler, err := fm.openOrCreateFile(path, false)
 	if err != nil {
@@ -445,12 +446,9 @@ func (fm *FileManager) readAt(path string, offset int64, size int) ([]byte, erro
 	handler.rwmutex.RLock()
 	defer handler.rwmutex.RUnlock()
 
-	if _, err := handler.file.Seek(offset, io.SeekStart); err != nil {
-		return nil, fmt.Errorf("seek失败: %v", err)
-	}
-
 	buffer := make([]byte, size)
-	n, err := io.ReadFull(handler.file, buffer)
+	// 使用 ReadAt 原子操作，不受并发 Seek 影响
+	n, err := handler.file.ReadAt(buffer, offset)
 	if err != nil {
 		// 如果读取不到足够数据但读取了部分，也返回已读部分
 		if errors.Is(err, io.ErrUnexpectedEOF) || err == io.EOF {
@@ -464,7 +462,7 @@ func (fm *FileManager) readAt(path string, offset int64, size int) ([]byte, erro
 	return buffer[:n], nil
 }
 
-// read 读取整个文件（带读锁）
+// read 读取整个文件（使用 ReadAt 避免并发竞争）
 func (fm *FileManager) read(path string) ([]byte, error) {
 	handler, err := fm.openOrCreateFile(path, false)
 	if err != nil {
@@ -474,17 +472,22 @@ func (fm *FileManager) read(path string) ([]byte, error) {
 	handler.rwmutex.RLock()
 	defer handler.rwmutex.RUnlock()
 
-	// 从头读
-	if _, err := handler.file.Seek(0, io.SeekStart); err != nil {
-		return nil, fmt.Errorf("seek 失败: %v", err)
-	}
-	all, err := io.ReadAll(handler.file)
+	// 获取文件大小
+	stat, err := handler.file.Stat()
 	if err != nil {
+		return nil, fmt.Errorf("获取文件信息失败: %v", err)
+	}
+	size := stat.Size()
+
+	// 使用 ReadAt 从头读取整个文件
+	buffer := make([]byte, size)
+	n, err := handler.file.ReadAt(buffer, 0)
+	if err != nil && !errors.Is(err, io.EOF) {
 		return nil, fmt.Errorf("读取失败: %v", err)
 	}
 
 	handler.lastAccess = time.Now()
-	return all, nil
+	return buffer[:n], nil
 }
 
 // ReleaseAll 手动释放所有句柄

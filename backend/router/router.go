@@ -113,6 +113,9 @@ func SetupRouter() *gin.Engine {
 		apiGroup.POST("/note/synthesize", noteApi.Synthesize)
 		apiGroup.POST("/note/synthesize/save", noteApi.SaveSynthesized)
 
+		// 9.2 图片上传（独立接口，用于图片本地化）
+		apiGroup.POST("/image/upload", noteApi.UploadImage)
+
 		// 9.5 知识图谱数据
 		apiGroup.GET("/graph", noteApi.GetGraph)
 

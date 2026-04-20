@@ -5,14 +5,33 @@ import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
+import { getAuthToken } from '../api/authApi';
 
 export default function MarkdownRenderer({ content, className = '' }) {
+  const token = getAuthToken();
+
+  // 处理本地图片URL，添加token鉴权
+  const processLocalUrl = (src) => {
+    if (!src) return src;
+    // 本地图片URL特征：以 /api/file/ 开头
+    if (src.startsWith('/api/file/')) {
+      // 如果已经有token参数，不再重复添加
+      if (src.includes('?token=')) return src;
+      return token ? `${src}?token=${token}` : src;
+    }
+    return src;
+  };
+
   return (
     <div className={`markdown-content ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath, remarkBreaks]}
         rehypePlugins={[rehypeRaw, rehypeKatex]}
         components={{
+          // 处理图片src，本地URL加token
+          img: ({ src, ...props }) => (
+            <img src={processLocalUrl(src)} {...props} />
+          ),
           code({node, className, children, ...props}) {
             const match = /language-(\w+)/.exec(className || '')
             const isBlock = match || String(children).includes('\n')

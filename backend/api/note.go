@@ -1,10 +1,13 @@
 package api
 
 import (
+	"bytes"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"note_all_backend/global"
 	"note_all_backend/models"
@@ -121,12 +124,22 @@ func (a *NoteApi) GetFile(c *gin.Context) {
 	}
 	defer reader.Close()
 
-	// 从 DB 查询该文件存储时记录的真实 MIME 类型
-	var note models.NoteItem
+	// 从 FileMetadata 表查询 MIME 类型（新数据）
+	// 如果没找到，再从 NoteItem 查询（兼容历史数据）
 	contentType := "application/octet-stream"
-	if err := global.DB.Select("file_type").Where("storage_id = ?", id).First(&note).Error; err == nil {
-		if note.FileType != "" {
-			contentType = note.FileType
+
+	var fileMeta models.FileMetadata
+	if err := global.DB.Select("mime_type").Where("storage_id = ?", id).First(&fileMeta).Error; err == nil {
+		if fileMeta.MimeType != "" {
+			contentType = fileMeta.MimeType
+		}
+	} else {
+		// 后备：从 NoteItem 查询（兼容历史数据）
+		var note models.NoteItem
+		if err := global.DB.Select("file_type").Where("storage_id = ?", id).First(&note).Error; err == nil {
+			if note.FileType != "" {
+				contentType = note.FileType
+			}
 		}
 	}
 
@@ -596,4 +609,54 @@ func (a *NoteApi) UpdateStatus(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "状态更新成功"})
+}
+
+// UploadImage 接收图片数据（base64），存储并返回storage_id和URL
+func (a *NoteApi) UploadImage(c *gin.Context) {
+	var body struct {
+		Data     string `json:"data" binding:"required"`      // base64编码的图片数据
+		MimeType string `json:"mime_type" binding:"required"` // 图片MIME类型
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误，需要 data 和 mime_type"})
+		return
+	}
+
+	// 解码base64数据
+	imageData, err := base64.StdEncoding.DecodeString(body.Data)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "base64解码失败: " + err.Error()})
+		return
+	}
+
+	if len(imageData) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "图片数据为空"})
+		return
+	}
+
+	// 生成唯一storage_id并存储到SnowStorage
+	secureName := fmt.Sprintf("img_%d_%s", time.Now().UnixNano(), strings.ReplaceAll(body.MimeType, "/", "_"))
+	storageID, err := global.Storage.Save(secureName, bytes.NewReader(imageData))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "存储失败: " + err.Error()})
+		return
+	}
+
+	// 创建文件元数据记录
+	fileMeta := models.FileMetadata{
+		StorageID: storageID,
+		MimeType:  body.MimeType,
+		FileSize:  int64(len(imageData)),
+		FileName:  secureName,
+	}
+	if err := global.DB.Create(&fileMeta).Error; err != nil {
+		// 元数据创建失败不影响文件已存储成功，仅记录日志
+		fmt.Printf("[UploadImage] 创建文件元数据失败: %v\n", err)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":    "图片上传成功",
+		"storage_id": storageID,
+		"url":        fmt.Sprintf("/api/file/%s", storageID),
+	})
 }

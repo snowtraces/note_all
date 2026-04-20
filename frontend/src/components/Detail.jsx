@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink, Link, Zap, Share2, RefreshCw, CheckCircle2, XCircle, ClipboardEdit, Eye } from 'lucide-react';
+import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink, Link, Zap, Share2, RefreshCw, CheckCircle2, XCircle, ClipboardEdit, Eye, ImageDown } from 'lucide-react';
 import { getAuthToken } from '../api/authApi';
 import MarkdownRenderer from './MarkdownRenderer';
-import { getRelatedNotes, reprocessNote } from '../api/noteApi';
+import { getRelatedNotes, reprocessNote, uploadImage } from '../api/noteApi';
 import { getTemplates } from '../api/templateApi';
 import ShareModal from './ShareModal';
 
@@ -27,6 +27,11 @@ export default function Detail({
   const [annotation, setAnnotation] = useState(item?.user_comment || '');
   const [isSubmittingStatus, setIsSubmittingStatus] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [externalImages, setExternalImages] = useState([]); // 第三方图片URL列表
+  const [localImages, setLocalImages] = useState([]); // 已本地化的图片URL列表
+  const [localizingProgress, setLocalizingProgress] = useState(0); // 已处理数量
+  const [totalImagesToLocalize, setTotalImagesToLocalize] = useState(0); // 本次本地化任务的总数
+  const [isLocalizing, setIsLocalizing] = useState(false);
   const textareaRef = useRef(null);
   const token = getAuthToken();
   const fileUrl = item?.storage_id ? `/api/file/${item.storage_id}${token ? `?token=${token}` : ''}` : '';
@@ -71,6 +76,142 @@ export default function Detail({
     } catch (e) {
       console.error(e);
     }
+  };
+
+  // 从 URL 扩展名推断 MIME type
+  const inferMimeType = (url) => {
+    const ext = url.split('.').pop()?.toLowerCase()?.split('?')[0];
+    const mimeMap = {
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'gif': 'image/gif',
+      'webp': 'image/webp',
+      'bmp': 'image/bmp',
+      'svg': 'image/svg+xml',
+    };
+    return mimeMap[ext] || 'image/png';
+  };
+
+  // 检测 markdown 内容中的图片 URL
+  const detectImages = (text) => {
+    if (!text) return { external: [], local: [] };
+    // 匹配 markdown 图片语法 ![alt](url) 和 HTML <img src="url">
+    const mdImgRegex = /!\[.*?\]\(([^)]+)\)/g;
+    const htmlImgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+
+    const external = []; // 第三方图片（https://开头）
+    const local = [];    // 本地图片（/api/file/开头）
+
+    let match;
+    while ((match = mdImgRegex.exec(text)) !== null) {
+      const url = match[1];
+      if (url.startsWith('/api/file/')) {
+        local.push({ url, mimeType: inferMimeType(url) });
+      } else if (url.startsWith('http://') || url.startsWith('https://')) {
+        external.push({ url, mimeType: inferMimeType(url) });
+      }
+    }
+    while ((match = htmlImgRegex.exec(text)) !== null) {
+      const url = match[1];
+      if (url.startsWith('/api/file/')) {
+        local.push({ url, mimeType: inferMimeType(url) });
+      } else if (url.startsWith('http://') || url.startsWith('https://')) {
+        external.push({ url, mimeType: inferMimeType(url) });
+      }
+    }
+    return { external, local };
+  };
+
+  // 当 item 变化时检测图片数量
+  useEffect(() => {
+    const { external, local } = detectImages(item?.ocr_text);
+    setExternalImages(external);
+    setLocalImages(local);
+    setLocalizingProgress(0);
+    setTotalImagesToLocalize(0);
+  }, [item?.ocr_text]);
+
+  // 从浏览器渲染的图片获取 base64 数据
+  const fetchImageAsBase64 = async (url, mimeType = 'image/png') => {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const dataUrl = canvas.toDataURL(mimeType);
+        // 去掉 data:image/xxx;base64, 前缀
+        const base64Data = dataUrl.split(',')[1];
+        resolve({ data: base64Data, mimeType });
+      };
+      img.onerror = (err) => {
+        reject(new Error(`无法加载图片: ${url}`));
+      };
+      img.src = url;
+    });
+  };
+
+  // 执行图片本地化
+  const handleLocalizeImages = async () => {
+    if (!externalImages.length || isLocalizing) return;
+
+    setIsLocalizing(true);
+    setLocalizingProgress(0);
+    setTotalImagesToLocalize(externalImages.length);
+
+    let updatedText = editValue;
+
+    for (let i = 0; i < externalImages.length; i++) {
+      const { url: originalUrl, mimeType: originalMimeType } = externalImages[i];
+      try {
+        // 1. 从浏览器获取已渲染的图片内容（使用推断的 MIME type）
+        const { data, mimeType } = await fetchImageAsBase64(originalUrl, originalMimeType);
+
+        // 2. 上传到服务器
+        const { url } = await uploadImage(data, mimeType);
+
+        // 3. 加上token鉴权参数
+        const urlWithToken = token ? `${url}?token=${token}` : url;
+
+        // 4. 替换原文中的 URL
+        // 处理 markdown 格式 ![alt](url)
+        updatedText = updatedText.replace(
+          new RegExp(`!\\[([^\\]]*)\\]\\(${originalUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`, 'g'),
+          `![$1](${urlWithToken})`
+        );
+        // 处理 HTML 格式 <img src="url">
+        updatedText = updatedText.replace(
+          new RegExp(`<img([^>]*)src=["']${originalUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']([^>]*)>`, 'gi'),
+          `<img$1src="${urlWithToken}"$2>`
+        );
+
+        setLocalizingProgress(i + 1);
+      } catch (err) {
+        console.error(`图片本地化失败: ${originalUrl}`, err);
+        // 继续处理下一张
+        setLocalizingProgress(i + 1);
+      }
+    }
+
+    // 更新编辑值
+    setEditValue(updatedText);
+
+    // 自动保存到服务器
+    if (handleUpdateText && item) {
+      setIsSaving(true);
+      await handleUpdateText(item.id, updatedText);
+      setIsSaving(false);
+    }
+
+    setIsLocalizing(false);
+    // 重新检测图片
+    const { external, local } = detectImages(updatedText);
+    setExternalImages(external);
+    setLocalImages(local);
   };
 
   if (!item) return null;
@@ -213,6 +354,24 @@ export default function Detail({
                   >
                     <ExternalLink size={12} /> 直达源网址
                   </a>
+                )}
+                {/* 图片本地化按钮 - 有图片时显示 */}
+                {(externalImages.length > 0 || localImages.length > 0) && (
+                  <button
+                    onClick={handleLocalizeImages}
+                    disabled={isLocalizing || externalImages.length === 0}
+                    className={`flex items-center gap-1.5 px-3 py-1 transition-colors rounded-md text-[10px] font-mono ${
+                      externalImages.length === 0
+                        ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                        : 'bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/20'
+                    }`}
+                    title={externalImages.length === 0 ? "图片已全部本地化" : "将第三方图片下载并本地化存储"}
+                  >
+                    <ImageDown size={12} className={isLocalizing ? 'animate-pulse' : ''} />
+                    {isLocalizing
+                      ? `本地化中 ${localizingProgress}/${totalImagesToLocalize}`
+                      : `图片本地化 ${localImages.length}/${externalImages.length + localImages.length}`}
+                  </button>
                 )}
                 <button
                   onClick={() => setIsRawMode(!isRawMode)}

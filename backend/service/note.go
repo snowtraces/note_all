@@ -185,10 +185,11 @@ func UploadAndCreateNote(file *multipart.FileHeader) (*models.NoteItem, error) {
 	}
 
 	// 3. 构建 DB 数据实体 (目前状态为 pending)
+	mimeType := file.Header.Get("Content-Type")
 	note := models.NoteItem{
 		OriginalName: file.Filename,
 		StorageID:    storageID,
-		FileType:     file.Header.Get("Content-Type"),
+		FileType:     mimeType,
 		FileSize:     file.Size,
 		Status:       "pending",
 	}
@@ -196,6 +197,17 @@ func UploadAndCreateNote(file *multipart.FileHeader) (*models.NoteItem, error) {
 	// 4. 落库
 	if err := global.DB.Create(&note).Error; err != nil {
 		return nil, fmt.Errorf("数据库元数据建立失败: %v", err)
+	}
+
+	// 4.5 创建文件元数据记录（用于独立的文件查询）
+	fileMeta := models.FileMetadata{
+		StorageID: storageID,
+		MimeType:  mimeType,
+		FileSize:  file.Size,
+		FileName:  file.Filename,
+	}
+	if err := global.DB.Create(&fileMeta).Error; err != nil {
+		log.Printf("[Upload] 创建文件元数据失败（不影响主流程）: %v", err)
 	}
 
 	// 5. 将任务发送到后台队列进行阻塞排队处理，避免并发过高触发 OCR/LLM 接口限流 (429)

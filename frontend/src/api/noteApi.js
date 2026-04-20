@@ -172,3 +172,18 @@ export const saveSynthesizedNote = async (ids, title, content) => {
   return data.data;
 };
 
+// uploadImage 上传图片到服务器存储，返回 storage_id 和 URL
+export const uploadImage = async (imageData, mimeType) => {
+  const res = await request("/api/image/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data: imageData, mime_type: mimeType }),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || "Image upload failed");
+  }
+  const data = await res.json();
+  return { storageId: data.storage_id, url: data.url };
+};
+

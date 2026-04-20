@@ -79,8 +79,8 @@ type ChatMessage struct {
 
 // SetupDBWithFTS 初始化数据库结构，包括建立 FTS5 虚拟表及与基础表联动的触发器
 func SetupDBWithFTS(db *gorm.DB) error {
-	// 1. 自动迁移主表 + 标签关联表 + NoteLink双链表 + 对话表 + 提示词模板表 + 微信相关表 + 分片向量表
-	if err := db.AutoMigrate(&NoteItem{}, &NoteTag{}, &NoteLink{}, &ChatSession{}, &ChatMessage{}, &PromptTemplate{}, &ShareLink{}, &WeixinBotCredential{}, &WeixinUserContext{}, &WeixinMessage{}, &NoteChunk{}, &NoteChunkEmbedding{}); err != nil {
+	// 1. 自动迁移主表 + 标签关联表 + NoteLink双链表 + 对话表 + 提示词模板表 + 微信相关表 + 分片向量表 + 文件元数据表
+	if err := db.AutoMigrate(&NoteItem{}, &NoteTag{}, &NoteLink{}, &ChatSession{}, &ChatMessage{}, &PromptTemplate{}, &ShareLink{}, &WeixinBotCredential{}, &WeixinUserContext{}, &WeixinMessage{}, &NoteChunk{}, &NoteChunkEmbedding{}, &FileMetadata{}); err != nil {
 		return fmt.Errorf("failed to migrate tables: %v", err)
 	}
 
