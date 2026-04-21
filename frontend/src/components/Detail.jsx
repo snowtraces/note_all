@@ -386,11 +386,11 @@ export default function Detail({
             <div className="text-textPrimary text-[14px] leading-[1.7] tracking-wide bg-modal px-5 py-4 rounded-xl border border-borderSubtle selection:bg-primeAccent selection:text-black mt-1 shadow-inner">
               {isRawMode ? (
                 <div className="relative group/edit">
-                  <textarea 
+                  <textarea
                     ref={textareaRef}
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
-                    className="w-full outline-none bg-transparent overflow-hidden whitespace-pre-wrap font-mono text-[13px] text-textSecondary break-words"
+                    className="w-full outline-none bg-transparent overflow-hidden whitespace-pre-wrap font-mono text-[13px] text-textSecondary break-words border-none"
                     placeholder="未能提取到或尚未进行 OCR 文本识别..."
                   />
                   <div className="sticky bottom-6 right-0 flex justify-end pointer-events-none z-20 pr-4 pb-2">
