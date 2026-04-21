@@ -208,7 +208,19 @@
       }
     });
 
-    // 4. 强制将所有 <pre> 转换为 fenced 代码块（解决有些 pre 块没用 ``` 包裹的问题）
+    // 4. 标题处理：提取纯文本内容，避免内部 div/span 导致多余换行
+    turndownService.addRule('heading', {
+      filter: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+      replacement: function (content, node) {
+        // 清理内容中的多余换行和空白
+        content = content.replace(/\n+/g, ' ').trim();
+        if (!content) return '';
+        const level = node.nodeName.charAt(1);
+        return '\n\n' + '#'.repeat(parseInt(level)) + ' ' + content + '\n\n';
+      }
+    });
+
+    // 5. 强制将所有 <pre> 转换为 fenced 代码块（解决有些 pre 块没用 ``` 包裹的问题）
     turndownService.addRule('fencedCodeBlock', {
       filter: 'pre',
       replacement: function (content) {
@@ -218,7 +230,7 @@
       }
     });
 
-    // 5. 核心机制：使用标记策略保留 pre-wrap 中的文本换行
+    // 6. 核心机制：使用标记策略保留 pre-wrap 中的文本换行
     // 这种方法可以绕过 Turndown 内部对文本节点空白符的强制压缩
     const BR_MARKER = '---NOTEBR---';
     const clone = element.cloneNode(true);
@@ -258,7 +270,7 @@
             
             // 将 block 元素伪装成 span，让 Turndown 认为它是内联元素
             if (isInline) {
-              const blockTags = ['DIV', 'P', 'LI', 'UL', 'OL', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'ARTICLE', 'SECTION', 'ASIDE', 'NAV', 'HEADER', 'FOOTER'];
+              const blockTags = ['DIV', 'P', 'LI', 'ARTICLE', 'SECTION', 'ASIDE', 'NAV', 'HEADER', 'FOOTER'];
               if (blockTags.includes(cChild.nodeName)) {
                 const span = document.createElement('span');
                 Array.from(cChild.attributes).forEach(attr => span.setAttribute(attr.name, attr.value));
@@ -290,14 +302,14 @@
       turndownService.use(window.turndownPluginGfm.gfm);
     }
 
-    // 5. 执行转换并还原标记
+    // 7. 执行转换并还原标记
     let markdown = turndownService.turndown(clone);
     // 将标记替换为换行符
     // 注意：在代码块外，Markdown 通常需要两个空格+换行来表示硬换行，
     // 但在代码块内，简单的 \n 即可。为了兼容性，我们统一先换回 \n。
     markdown = markdown.replace(new RegExp(BR_MARKER, 'g'), '\n');
 
-    // 6. 修复转义问题：还原被 Turndown 自动转义的常用字符，确保代码块和正文中的视觉一致性
+    // 8. 修复转义问题：还原被 Turndown 自动转义的常用字符，确保代码块和正文中的视觉一致性
     return markdown.replace(/\\([-\*\+\#\>\!\_\[\]\(\)\`\.])/g, '$1');
   }
 
