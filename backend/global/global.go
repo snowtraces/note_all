@@ -18,6 +18,9 @@ var (
 
 	// VectorExtLoaded 标记 sqlite-vector 扩展是否加载成功
 	VectorExtLoaded bool
+
+	// SSEBus SSE 实时推送事件总线
+	SSEBus *EventBus
 )
 
 type AppConfig struct {

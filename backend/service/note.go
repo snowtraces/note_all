@@ -165,6 +165,9 @@ func performFullAnalysis(nID uint, templateID uint) {
 		log.Printf("[AI 异常] 分片向量索引更新失败 (ID:%d): %v", nID, err)
 	}
 
+	// SSE 通知前端数据变化
+	global.SSEBus.Publish("refresh")
+
 	log.Printf("[AI全链路作业完成] 记录ID %d: 提取摘要 [%s]...", nID, summary)
 }
 
@@ -310,6 +313,7 @@ func CreateNoteFromText(text string) (*models.NoteItem, error) {
 				"status":     "analyzed",
 			})
 			syncTags(nID, tags)
+			global.SSEBus.Publish("refresh")
 			return
 		}
 
@@ -340,6 +344,8 @@ func CreateNoteFromText(text string) (*models.NoteItem, error) {
 
 		syncTags(nID, tags)
 		syncLinks(nID, rawText)
+
+		global.SSEBus.Publish("refresh")
 
 		log.Printf("%s 记录ID %d: 提取精简摘要 [%s]...", prefix, nID, summary)
 	}
@@ -397,6 +403,7 @@ func UpdateNoteText(id string, text string) error {
 			syncTags(noteItem.ID, tags)
 			syncLinks(noteItem.ID, rawText)
 			UpdateNoteChunks(noteItem.ID)
+			global.SSEBus.Publish("refresh")
 		}
 
 		log.Printf("[重新提炼作业完成] 记录ID %s: 提取新精简摘要 [%s]...", itemID, summary)

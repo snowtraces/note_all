@@ -209,6 +209,7 @@ func (a *NoteApi) SoftDelete(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "已移至回收站"})
+	global.SSEBus.Publish("refresh")
 }
 
 // Restore 将被逻辑删除的对象恢复
@@ -220,6 +221,7 @@ func (a *NoteApi) Restore(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "已从回收站恢复"})
+	global.SSEBus.Publish("refresh")
 }
 
 // HardDelete 永久销毁（物理删除数据库记录与存储）
@@ -249,6 +251,7 @@ func (a *NoteApi) HardDelete(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "已永久销毁此记录及关联数据"})
+	global.SSEBus.Publish("refresh")
 }
 
 // Trash 获取回收站内的逻辑删除记录
@@ -281,6 +284,7 @@ func (a *NoteApi) BatchArchive(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "操作成功"})
+	global.SSEBus.Publish("refresh")
 }
 
 // generateSnippet 在内存中模拟 FTS5 的 snippet 高亮
@@ -609,6 +613,7 @@ func (a *NoteApi) UpdateStatus(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "状态更新成功"})
+	global.SSEBus.Publish("refresh")
 }
 
 // UploadImage 接收图片数据（base64），存储并返回storage_id和URL

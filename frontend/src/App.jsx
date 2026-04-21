@@ -3,7 +3,7 @@ import 'katex/dist/katex.min.css';
 import './index.css';
 import { BookOpen } from 'lucide-react';
 import { getTrash, searchNotes, deleteNote, restoreNote, uploadNote, createTextNote, updateNoteText, updateNoteStatus, askAI, getChatMessages, batchArchiveNotes } from './api/noteApi';
-import { useDataPoller } from './hooks/useDataPoller';
+import { useSSE } from './hooks/useSSE';
 import { useTheme } from './context/ThemeContext';
 import Sidebar from './components/Sidebar';
 import Detail from './components/Detail';
@@ -60,26 +60,15 @@ function App() {
     initAuth();
   }, []);
 
-  // 探针模式：静默更新列表，不重置 selectedItem
-  useDataPoller({
-    query,
-    results,
+  // SSE 实时推送：收到 refresh 事件时刷新列表
+  useSSE({
+    url: '/api/stream',
     enabled: isLoggedIn && !showTrash && !window.location.pathname.startsWith('/s/'),
-    onChanged: (fresh) => {
-      setResults(fresh);
-      setSelectedItem(prev => {
-        if (!prev) return prev;
-        const updated = fresh.find(item => item.id === prev.id);
-        // 如果能找到更新项，且有发生实质的字段变化（简单比较一下 ai_summary/ai_tags 即可，或者直接全部覆盖），就同步更新
-        if (updated) {
-          // 只在关键字段发发生变化时更新，避免无谓的重渲染破坏输入状态，或者如果内容确实变化了直接返回 updated。
-          // 安全起见，只要有 updated，就用更新的值合并进去，确保状态和详情一致。
-          return { ...prev, ...updated };
-        }
-        return prev;
-      });
+    onMessage: (data) => {
+      if (data === 'refresh') {
+        executeSearch(query);
+      }
     },
-    interval: 5000,
   });
 
   // 1. 当首次登录成功时，执行全量初始化 (数据拉取与视图复位)

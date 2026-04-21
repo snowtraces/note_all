@@ -43,6 +43,10 @@ func SetupRouter() *gin.Engine {
 	{
 		apiGroup.GET("/auth/check", authApi.Check) // 校验 Token 有效性
 
+			// ============== SSE 实时推送 ==============
+			sseApi := new(api.SSEApi)
+			apiGroup.GET("/stream", sseApi.StreamEvents)
+
 		// ============== 分享管理 (保护) ==============
 		apiGroup.POST("/share", shareApi.CreateShare)
 		apiGroup.DELETE("/share/:id", shareApi.RevokeShare)

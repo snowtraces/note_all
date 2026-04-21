@@ -102,7 +102,11 @@ func InitSystem() {
 	global.Storage = storage.NewSnowStorage(storageDataPath)
 	log.Println("本地底层文件服务 SnowStorage (基于块存储机制) 启动成功。")
 
-	// 3. 同义词导入已改为前端手动触发（见 SystemApi.SyncSynonyms）
+	// 3. 初始化 SSE 事件总线
+	global.SSEBus = global.NewEventBus()
+	log.Println("SSE 实时推送事件总线初始化完毕。")
+
+	// 4. 同义词导入已改为前端手动触发（见 SystemApi.SyncSynonyms）
 }
 
 // initVectorIndex 检查 sqlite-vector 扩展是否已加载，并初始化分片向量索引
