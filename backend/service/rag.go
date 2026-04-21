@@ -182,28 +182,38 @@ func BatchHybridSearch(queries []string, limit int) ([]SearchResult, error) {
 		}
 	}
 
-	// 2. FTS5 全文搜索 (合并所有 queries)
+	// 2. FTS5 全文搜索 (合并所有 queries，排除 #开头的标签查询)
 	ftsScores := make(map[uint]float32)
 	ftsQueries := make([]string, 0, len(queries))
 	for _, q := range queries {
-		ftsQueries = append(ftsQueries, "\""+strings.ReplaceAll(q, "\"", "")+"\"")
+		if strings.HasPrefix(q, "#") {
+			continue // 标签查询不参与 FTS 搜索
+		}
+		ftsQueries = append(ftsQueries, strings.ReplaceAll(q, "\"", ""))
 	}
-	ftsQuery := strings.Join(ftsQueries, " OR ")
-	var ftsResults []struct {
-		ID    uint
-		Score float32
-	}
-	global.DB.Raw("SELECT rowid as id, -bm25(note_fts) as score FROM note_fts WHERE note_fts MATCH ? ORDER BY score DESC LIMIT 50", ftsQuery).Scan(&ftsResults)
-	for _, r := range ftsResults {
-		if existing, ok := ftsScores[r.ID]; !ok || r.Score > existing {
-			ftsScores[r.ID] = r.Score
+	if len(ftsQueries) > 0 {
+		ftsQuery := strings.Join(ftsQueries, " OR ")
+		var ftsResults []struct {
+			ID    uint
+			Score float32
+		}
+		global.DB.Raw("SELECT rowid as id, -bm25(note_fts) as score FROM note_fts WHERE note_fts MATCH ? ORDER BY score DESC LIMIT 50", ftsQuery).Scan(&ftsResults)
+		for _, r := range ftsResults {
+			if existing, ok := ftsScores[r.ID]; !ok || r.Score > existing {
+				ftsScores[r.ID] = r.Score
+			}
 		}
 	}
 
 	// 3. Tag 检索 (合并所有 queries 的扩展词)
 	allTags := make([]string, 0)
 	for _, q := range queries {
-		allTags = append(allTags, synonym.RewriteQuery(q)...)
+		if tag, ok := strings.CutPrefix(q, "#"); ok {
+			// #开头的精确匹配，不展开同义词
+			allTags = append(allTags, tag)
+		} else {
+			allTags = append(allTags, synonym.RewriteQuery(q)...)
+		}
 	}
 	allTags = uniqueStrings(allTags)
 	var tagHits []struct {
@@ -593,7 +603,6 @@ func RAGAskWithHistory(query string, history []ConversationMessage) (string, []S
 	}
 	sort.Slice(finalHits, func(i, j int) bool { return finalHits[i].Score > finalHits[j].Score })
 
-
 	// 使用分片上下文构建（如果有分片命中）
 	var context string
 	if len(hitChunks) > 0 {
@@ -681,28 +690,38 @@ func BatchHybridSearchWithChunks(queries []string, limit int) ([]SearchResult, m
 		}
 	}
 
-	// 2. FTS5 全文搜索
+	// 2. FTS5 全文搜索 (排除 #开头的标签查询)
 	ftsScores := make(map[uint]float32)
 	ftsQueries := make([]string, 0, len(queries))
 	for _, q := range queries {
-		ftsQueries = append(ftsQueries, "\""+strings.ReplaceAll(q, "\"", "")+"\"")
+		if strings.HasPrefix(q, "#") {
+			continue // 标签查询不参与 FTS 搜索
+		}
+		ftsQueries = append(ftsQueries, strings.ReplaceAll(q, "\"", ""))
 	}
-	ftsQuery := strings.Join(ftsQueries, " OR ")
-	var ftsResults []struct {
-		ID    uint
-		Score float32
-	}
-	global.DB.Raw("SELECT rowid as id, -bm25(note_fts) as score FROM note_fts WHERE note_fts MATCH ? ORDER BY score DESC LIMIT 50", ftsQuery).Scan(&ftsResults)
-	for _, r := range ftsResults {
-		if existing, ok := ftsScores[r.ID]; !ok || r.Score > existing {
-			ftsScores[r.ID] = r.Score
+	if len(ftsQueries) > 0 {
+		ftsQuery := strings.Join(ftsQueries, " OR ")
+		var ftsResults []struct {
+			ID    uint
+			Score float32
+		}
+		global.DB.Raw("SELECT rowid as id, -bm25(note_fts) as score FROM note_fts WHERE note_fts MATCH ? ORDER BY score DESC LIMIT 50", ftsQuery).Scan(&ftsResults)
+		for _, r := range ftsResults {
+			if existing, ok := ftsScores[r.ID]; !ok || r.Score > existing {
+				ftsScores[r.ID] = r.Score
+			}
 		}
 	}
 
 	// 3. Tag 检索
 	allTags := make([]string, 0)
 	for _, q := range queries {
-		allTags = append(allTags, synonym.RewriteQuery(q)...)
+		if tag, ok := strings.CutPrefix(q, "#"); ok {
+			// #开头的精确匹配，不展开同义词
+			allTags = append(allTags, tag)
+		} else {
+			allTags = append(allTags, synonym.RewriteQuery(q)...)
+		}
 	}
 	allTags = uniqueStrings(allTags)
 	var tagHits []struct {
