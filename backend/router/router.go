@@ -37,21 +37,24 @@ func SetupRouter() *gin.Engine {
 	r.POST("/api/auth/login", authApi.Login)
 	r.GET("/api/pub/share/:id", shareApi.GetPublicShare) // 这里是真正的公开分享端点
 
+	noteApi := new(api.NoteApi)
+	r.GET("/api/file/:id", noteApi.GetFile) // 本地图片公开访问
+
 	// 2. 需要鉴权的接口组
 	apiGroup := r.Group("/api")
 	apiGroup.Use(middleware.AuthRequired())
 	{
 		apiGroup.GET("/auth/check", authApi.Check) // 校验 Token 有效性
 
-			// ============== SSE 实时推送 ==============
-			sseApi := new(api.SSEApi)
-			apiGroup.GET("/stream", sseApi.StreamEvents)
+		// ============== SSE 实时推送 ==============
+		sseApi := new(api.SSEApi)
+		apiGroup.GET("/stream", sseApi.StreamEvents)
 
 		// ============== 分享管理 (保护) ==============
 		apiGroup.POST("/share", shareApi.CreateShare)
 		apiGroup.DELETE("/share/:id", shareApi.RevokeShare)
 		apiGroup.GET("/note/:id/shares", shareApi.ListNoteShares)
-		
+
 		weixinApi := new(api.WeixinApi)
 		apiGroup.GET("/weixin/bot", weixinApi.GetBot)
 		apiGroup.POST("/weixin/bot/toggle", weixinApi.ToggleBot)
@@ -61,7 +64,6 @@ func SetupRouter() *gin.Engine {
 		apiGroup.GET("/weixin/messages", weixinApi.ListMessages)
 		apiGroup.POST("/weixin/send", weixinApi.SendManualReply)
 
-		noteApi := new(api.NoteApi)
 		templateApi := new(api.TemplateApi)
 		agentApi := new(api.AgentApi)
 
@@ -71,9 +73,6 @@ func SetupRouter() *gin.Engine {
 
 		// 2. 纯文本缺口（跳过 OCR，直接 LLM 摘要+标签）
 		apiGroup.POST("/note/text", noteApi.CreateFromText)
-
-		// 2. 根据自签名 SnowStorage ID 下潜读取物理对象返回
-		apiGroup.GET("/file/:id", noteApi.GetFile)
 
 		// 3. 混合检索
 		apiGroup.GET("/search", noteApi.Search)

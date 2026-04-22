@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink, Link, Zap, Share2, RefreshCw, CheckCircle2, XCircle, ClipboardEdit, Eye, ImageDown } from 'lucide-react';
-import { getAuthToken } from '../api/authApi';
 import MarkdownRenderer from './MarkdownRenderer';
 import { getRelatedNotes, reprocessNote, uploadImage } from '../api/noteApi';
 import { getTemplates } from '../api/templateApi';
@@ -33,8 +32,7 @@ export default function Detail({
   const [totalImagesToLocalize, setTotalImagesToLocalize] = useState(0); // 本次本地化任务的总数
   const [isLocalizing, setIsLocalizing] = useState(false);
   const textareaRef = useRef(null);
-  const token = getAuthToken();
-  const fileUrl = item?.storage_id ? `/api/file/${item.storage_id}${token ? `?token=${token}` : ''}` : '';
+  const fileUrl = item?.storage_id ? `/api/file/${item.storage_id}` : '';
 
   // 自动调整文本框高度
   useEffect(() => {
@@ -174,19 +172,16 @@ export default function Detail({
         // 2. 上传到服务器
         const { url } = await uploadImage(data, mimeType);
 
-        // 3. 加上token鉴权参数
-        const urlWithToken = token ? `${url}?token=${token}` : url;
-
-        // 4. 替换原文中的 URL
+        // 3. 替换原文中的 URL
         // 处理 markdown 格式 ![alt](url)
         updatedText = updatedText.replace(
           new RegExp(`!\\[([^\\]]*)\\]\\(${originalUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`, 'g'),
-          `![$1](${urlWithToken})`
+          `![$1](${url})`
         );
         // 处理 HTML 格式 <img src="url">
         updatedText = updatedText.replace(
           new RegExp(`<img([^>]*)src=["']${originalUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']([^>]*)>`, 'gi'),
-          `<img$1src="${urlWithToken}"$2>`
+          `<img$1src="${url}"$2>`
         );
 
         setLocalizingProgress(i + 1);
