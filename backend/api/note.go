@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -122,19 +123,12 @@ func (a *NoteApi) GetFile(c *gin.Context) {
 	// 查询文件元数据，用于生成缓存标识（兼容历史数据）
 	var fileMeta models.FileMetadata
 	if err := global.DB.Where("storage_id = ?", id).First(&fileMeta).Error; err != nil {
-		// 无元数据时使用默认值兜底
-		fileMeta = models.FileMetadata{
-			StorageID: id,
-			MimeType:  "application/octet-stream",
-		}
+		// 无元数据时初始化空结构
+		fileMeta.StorageID = id
 	}
 
 	lastModified := fileMeta.CreatedAt
 	fileSize := fileMeta.FileSize
-	contentType := fileMeta.MimeType
-	if contentType == "" {
-		contentType = "application/octet-stream"
-	}
 
 	// 生成 ETag: "storageid:filesize" 格式（fileSize=0 时仍可用 storageID 区分）
 	etag := fmt.Sprintf(`"%s:%d"`, id, fileSize)
@@ -164,7 +158,23 @@ func (a *NoteApi) GetFile(c *gin.Context) {
 	}
 	defer reader.Close()
 
-	// 设置缓存相关头部
+	contentType := fileMeta.MimeType
+	if fileMeta.ID == 0 {
+		buf := make([]byte, 512)
+		n, err := io.ReadFull(reader, buf)
+		if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "读取文件失败"})
+			return
+		}
+		contentType = http.DetectContentType(buf[:n])
+		fileMeta.MimeType = contentType
+		if err := global.DB.Create(&fileMeta).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "元数据持久化失败"})
+			return
+		}
+		reader = io.NopCloser(io.MultiReader(bytes.NewReader(buf[:n]), reader))
+	}
+
 	c.Header("ETag", etag)
 	c.Header("Cache-Control", "public, max-age=31536000") // 1年缓存，文件不变
 	if !lastModified.IsZero() {
