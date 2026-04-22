@@ -115,8 +115,48 @@ func (a *NoteApi) UpdateText(c *gin.Context) {
 }
 
 // GetFile 接受存储 ID 还原图片或文件留以供网页/应用直读
+// 支持 HTTP 304 Not Modified 缓存验证 (ETag + Last-Modified)
 func (a *NoteApi) GetFile(c *gin.Context) {
 	id := c.Param("id")
+
+	// 查询文件元数据，用于生成缓存标识（兼容历史数据）
+	var fileMeta models.FileMetadata
+	if err := global.DB.Where("storage_id = ?", id).First(&fileMeta).Error; err != nil {
+		// 无元数据时使用默认值兜底
+		fileMeta = models.FileMetadata{
+			StorageID: id,
+			MimeType:  "application/octet-stream",
+		}
+	}
+
+	lastModified := fileMeta.CreatedAt
+	fileSize := fileMeta.FileSize
+	contentType := fileMeta.MimeType
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
+	// 生成 ETag: "storageid:filesize" 格式（fileSize=0 时仍可用 storageID 区分）
+	etag := fmt.Sprintf(`"%s:%d"`, id, fileSize)
+
+	// 检查 If-None-Match (ETag 验证)
+	if match := c.GetHeader("If-None-Match"); match != "" {
+		if match == etag || match == `W/`+etag {
+			c.Status(http.StatusNotModified)
+			return
+		}
+	}
+
+	// 检查 If-Modified-Since (时间验证，仅当有有效时间时)
+	if since := c.GetHeader("If-Modified-Since"); since != "" && !lastModified.IsZero() {
+		if modTime, err := time.Parse(time.RFC1123, since); err == nil {
+			if !lastModified.After(modTime) {
+				c.Status(http.StatusNotModified)
+				return
+			}
+		}
+	}
+
 	reader, err := global.Storage.Open(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "引擎中不存在此文件"})
@@ -124,25 +164,15 @@ func (a *NoteApi) GetFile(c *gin.Context) {
 	}
 	defer reader.Close()
 
-	// 从 FileMetadata 表查询 MIME 类型（新数据）
-	// 如果没找到，再从 NoteItem 查询（兼容历史数据）
-	contentType := "application/octet-stream"
-
-	var fileMeta models.FileMetadata
-	if err := global.DB.Select("mime_type").Where("storage_id = ?", id).First(&fileMeta).Error; err == nil {
-		if fileMeta.MimeType != "" {
-			contentType = fileMeta.MimeType
-		}
-	} else {
-		// 后备：从 NoteItem 查询（兼容历史数据）
-		var note models.NoteItem
-		if err := global.DB.Select("file_type").Where("storage_id = ?", id).First(&note).Error; err == nil {
-			if note.FileType != "" {
-				contentType = note.FileType
-			}
-		}
+	// 设置缓存相关头部
+	c.Header("ETag", etag)
+	c.Header("Cache-Control", "public, max-age=31536000") // 1年缓存，文件不变
+	if !lastModified.IsZero() {
+		c.Header("Last-Modified", lastModified.UTC().Format(time.RFC1123))
 	}
-
+	if fileSize > 0 {
+		c.Header("Content-Length", strconv.FormatInt(fileSize, 10))
+	}
 	c.Header("Content-Disposition", "inline")
 	c.DataFromReader(http.StatusOK, -1, contentType, reader, map[string]string{})
 }
