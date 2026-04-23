@@ -20,6 +20,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { deleteChatSession, getChatSessions, getTags } from '../api/noteApi';
 import { checkWeixinStatus, getWeixinBot, getWeixinQRCode, logoutWeixinBot, toggleWeixinBot } from '../api/weixinApi';
+import { useTheme } from '../context/ThemeContext';
 
 export default function Sidebar({
   viewMode,
@@ -44,6 +45,9 @@ export default function Sidebar({
   labBasket,
   toggleLabItem
 }) {
+  const { mode } = useTheme();
+  const isLight = mode === 'light';
+
   const [chatSessions, setChatSessions] = useState([]);
   const [sessionLoading, setSessionLoading] = useState(false);
   const [confirmingId, setConfirmingId] = useState(null);
@@ -255,8 +259,8 @@ export default function Sidebar({
                   key={item.id}
                   onClick={() => setSelectedItem(item)}
                   className={`p-4 rounded-xl transition-all duration-300 flex flex-col min-w-0 border-l-[3px] cursor-pointer ${isSelected
-                    ? 'bg-primeAccent/10 border-l-primeAccent shadow-md shadow-primeAccent/10'
-                    : 'bg-sidebar border-l-transparent hover:bg-card hover:border-l-primeAccent/50 border border-borderSubtle text-textSecondary'
+                    ? 'bg-primeAccent/10 border-l-primeAccent/60'
+                    : 'bg-sidebar border-l-transparent hover:bg-card hover:border-l-primeAccent/30 border border-borderSubtle text-textSecondary'
                     } group`}
                 >
                   <div className="flex justify-between items-start mb-2 relative">
@@ -362,11 +366,11 @@ export default function Sidebar({
                   <div className="w-12 h-12 rounded-2xl bg-primeAccent/5 flex items-center justify-center mb-4 border border-primeAccent/10">
                     <Beaker size={20} className="text-primeAccent/40" />
                   </div>
-                  <h3 className="text-sm font-bold text-white mb-2">实验室目前是空的</h3>
+                  <h3 className={`text-sm font-bold mb-2 ${isLight ? 'text-slate-800' : 'text-white'}`}>实验室目前是空的</h3>
                   <p className="text-[11px] text-silverText/30 leading-relaxed">
                     请先在主列表中点击碎片卡片右上角的 <span className="text-primeAccent px-1.5 py-0.5 bg-primeAccent/10 rounded border border-primeAccent/20">烧杯图标</span> 挑选待处理的素材。
                   </p>
-                  <button 
+                  <button
                     onClick={() => setViewMode('notes')}
                     className="mt-6 text-[11px] text-primeAccent font-bold uppercase tracking-widest hover:underline"
                   >
@@ -448,13 +452,13 @@ export default function Sidebar({
           className="absolute left-full w-[416px] pl-4 z-[100] transition-all duration-200"
           style={{ top: `${Math.max(0, hoveredPos)}px` }}
         >
-          <div className="bg-card backdrop-blur-xl p-5 rounded-2xl border border-borderSubtle shadow-[0_20px_50px_rgba(0,0,0,0.8)] flex flex-col max-h-[500px] relative animate-in fade-in zoom-in duration-200">
+          <div className={`bg-card backdrop-blur-xl p-5 rounded-2xl border shadow-[0_20px_50px_rgba(0,0,0,0.8)] flex flex-col max-h-[500px] relative animate-in fade-in zoom-in duration-200 ${isLight ? 'border-slate-200' : 'border-borderSubtle'}`}>
             {/* Triangle Pointer */}
-            <div className="absolute top-6 -left-1.5 w-3 h-3 bg-card border-l border-t border-borderSubtle rotate-[-45deg]"></div>
+            <div className={`absolute top-6 -left-1.5 w-3 h-3 bg-card border-l border-t rotate-[-45deg] ${isLight ? 'border-slate-200' : 'border-borderSubtle'}`}></div>
 
-            <div className="text-[10px] text-primeAccent font-bold mb-3 uppercase tracking-widest flex justify-between border-b border-white/5 pb-2 shrink-0">
+            <div className="text-[10px] text-primeAccent font-bold mb-3 uppercase tracking-widest flex justify-between border-b pb-2 shrink-0" style={{ borderColor: isLight ? 'rgba(15,23,42,0.1)' : 'rgba(255,255,255,0.05)' }}>
               <span>SOURCE PREVIEW</span>
-              <span className="text-white/20 font-mono pl-2 truncate">ID: {hoveredNote.id}</span>
+              <span className={`font-mono pl-2 truncate ${isLight ? 'text-slate-400' : 'text-white/20'}`}>ID: {hoveredNote.id}</span>
             </div>
 
             <pre className="flex-1 overflow-y-auto text-[11px] text-silverText/70 leading-relaxed font-mono whitespace-pre-wrap break-words select-text scrollbar-hide">
@@ -465,7 +469,7 @@ export default function Sidebar({
       )}
 
       {!showTrash && viewMode === 'notes' && (
-        <div className="p-4 border-t border-white/5 bg-modal shrink-0">
+        <div className={`p-4 border-t bg-modal shrink-0 ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
           <input type="file" ref={fileInputRef} onChange={handleUpload} className="hidden" />
 
           {showTextInput && (
@@ -476,7 +480,7 @@ export default function Sidebar({
                 onChange={(e) => setInputText(e.target.value)}
                 placeholder="键入想法并交予 AI 处理..."
                 rows={4}
-                className="w-full bg-sidebar border border-primeAccent/30 rounded-xl p-3 text-[13px] text-textPrimary focus:outline-none"
+                className={`w-full border rounded-xl p-3 text-[13px] focus:outline-none ${isLight ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-sidebar border border-primeAccent/30 text-textPrimary'}`}
               />
               <div className="flex gap-2">
                 <button
@@ -490,7 +494,7 @@ export default function Sidebar({
                 >
                   {textSubmitting ? "处理中..." : "保存想法"}
                 </button>
-                <button onClick={() => setShowTextInput(false)} className="px-4 py-2 border border-white/10 text-silverText/40 text-xs rounded-lg">取消</button>
+                <button onClick={() => setShowTextInput(false)} className={`px-4 py-2 text-xs rounded-lg ${isLight ? 'border border-slate-200 text-slate-500' : 'border border-white/10 text-silverText/40'}`}>取消</button>
               </div>
             </div>
           )}

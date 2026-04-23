@@ -8,7 +8,7 @@
   /* 基础品牌变量 */
   --prime-accent: rgb(102, 252, 241);
   --prime-accent-dim: #45a29e;
-  
+
   /* 统一暗色模式背景 (所有主题通用) */
   --dark-bg-base: #050505;
   --dark-bg-main: #0a0a0a;
@@ -22,7 +22,7 @@
   --dark-bg-graph: #161616;
   --dark-text-primary: #ffffff;
   --dark-text-secondary: rgba(255, 255, 255, 0.9);
-  --dark-border-subtle: rgba(255, 255, 255, 0.08);
+  --dark-border-subtle: rgba(255, 255, 255, 0.1);
 
   /* 统一亮色模式背景 (所有主题通用) */
   --light-bg-base: #f8fafc;
@@ -97,6 +97,7 @@
   --prime-accent: rgb(102, 252, 241);
   --prime-accent-dim: #45a29e;
 }
+
 [data-theme="cyber"][data-mode="light"] {
   --prime-accent: #0891b2;
   --prime-accent-dim: #0e7490;
@@ -107,6 +108,7 @@
   --prime-accent: rgb(59, 130, 246);
   --prime-accent-dim: #2563eb;
 }
+
 [data-theme="blue"][data-mode="light"] {
   --prime-accent: #2563eb;
   --prime-accent-dim: #1d4ed8;
@@ -117,6 +119,7 @@
   --prime-accent: rgb(16, 185, 129);
   --prime-accent-dim: #059669;
 }
+
 [data-theme="forest"][data-mode="light"] {
   --prime-accent: #059669;
   --prime-accent-dim: #047857;
@@ -133,35 +136,121 @@
   }
 }
 
+/* 全局 border 颜色：深色模式下使用暗色边框 */
+*,
+::before,
+::after {
+  border-color: var(--border-subtle);
+}
+
 /* 强制覆盖亮色模式下的文字颜色与不透明度，确保最佳阅读对比度 */
-[data-mode="light"] .text-white { color: #000000 !important; }
+[data-mode="light"] .text-white {
+  color: #000000 !important;
+}
+
 [data-mode="light"] .text-white\/80,
-[data-mode="light"] .text-textSecondary\/80 { color: #1f2937 !important; }
+[data-mode="light"] .text-textSecondary\/80 {
+  color: #1f2937 !important;
+}
+
 [data-mode="light"] .text-white\/60,
-[data-mode="light"] .text-silverText\/90 { color: #374151 !important; }
-[data-mode="light"] .text-silverText\/60 { color: #4b5563 !important; }
+[data-mode="light"] .text-silverText\/90 {
+  color: #374151 !important;
+}
+
+[data-mode="light"] .text-silverText\/60 {
+  color: #4b5563 !important;
+}
+
 [data-mode="light"] .text-textSecondary\/40,
-[data-mode="light"] .text-silverText\/40 { color: #6b7280 !important; }
+[data-mode="light"] .text-silverText\/40 {
+  color: #6b7280 !important;
+}
+
 [data-mode="light"] .text-textSecondary\/30,
-[data-mode="light"] .text-silverText\/30 { color: #9ca3af !important; }
+[data-mode="light"] .text-silverText\/30 {
+  color: #9ca3af !important;
+}
+
 [data-mode="light"] .text-textSecondary\/40,
 [data-mode="light"] .text-white\/40,
-[data-mode="light"] .text-silverText\/40 { color: #6b7280 !important; } /* 关键辅助信息：如日期，保持高对比度 */
-[data-mode="light"] .text-white\/5 { color: var(--border-subtle) !important; }
+[data-mode="light"] .text-silverText\/40 {
+  color: #6b7280 !important;
+}
+
+/* 关键辅助信息：如日期，保持高对比度 */
+[data-mode="light"] .text-white\/5 {
+  color: var(--border-subtle) !important;
+}
 
 /* 强制白色文字：用于深色背景上的文字，即使在亮色模式下也保持白色 */
-.text-white-fixed { color: #ffffff !important; }
-[data-mode="light"] .bg-white\/10 { background-color: rgba(15, 23, 42, 0.05) !important; } /* 标签在亮色模式下的浅灰背景 */
-[data-mode="light"] .bg-white\/5 { background-color: rgba(15, 23, 42, 0.03) !important; }
-[data-mode="light"] .border-white\/10 { border-color: var(--border-subtle) !important; }
-[data-mode="light"] .border-white\/5 { border-color: rgba(15, 23, 42, 0.05) !important; }
+.text-white-fixed {
+  color: #ffffff !important;
+}
+
+[data-mode="light"] .bg-white\/10 {
+  background-color: rgba(15, 23, 42, 0.05) !important;
+}
+
+/* 标签在亮色模式下的浅灰背景 */
+[data-mode="light"] .bg-white\/5 {
+  background-color: rgba(15, 23, 42, 0.03) !important;
+}
+
+[data-mode="light"] .border-white\/10 {
+  border-color: var(--border-subtle) !important;
+}
+
+[data-mode="light"] .border-white\/5 {
+  border-color: rgba(15, 23, 42, 0.05) !important;
+}
+
+/* GraphView 亮色模式覆盖 */
+[data-mode="light"] .text-white\/40 {
+  color: #64748b !important;
+}
+
+[data-mode="light"] .text-white\/50 {
+  color: #64748b !important;
+}
+
+[data-mode="light"] .text-white\/60 {
+  color: #475569 !important;
+}
+
+[data-mode="light"] .text-white\/70 {
+  color: #334155 !important;
+}
+
+[data-mode="light"] .text-white\/80 {
+  color: #1e293b !important;
+}
+
+[data-mode="light"] .text-white\/90 {
+  color: #0f172a !important;
+}
+
+[data-mode="light"] .bg-black\/20 {
+  background-color: rgba(241, 245, 249, 0.8) !important;
+}
+
+[data-mode="light"] .bg-black\/40 {
+  background-color: rgba(241, 245, 249, 0.9) !important;
+}
+
+[data-mode="light"] .bg-black\/80 {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+}
 
 /* 亮色模式下输入框通用样式 */
-input, textarea, select {
+input,
+textarea,
+select {
   background: #ffffff;
   color: #000000;
   border: 1px solid var(--border-subtle);
 }
+
 [data-mode="light"] input::placeholder,
 [data-mode="light"] textarea::placeholder {
   color: #9ca3af !important;
@@ -190,12 +279,20 @@ input, textarea, select {
 }
 
 /* 滚动条 */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 ::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--text-primary), transparent 80%);
   border-radius: 10px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: color-mix(in srgb, var(--text-primary), transparent 60%);
 }
@@ -204,6 +301,7 @@ input, textarea, select {
 .markdown-content {
   @apply leading-relaxed;
 }
+
 .markdown-content table {
   width: 100%;
   border-collapse: separate;
@@ -215,25 +313,45 @@ input, textarea, select {
   overflow: hidden;
   background: var(--bg-header);
 }
+
 .markdown-content th,
 .markdown-content td {
   padding: 10px 14px;
   text-align: left;
   border-bottom: 1px solid var(--border-subtle);
 }
-.markdown-content tr:last-child td { border-bottom: none; }
+
+.markdown-content tr:last-child td {
+  border-bottom: none;
+}
+
 .markdown-content th {
   background: var(--bg-table-header);
   color: var(--text-primary);
   font-weight: 700;
   letter-spacing: 0.02em;
 }
-.markdown-content td { color: var(--text-primary); }
-.markdown-content tr:nth-child(even) td { background: var(--bg-table-header); }
-.markdown-content tr:hover td { background: var(--bg-table-row-hover); }
 
-.markdown-content p { margin: 0.8em 0; color: var(--text-primary); }
-.markdown-content h1, .markdown-content h2, .markdown-content h3 {
+.markdown-content td {
+  color: var(--text-primary);
+}
+
+.markdown-content tr:nth-child(even) td {
+  background: var(--bg-table-header);
+}
+
+.markdown-content tr:hover td {
+  background: var(--bg-table-row-hover);
+}
+
+.markdown-content p {
+  margin: 0.8em 0;
+  color: var(--text-primary);
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3 {
   color: var(--text-primary);
   margin: 1.2em 0 0.6em;
   font-weight: 700;
@@ -245,10 +363,17 @@ input, textarea, select {
   color: var(--text-secondary);
 }
 
-.markdown-content ul, .markdown-content ol { @apply space-y-1.5 my-3; }
-.markdown-content li { margin-left: 1rem; list-style-type: disc; }
+.markdown-content ul,
+.markdown-content ol {
+  @apply space-y-1.5 my-3;
+}
 
-.markdown-content :not(pre) > code {
+.markdown-content li {
+  margin-left: 1rem;
+  list-style-type: disc;
+}
+
+.markdown-content :not(pre)>code {
   font-size: 11px;
   background: var(--bg-code);
   padding: 0.125rem 0.375rem;
@@ -264,5 +389,10 @@ input, textarea, select {
   line-height: 1.8;
 }
 
-.ai-summary-markdown p { margin-bottom: 0.8em; }
-.ai-summary-markdown p:last-child { margin-bottom: 0; }
+.ai-summary-markdown p {
+  margin-bottom: 0.8em;
+}
+
+.ai-summary-markdown p:last-child {
+  margin-bottom: 0;
+}

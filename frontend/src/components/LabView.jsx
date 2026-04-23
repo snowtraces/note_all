@@ -11,6 +11,7 @@ import {
 
 import MarkdownRenderer from './MarkdownRenderer';
 import { synthesizeNotes, saveSynthesizedNote } from '../api/noteApi';
+import { useTheme } from '../context/ThemeContext';
 
 /* ---------------- Prompt Presets ---------------- */
 
@@ -176,6 +177,9 @@ export default function LabView({
     removeFromBasket
 }) {
 
+    const { mode } = useTheme();
+    const isLight = mode === 'light';
+
     const [prompt, setPrompt] = useState(promptPresets[0].prompt);
 
     const [generating, setGenerating] = useState(false);
@@ -233,7 +237,7 @@ export default function LabView({
 
             {/* Header */}
 
-            <div className="flex items-center justify-between px-8 py-4 border-b border-white/5 bg-sidebar/80 backdrop-blur">
+            <div className={`flex items-center justify-between px-8 py-4 border-b backdrop-blur ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/5 bg-sidebar/80'}`}>
 
                 <div className="flex items-center gap-3">
 
@@ -243,7 +247,7 @@ export default function LabView({
 
                     <div>
 
-                        <h2 className="text-lg font-bold text-white">
+                        <h2 className={`text-lg font-bold ${isLight ? 'text-slate-800' : 'text-white'}`}>
                             知识实验室
                         </h2>
 
@@ -257,7 +261,7 @@ export default function LabView({
 
                 <button
                     onClick={onClose}
-                    className="p-2 hover:bg-white/5 rounded-full"
+                    className={`p-2 rounded-full transition-colors ${isLight ? 'hover:bg-slate-200 text-slate-500' : 'hover:bg-white/5 text-white/60'}`}
                 >
                     <X size={20} />
                 </button>
@@ -270,7 +274,7 @@ export default function LabView({
 
                 {/* Controls */}
 
-                <div className="flex-1 min-w-0 flex flex-col p-8 border-r border-white/5 overflow-y-auto relative z-10">
+                <div className={`flex-1 min-w-0 flex flex-col p-8 border-r overflow-y-auto relative z-10 ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
 
                     <div className="max-w-xl mx-auto w-full flex flex-col gap-8">
 
@@ -278,7 +282,7 @@ export default function LabView({
 
                         <div>
 
-                            <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                            <h3 className={`text-sm font-bold mb-4 flex items-center gap-2 ${isLight ? 'text-slate-800' : 'text-white'}`}>
                                 <Sparkles size={16} className="text-primeAccent" />
                                 合成意图
                             </h3>
@@ -287,7 +291,7 @@ export default function LabView({
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
                                 rows={8}
-                                className="w-full bg-white/[0.02] border border-white/10 rounded-2xl p-5 text-sm"
+                                className={`w-full border rounded-2xl p-5 text-sm focus:outline-none focus:border-primeAccent/50 transition-all ${isLight ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-white/[0.02] border-white/10 text-white/90'}`}
                             />
 
                         </div>
@@ -301,7 +305,7 @@ export default function LabView({
                                 <button
                                     key={i}
                                     onClick={() => setPrompt(preset.prompt)}
-                                    className="px-4 py-2 rounded-xl bg-white/5 border border-white/5 text-[11px] text-left hover:border-primeAccent/30 hover:text-primeAccent"
+                                    className={`px-4 py-2 rounded-xl text-[11px] text-left transition-all ${isLight ? 'bg-slate-100 border border-slate-200 hover:border-primeAccent/30 hover:text-primeAccent' : 'bg-white/5 border border-white/5 hover:border-primeAccent/30 hover:text-primeAccent'}`}
                                 >
 
                                     {preset.icon} {preset.label}
@@ -323,7 +327,7 @@ export default function LabView({
                         <button
                             onClick={handleSynthesize}
                             disabled={generating || basket.length === 0}
-                            className="w-full py-4 rounded-2xl flex items-center justify-center gap-3 font-bold text-sm bg-primeAccent/30 hover:bg-primeAccent/40"
+                            className={`w-full py-4 rounded-2xl flex items-center justify-center gap-3 font-bold text-sm transition-colors disabled:opacity-50 ${isLight ? 'bg-primeAccent/20 hover:bg-primeAccent/30 text-primeAccent' : 'bg-primeAccent/30 hover:bg-primeAccent/40 text-white'}`}
                         >
 
                             {generating
@@ -356,7 +360,7 @@ export default function LabView({
                     {result ? (
 
                         <>
-                            <div className="p-8 border-b border-white/5 flex justify-between items-center">
+                            <div className={`p-8 border-b flex justify-between items-center ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
                                 <div className="flex items-center gap-6">
                                     <div className="flex items-center gap-2">
                                         <input
@@ -364,7 +368,7 @@ export default function LabView({
                                             id="archive-sources-final"
                                             checked={archiveChecked}
                                             onChange={(e) => setArchiveChecked(e.target.checked)}
-                                            className="w-4 h-4 rounded border-white/10 bg-white/5 text-primeAccent focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                                            className={`w-4 h-4 rounded cursor-pointer focus:ring-0 focus:ring-offset-0 ${isLight ? 'border-slate-300 bg-slate-100 text-primeAccent' : 'border-white/10 bg-white/5 text-primeAccent'}`}
                                         />
                                         <label htmlFor="archive-sources-final" className="text-[11px] text-silverText/40 cursor-pointer select-none">
                                             归档原始素材
@@ -374,7 +378,7 @@ export default function LabView({
                                     <button
                                         onClick={handleSave}
                                         disabled={generating}
-                                        className="flex items-center gap-2 px-4 py-2 bg-primeAccent text-black rounded-full text-xs hover:scale-105 transition-transform disabled:opacity-50 font-bold"
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs hover:scale-105 transition-transform disabled:opacity-50 font-bold ${isLight ? 'bg-primeAccent text-white' : 'bg-primeAccent text-black'}`}
                                     >
                                         {generating ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} 确认并保存
                                     </button>
@@ -391,7 +395,7 @@ export default function LabView({
 
                     ) : (
 
-                        <div className="flex-1 flex items-center justify-center opacity-30">
+                        <div className={`flex-1 flex items-center justify-center ${isLight ? 'text-slate-400' : 'opacity-30 text-white/40'}`}>
                             Waiting for reaction...
                         </div>
 

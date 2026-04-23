@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { BrainCircuit, BookOpen, Clock, Globe, ShieldCheck, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
 import { getPublicShare } from '../api/shareApi';
+import { useTheme } from '../context/ThemeContext';
 
 export default function PublicSharePage({ shareId }) {
+   const { mode } = useTheme();
+   const isLight = mode === 'light';
    const [loading, setLoading] = useState(true);
    const [item, setItem] = useState(null);
    const [error, setError] = useState(null);
@@ -26,7 +29,7 @@ export default function PublicSharePage({ shareId }) {
 
    if (loading) {
       return (
-         <div className="h-screen w-full flex flex-col items-center justify-center bg-base text-white">
+         <div className="h-screen w-full flex flex-col items-center justify-center bg-base">
             <div className="w-16 h-16 border-4 border-primeAccent/20 border-t-primeAccent animate-spin rounded-full mb-6"></div>
             <div className="text-silverText/40 uppercase tracking-[0.3em] text-[10px] font-mono animate-pulse">正在获取加密内容...</div>
          </div>
@@ -39,11 +42,11 @@ export default function PublicSharePage({ shareId }) {
             <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-8 rotate-12">
                <AlertCircle className="w-10 h-10 text-red-500" strokeWidth={1.5} />
             </div>
-            <h2 className="text-2xl font-light text-white uppercase tracking-widest mb-4">内容不可见</h2>
+            <h2 className={`text-2xl font-light uppercase tracking-widest mb-4 ${isLight ? 'text-slate-800' : 'text-white'}`}>内容不可见</h2>
             <p className="text-silverText/40 text-sm max-w-xs mb-10 leading-relaxed font-light">该链接可能已失效、被撤回，或超出了指定的访问期限。</p>
             <button
                onClick={() => window.location.href = '/'}
-               className="px-8 py-3 bg-white/5 border border-white/10 rounded-2xl text-xs uppercase tracking-widest text-silverText/92 hover:bg-white/10 hover:text-white transition-all flex items-center gap-3"
+               className={`px-8 py-3 border rounded-2xl text-xs uppercase tracking-widest transition-all flex items-center gap-3 ${isLight ? 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200 hover:text-slate-800' : 'bg-white/5 border-white/10 text-silverText/92 hover:bg-white/10 hover:text-white'}`}
             >
                <ArrowLeft size={14} /> 返回首页
             </button>
@@ -56,7 +59,7 @@ export default function PublicSharePage({ shareId }) {
          {/* Top Branding Section */}
          <div className="w-full h-[300px] absolute top-0 left-0 bg-gradient-to-b from-primeAccent/10 to-transparent pointer-events-none"></div>
 
-         <header className="relative z-10 max-w-5xl mx-auto px-6 pt-12 pb-8 text-center border-b border-white/5">
+         <header className={`relative z-10 max-w-5xl mx-auto px-6 pt-12 pb-8 text-center border-b ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primeAccent/10 border border-primeAccent/20 mb-8">
                <BrainCircuit className="w-7 h-7 text-primeAccent" strokeWidth={1.5} />
             </div>
@@ -73,13 +76,13 @@ export default function PublicSharePage({ shareId }) {
          <main className="relative z-10 max-w-5xl mx-auto px-6 mt-8 space-y-10">
             {/* Visual Section if Image */}
             {item.file_type?.includes('image') && (
-               <div className="group relative rounded-3xl overflow-hidden border border-white/10 bg-black shadow-2xl animate-in fade-in duration-700">
+               <div className={`group relative rounded-3xl overflow-hidden shadow-2xl animate-in fade-in duration-700 ${isLight ? 'border border-slate-200 bg-slate-100' : 'border border-white/10 bg-black'}`}>
                   <img
                      src={`/api/file/${item.storage_id}`}
                      alt="shared content"
                      className="w-full max-h-[500px] object-contain"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none"></div>
+                  <div className={`absolute inset-0 pointer-events-none ${isLight ? 'bg-gradient-to-t from-slate-200/40 to-transparent' : 'bg-gradient-to-t from-black/40 to-transparent'}`}></div>
                </div>
             )}
 
@@ -112,16 +115,16 @@ export default function PublicSharePage({ shareId }) {
                   <div className="px-10 mb-6 flex items-center gap-4">
                      <div className="w-2 h-2 rounded-full bg-primeAccent/40"></div>
                      <h4 className="text-[12px] text-textSecondary/50 uppercase tracking-[0.1m] font-mono">原始记录全貌 · FULL INTELLECT</h4>
-                     <div className="flex-1 h-px bg-white/5"></div>
+                     <div className={`flex-1 h-px ${isLight ? 'bg-slate-200' : 'bg-white/5'}`}></div>
                   </div>
-                  <div className="bg-card border border-white/5 rounded-[40px] p-8 lg:p-10 text-textPrimary/90 text-[16px] leading-9 font-normal selection:bg-primeAccent selection:text-white shadow-inner markdown-ocr">
+                  <div className={`bg-card border rounded-[40px] p-8 lg:p-10 text-textPrimary/90 text-[16px] leading-9 font-normal selection:bg-primeAccent selection:text-white shadow-inner markdown-ocr ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
                      <MarkdownRenderer content={item.ocr_text} />
                   </div>
                </div>
             )}
          </main>
 
-         <footer className="relative z-10 max-w-5xl mx-auto px-6 mt-12 pt-10 border-t border-white/5 text-center">
+         <footer className={`relative z-10 max-w-5xl mx-auto px-6 mt-12 pt-10 border-t text-center ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
             <div className="opacity-20 hover:opacity-100 transition-opacity duration-500 cursor-default">
                <div className="text-[10px] font-mono text-textSecondary/50 uppercase tracking-[0.4em] mb-4">Note All Intelligence Engine</div>
                <div className="text-[9px] text-textSecondary/30 lowercase tracking-[0.1em]">private storage · curated knowledge · decentralized thoughts</div>

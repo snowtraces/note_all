@@ -297,7 +297,7 @@ function App() {
   }
 
   return (
-    <div className="h-screen w-full flex bg-main text-white overflow-hidden font-sans">
+    <div className="h-screen w-full flex bg-main text-textPrimary overflow-hidden font-sans">
       <NavRail 
         viewMode={viewMode}
         setViewMode={setViewMode}

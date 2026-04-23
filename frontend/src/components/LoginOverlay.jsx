@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { Lock, ArrowRight, ShieldCheck, Loader2 } from 'lucide-react';
 import { login } from '../api/authApi';
+import { useTheme } from '../context/ThemeContext';
 
 const LoginOverlay = ({ onLoginSuccess }) => {
+  const { mode } = useTheme();
+  const isLight = mode === 'light';
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -29,19 +32,19 @@ const LoginOverlay = ({ onLoginSuccess }) => {
       {/* Background Decorative Elements */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primeAccent/5 rounded-full blur-[120px] pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primeAccent/5 rounded-full blur-[120px] pointer-events-none"></div>
-      
+
       <div className="max-w-md w-full animate-in fade-in zoom-in duration-500">
         {/* Logo / Title Section */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-primeAccent/10 border border-primeAccent/20 shadow-[0_0_30px_rgba(255,215,0,0.1)] mb-6">
             <ShieldCheck className="w-10 h-10 text-primeAccent" strokeWidth={1.5} />
           </div>
-          <h1 className="text-3xl font-light tracking-[0.2em] text-white uppercase mb-3">Note All</h1>
+          <h1 className={`text-3xl font-light tracking-[0.2em] uppercase mb-3 ${isLight ? 'text-slate-800' : 'text-white'}`}>Note All</h1>
           <p className="text-silverText/40 text-sm font-light tracking-widest uppercase">个人智慧容器 · 身份验证</p>
         </div>
 
         {/* Login Form Card */}
-        <div className="bg-white/[0.02] border border-white/5 rounded-[32px] p-10 backdrop-blur-3xl shadow-2xl">
+        <div className={`backdrop-blur-3xl shadow-2xl rounded-[32px] p-10 ${isLight ? 'bg-slate-50 border border-slate-200' : 'bg-white/[0.02] border border-white/5'}`}>
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="space-y-3">
               <label className="block text-[10px] font-mono text-silverText/30 uppercase tracking-[0.2em] ml-1">
@@ -57,7 +60,7 @@ const LoginOverlay = ({ onLoginSuccess }) => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="请输入访问密钥..."
                   autoFocus
-                  className="w-full h-14 bg-black/40 border border-white/10 rounded-2xl pl-14 pr-6 text-white placeholder-white/10 focus:outline-none focus:border-primeAccent/40 focus:bg-black/60 transition-all text-lg tracking-widest"
+                  className={`w-full h-14 border rounded-2xl pl-14 pr-6 text-lg tracking-widest focus:outline-none transition-all ${isLight ? 'bg-slate-100 border-slate-200 text-slate-800 placeholder-slate-400 focus:border-primeAccent/40' : 'bg-black/40 border-white/10 text-white placeholder-white/10 focus:border-primeAccent/40 focus:bg-black/60'}`}
                 />
               </div>
               {error && (
@@ -71,8 +74,8 @@ const LoginOverlay = ({ onLoginSuccess }) => {
               type="submit"
               disabled={loading || !password}
               className={`w-full h-14 rounded-2xl flex items-center justify-center gap-3 transition-all duration-500 overflow-hidden relative group
-                ${loading || !password 
-                  ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5' 
+                ${loading || !password
+                  ? isLight ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200' : 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5'
                   : 'bg-primeAccent text-black font-semibold hover:shadow-[0_0_40px_rgba(255,215,0,0.3)] hover:-translate-y-1'}`}
             >
               {loading ? (

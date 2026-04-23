@@ -126,7 +126,7 @@ export default function NavRail({
             `}
           >
             {item.active && (
-              <div className="absolute left-0 w-1 h-6 bg-primeAccent rounded-r-full shadow-[0_0_10px_rgba(255,215,0,0.5)]"></div>
+              <div className="absolute left-0 w-1 h-6 bg-primeAccent/60 rounded-r-full"></div>
             )}
 
             <div className={`transition-transform duration-300 ${item.active ? 'scale-110' : 'group-hover:scale-110'}`}>

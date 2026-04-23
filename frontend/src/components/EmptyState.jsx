@@ -2,10 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { BrainCircuit, Sparkles, RefreshCw, BookOpen, Network, Settings, FlaskConical, ListChecks, Inbox, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getSerendipity } from '../api/noteApi';
 import MarkdownRenderer from './MarkdownRenderer';
+import { useTheme } from '../context/ThemeContext';
 
 export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipityData, setSerendipityData, setViewMode, setShowSettings, labBasket, toggleLabItem }) {
+  const { mode } = useTheme();
+  const isLight = mode === 'light';
   const [askInput, setAskInput] = useState('');
-  
+
   const [page, setPage] = useState(1);
   const [serendipityLoading, setSerendipityLoading] = useState(false);
 
@@ -38,7 +41,7 @@ export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipity
 
       <div className="relative z-10 flex flex-col items-center w-full max-w-5xl px-4 md:px-8">
         {/* 图标 + 标题区 */}
-        <div className="w-12 h-12 mb-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] flex items-center justify-center shadow-xl">
+        <div className={`w-12 h-12 mb-4 rounded-2xl flex items-center justify-center shadow-xl ${isLight ? 'bg-slate-100 border border-slate-200' : 'bg-white/[0.02] border border-white/[0.05]'}`}>
           <BrainCircuit size={22} className="text-primeAccent/30" />
         </div>
         <h2 className="text-lg tracking-wide mb-1 text-textPrimary uppercase font-mono">Note All AI</h2>
@@ -89,12 +92,12 @@ export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipity
               <div className="bg-card backdrop-blur-xl rounded-[15px] p-5 md:p-6 relative z-10 flex flex-col gap-4">
                 
                 {/* 装饰水印 */}
-                <div className="absolute top-6 right-6 p-4 opacity-[0.05] sm:opacity-[0.08] -rotate-12 group-hover:rotate-0 transition-transform duration-700 pointer-events-none text-white">
+                <div className={`absolute top-6 right-6 p-4 opacity-[0.05] sm:opacity-[0.08] -rotate-12 group-hover:rotate-0 transition-transform duration-700 pointer-events-none ${isLight ? 'text-slate-400' : 'text-white'}`}>
                   <Inbox size={110} />
                 </div>
 
                 {/* 顶部：标题与操作栏 (更紧凑) */}
-                <div className="flex items-center justify-between border-b border-white/5 pb-3 relative z-10">
+                <div className={`flex items-center justify-between border-b pb-3 relative z-10 ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-primeAccent/10 flex items-center justify-center border border-primeAccent/20">
                        <Inbox size={14} className="text-primeAccent" />
@@ -107,33 +110,33 @@ export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipity
                   <div className="flex items-center gap-3">
                     {/* 分页控制器 (紧凑型) */}
                     {serendipityData?.total > 9 && (
-                        <div className="flex items-center gap-2 bg-white/[0.03] px-2 py-1 rounded-lg border border-white/5">
-                            <button 
+                        <div className={`flex items-center gap-2 px-2 py-1 rounded-lg border ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-white/[0.03] border-white/5'}`}>
+                            <button
                               disabled={page <= 1 || serendipityLoading}
                               onClick={() => fetchSerendipity(page - 1)}
-                              className="p-1 rounded hover:bg-white/5 disabled:opacity-20 text-silverText/60 transition-colors"
+                              className={`p-1 rounded transition-colors ${isLight ? 'hover:bg-slate-200 disabled:opacity-20 text-slate-500' : 'hover:bg-white/5 disabled:opacity-20 text-silverText/60'}`}
                             >
                               <ChevronLeft size={14} />
                             </button>
                             <span className="text-[10px] font-mono text-textSecondary/60 min-w-[36px] text-center">
                               {page} / {Math.ceil(serendipityData.total / 9)}
                             </span>
-                            <button 
+                            <button
                               disabled={page >= Math.ceil(serendipityData.total / 9) || serendipityLoading}
                               onClick={() => fetchSerendipity(page + 1)}
-                              className="p-1 rounded hover:bg-white/5 disabled:opacity-20 text-silverText/60 transition-colors"
+                              className={`p-1 rounded transition-colors ${isLight ? 'hover:bg-slate-200 disabled:opacity-20 text-slate-500' : 'hover:bg-white/5 disabled:opacity-20 text-silverText/60'}`}
                             >
                               <ChevronRight size={14} />
                             </button>
                         </div>
                     )}
-                    <button 
+                    <button
                         onClick={() => fetchSerendipity(1)}
                         disabled={serendipityLoading}
-                        className="p-2 bg-white/[0.03] hover:bg-primeAccent/10 border border-white/10 hover:border-primeAccent/30 rounded-lg flex items-center gap-2 text-[10px] font-mono text-silverText/70 hover:text-primeAccent transition-all shadow-sm"
+                        className={`p-2 border rounded-lg flex items-center gap-2 text-[10px] font-mono transition-all shadow-sm ${isLight ? 'bg-slate-100 border-slate-200 hover:bg-primeAccent/10 hover:border-primeAccent/30 text-slate-600 hover:text-primeAccent' : 'bg-white/[0.03] border-white/10 hover:bg-primeAccent/10 hover:border-primeAccent/30 text-silverText/70 hover:text-primeAccent'}`}
                         title="刷新列表"
                     >
-                        <RefreshCw size={12} className={`text-primeAccent/70 ${serendipityLoading ? 'animate-spin' : ''}`} /> 
+                        <RefreshCw size={12} className={`text-primeAccent/70 ${serendipityLoading ? 'animate-spin' : ''}`} />
                     </button>
                    </div>
                 </div>

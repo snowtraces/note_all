@@ -4,6 +4,7 @@ import MarkdownRenderer from './MarkdownRenderer';
 import { getRelatedNotes, reprocessNote, uploadImage } from '../api/noteApi';
 import { getTemplates } from '../api/templateApi';
 import ShareModal from './ShareModal';
+import { useTheme } from '../context/ThemeContext';
 
 export default function Detail({
   item,
@@ -15,6 +16,8 @@ export default function Detail({
   handleUpdateText,
   handleUpdateStatus
 }) {
+  const { mode } = useTheme();
+  const isLight = mode === 'light';
   const [isRawMode, setIsRawMode] = useState(false);
   const [editValue, setEditValue] = useState(item?.ocr_text || '');
   const [isSaving, setIsSaving] = useState(false);
@@ -274,9 +277,9 @@ export default function Detail({
               <Share2 size={14} /> 分享碎片
             </button>
           )}
-          <button 
+          <button
             onClick={() => setSelectedItem(null)}
-            className="p-1.5 bg-white/5 hover:bg-white/10 rounded-full text-white/60 hover:text-white transition-colors ml-2"
+            className={`p-1.5 rounded-full transition-colors ml-2 ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700' : 'bg-white/5 hover:bg-white/10 text-white/60 hover:text-white'}`}
             title="关闭详情视图 (Esc)"
           >
             <X size={18} />
@@ -390,10 +393,10 @@ export default function Detail({
                   />
                   <div className="sticky bottom-6 right-0 flex justify-end pointer-events-none z-20 pr-4 pb-2">
                     {editValue !== item.ocr_text && (
-                      <button 
+                      <button
                         onClick={onSaveWrap}
                         disabled={isSaving}
-                        className="pointer-events-auto bg-primeAccent/20 hover:bg-primeAccent/80 hover:text-white text-primeAccent px-4 py-2 rounded-lg flex items-center gap-2 text-xs font-mono border border-primeAccent/30 font-bold transition-all backdrop-blur shadow-lg"
+                        className={`pointer-events-auto px-4 py-2 rounded-lg flex items-center gap-2 text-xs font-mono border font-bold transition-all backdrop-blur shadow-lg ${isLight ? 'bg-primeAccent/20 hover:bg-primeAccent text-primeAccent hover:text-white border-primeAccent/30' : 'bg-primeAccent/20 hover:bg-primeAccent/80 hover:text-white text-primeAccent border-primeAccent/30'}`}
                       >
                         <Save size={14} />
                         {isSaving ? "正在保存..." : "保存修改"}
@@ -426,8 +429,8 @@ export default function Detail({
                 onClick={() => setPreviewImage(fileUrl)}
               />
             ) : (
-              <div className="opacity-40 flex flex-col items-center justify-center p-4 h-full">
-                <ImageIcon size={36} className="mb-3 text-white/50 shrink-0" />
+              <div className={`opacity-40 flex flex-col items-center justify-center p-4 h-full ${isLight ? 'text-slate-400' : 'text-white/50'}`}>
+                <ImageIcon size={36} className="mb-3 shrink-0" />
                 <span className="text-[10px] tracking-widest uppercase font-mono">{item.file_type || 'DOCUMENT'}</span>
               </div>
             )}
@@ -485,18 +488,18 @@ export default function Detail({
 
             {/* 溯源谱系 (Lineage) - 移动到右侧栏底部 */}
             {item.parents && item.parents.length > 0 && (
-              <div className="pt-4 mt-2 border-t border-white/5 animate-in fade-in slide-in-from-bottom-2 duration-700">
-                <div className="text-[10px] text-silverText/40 uppercase mb-3 font-mono flex items-center gap-2">
+              <div className={`pt-4 mt-2 border-t animate-in fade-in slide-in-from-bottom-2 duration-700 ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
+                <div className="text-[10px] uppercase mb-3 font-mono flex items-center gap-2" style={{ color: isLight ? 'rgba(71,85,105,0.5)' : 'rgba(197,198,199,0.4)' }}>
                   <Zap size={10} className="text-primeAccent" /> 知识合成谱系 (Sources)
                 </div>
                 <div className="space-y-2">
                   {item.parents.map(p => (
-                    <div 
+                    <div
                       key={p.id}
                       onClick={() => setSelectedItem(p)}
-                      className="p-3 bg-primeAccent/5 border border-primeAccent/10 hover:border-primeAccent/30 transition-all rounded-xl cursor-pointer group/node"
+                      className={`p-3 border transition-all rounded-xl cursor-pointer group/node ${isLight ? 'bg-primeAccent/5 border-primeAccent/10 hover:border-primeAccent/30' : 'bg-primeAccent/5 border-primeAccent/10 hover:border-primeAccent/30'}`}
                     >
-                      <div className="text-[11px] text-silverText/70 group-hover/node:text-white transition-colors line-clamp-2 leading-relaxed">
+                      <div className={`text-[11px] line-clamp-2 leading-relaxed ${isLight ? 'text-slate-600 group-hover/node:text-slate-800' : 'text-silverText/70 group-hover/node:text-white'} transition-colors`}>
                           {p.ai_summary || p.original_name || '未命名片段'}
                       </div>
                     </div>
@@ -526,9 +529,11 @@ export default function Detail({
               }}
               disabled={isSubmittingStatus}
               className={`w-full py-3 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all ${item.status === 'done'
-                  ? 'bg-primeAccent/10 text-primeAccent border border-primeAccent/30 shadow-[0_0_15px_color-mix(in_srgb,var(--prime-accent),transparent_90%)]'
-                  : 'bg-primeAccent text-white-fixed dark:text-black hover:bg-primeAccent/90 shadow-[0_0_20px_color-mix(in_srgb,var(--prime-accent),transparent_70%)]'
-                }`}
+                ? 'bg-primeAccent/10 text-primeAccent border border-primeAccent/30 shadow-[0_0_15px_color-mix(in_srgb,var(--prime-accent),transparent_90%)]'
+                : isLight
+                  ? 'bg-primeAccent text-white hover:bg-primeAccent/90 shadow-[0_0_20px_color-mix(in_srgb,var(--prime-accent),transparent_70%)]'
+                  : 'bg-primeAccent text-white-fixed hover:bg-primeAccent/90 shadow-[0_0_20px_color-mix(in_srgb,var(--prime-accent),transparent_70%)]'
+              }`}
             >
               {isSubmittingStatus ? (
                 <RefreshCw size={14} className="animate-spin" />
