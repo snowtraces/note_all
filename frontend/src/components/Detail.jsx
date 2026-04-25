@@ -37,11 +37,22 @@ export default function Detail({
   const textareaRef = useRef(null);
   const fileUrl = item?.storage_id ? `/api/file/${item.storage_id}` : '';
 
-  // 自动调整文本框高度
+  // 自动调整文本框高度（保持滚动位置）
   useEffect(() => {
     if (isRawMode && textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+      const textarea = textareaRef.current;
+      // 找到可滚动的父容器
+      const scrollableParent = textarea.closest('.raw-textarea-scroll-container');
+      const savedScrollTop = scrollableParent?.scrollTop || 0;
+
+      // 调整高度
+      textarea.style.height = 'auto';
+      textarea.style.height = textarea.scrollHeight + 'px';
+
+      // 恢复父容器滚动位置，防止跳动
+      if (scrollableParent) {
+        scrollableParent.scrollTop = savedScrollTop;
+      }
     }
   }, [editValue, isRawMode]);
 
@@ -289,7 +300,7 @@ export default function Detail({
 
       {/* 内容区 */}
       <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
-        <div className="flex-1 p-5 lg:p-6 overflow-y-auto custom-scrollbar lg:border-r border-borderSubtle bg-main">
+        <div className="flex-1 p-5 lg:p-6 overflow-y-auto custom-scrollbar lg:border-r border-borderSubtle bg-main raw-textarea-scroll-container">
           {/* AI 分析框架 */}
           <div className="mb-5">
             <div className="flex items-center justify-between mb-2">
