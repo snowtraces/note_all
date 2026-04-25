@@ -414,7 +414,9 @@ function App() {
                   {chatHistory.map((chat, idx) => (
                     <div key={idx} className={`flex flex-col ${chat.role === 'user' ? 'items-end' : 'items-start'}`}>
                       <div className={`rounded-2xl px-4 leading-relaxed text-[14px] shadow-sm ${chat.role === 'user'
-                        ? 'bg-primeAccent/10 border border-primeAccent/20 text-white/90 rounded-tr-none min-w-[20px] max-w-[80%]'
+                        ? isLight
+                          ? 'bg-primeAccent/10 border border-primeAccent/20 text-primeAccent rounded-tr-none min-w-[20px] max-w-[80%]'
+                          : 'bg-primeAccent/10 border border-primeAccent/20 text-white/90 rounded-tr-none min-w-[20px] max-w-[80%]'
                         : isLight ? 'bg-white border border-slate-200 text-slate-700 rounded-tl-none max-w-[90%]' : 'bg-white/[0.03] border border-white/5 text-silverText/90 rounded-tl-none max-w-[90%]'
                         }`}>
                         <MarkdownRenderer content={chat.content} />

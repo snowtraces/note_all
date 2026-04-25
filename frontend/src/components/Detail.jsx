@@ -542,7 +542,7 @@ export default function Detail({
               className={`w-full py-3 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all ${item.status === 'done'
                 ? 'bg-primeAccent/10 text-primeAccent border border-primeAccent/30 shadow-[0_0_15px_color-mix(in_srgb,var(--prime-accent),transparent_90%)]'
                 : isLight
-                  ? 'bg-primeAccent text-white hover:bg-primeAccent/90 shadow-[0_0_20px_color-mix(in_srgb,var(--prime-accent),transparent_70%)]'
+                  ? 'bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 border border-primeAccent/30 shadow-[0_0_20px_color-mix(in_srgb,var(--prime-accent),transparent_90%)]'
                   : 'bg-primeAccent text-white-fixed hover:bg-primeAccent/90 shadow-[0_0_20px_color-mix(in_srgb,var(--prime-accent),transparent_70%)]'
               }`}
             >

@@ -378,7 +378,7 @@ export default function LabView({
                                     <button
                                         onClick={handleSave}
                                         disabled={generating}
-                                        className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs hover:scale-105 transition-transform disabled:opacity-50 font-bold ${isLight ? 'bg-primeAccent text-white' : 'bg-primeAccent text-black'}`}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs transition-transform disabled:opacity-50 font-bold ${isLight ? 'bg-primeAccent/10 text-primeAccent border border-primeAccent/30 hover:bg-primeAccent/20' : 'bg-primeAccent text-black hover:bg-primeAccent/90'}`}
                                     >
                                         {generating ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} 确认并保存
                                     </button>

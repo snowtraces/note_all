@@ -125,7 +125,7 @@ export default function WeixinView({ active }) {
                                     <div className={`max-w-[75%] px-6 py-4 rounded-[24px] text-[14px] leading-relaxed shadow-sm transition-all hover:shadow-md ${
                                         msg.direction === 'incoming'
                                         ? isLight ? 'bg-slate-50 border border-slate-200 text-slate-700 rounded-tl-none' : 'bg-white/[0.04] border border-white/10 text-silverText/90 rounded-tl-none'
-                                        : 'bg-primeAccent/10 border border-primeAccent/20 text-white rounded-tr-none'
+                                        : isLight ? 'bg-primeAccent/10 border border-primeAccent/20 text-primeAccent rounded-tr-none' : 'bg-primeAccent/10 border border-primeAccent/20 text-white rounded-tr-none'
                                     }`}>
                                         {msg.content}
                                     </div>
@@ -149,7 +149,7 @@ export default function WeixinView({ active }) {
                             <button
                                 onClick={handleSendReply}
                                 disabled={isSending || !replyText.trim()}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-xl bg-primeAccent text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-20 disabled:grayscale"
+                                className={`absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-20 disabled:grayscale ${isLight ? 'bg-primeAccent/10 text-primeAccent border border-primeAccent/30' : 'bg-primeAccent text-white-fixed'}`}
                             >
                                 {isSending ? <RefreshCcw size={20} className="animate-spin" /> : <Send size={20} />}
                             </button>
