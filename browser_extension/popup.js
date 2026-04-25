@@ -215,11 +215,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         throw new Error("服务器未返回有效 Token");
       }
 
-      // 保存基础设置
+      // 保存基础设置，清除旧的测速缓存
       await chrome.storage.local.set({
         serverUrl,
         apiToken: data.token,
-        rawPassword: pwd
+        rawPassword: pwd,
+        activeUrl: null,
+        speedTestResults: null,
+        speedTestExpiry: null
       });
 
       // 获取候选地址并测速
