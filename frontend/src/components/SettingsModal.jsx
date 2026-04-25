@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { X, Check, Plus, Trash2, Edit2, AlertCircle, Cpu, FileText, RefreshCw, Database, Zap, Loader2, Palette, Sun, Moon, BookOpen } from 'lucide-react';
+import { X, Check, Plus, Trash2, Edit2, AlertCircle, Cpu, FileText, RefreshCw, Database, Zap, Loader2, Palette, Sun, Moon, BookOpen, Server, Wifi, WifiOff, Clock } from 'lucide-react';
 import { getTemplates, createTemplate, updateTemplate, deleteTemplate, setActiveTemplate } from '../api/templateApi';
 import { getEmbeddingStatus, rebuildEmbeddings, getSynonymStatus, syncSynonyms } from '../api/systemApi';
 import { useTheme, MODES } from '../context/ThemeContext';
+import { getServerAddresses, measureUrlSpeed, fetchAddressesAndTest } from '../api/serverApi';
+import { getActiveServerUrl, setActiveServerUrl, getSpeedTestResults, setSpeedTestResults } from '../api/client';
 
 const TABS = [
   { id: 'appearance', label: '外观', icon: Palette },
   { id: 'templates', label: 'AI 模板', icon: FileText },
+  { id: 'server', label: '服务器', icon: Server },
   { id: 'vector', label: '向量引擎', icon: Cpu },
   { id: 'synonym', label: '同义词库', icon: BookOpen },
 ];
@@ -105,20 +108,19 @@ function TemplatesTab() {
         ) : templates.map(t => (
           <div
             key={t.id}
-            className={`group p-3 rounded-xl border cursor-pointer transition-all flex flex-col gap-2 relative ${
-              editingTemplate?.id === t.id
-                ? isLight ? 'bg-slate-100 border-slate-300' : 'bg-white/10 border-white/20'
-                : isLight ? 'bg-white border-slate-200 hover:bg-slate-50' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05]'
-            }`}
+            className={`group p-3 rounded-xl border cursor-pointer transition-all flex flex-col gap-2 relative ${editingTemplate?.id === t.id
+              ? isLight ? 'bg-slate-100 border-slate-300' : 'bg-white/10 border-white/20'
+              : isLight ? 'bg-white border-slate-200 hover:bg-slate-50' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05]'
+              }`}
             onClick={() => {
               setEditingTemplate(t);
               setFormData({ name: t.name, system_prompt: t.system_prompt });
             }}
           >
-            <div className="flex items-center justify-between pr-8">
-              <div className={`font-medium text-[14px] flex items-center gap-2 ${isLight ? 'text-slate-800' : 'text-white/90'}`}>
-                {t.name}
-                {t.is_builtin && <span className={`text-[9px] px-1.5 py-0.5 rounded ${isLight ? 'bg-slate-200 text-slate-500' : 'bg-white/10 text-silverText/60'}`}>内置</span>}
+            <div className="flex items-center justify-between pr-8 overflow-hidden">
+              <div className={`font-medium text-[14px] flex items-center gap-2 flex-1 min-w-0 ${isLight ? 'text-slate-800' : 'text-white/90'}`}>
+                <span className="truncate">{t.name}</span>
+                {t.is_builtin && <span className={`shrink-0 text-[9px] px-1.5 py-0.5 rounded ${isLight ? 'bg-slate-200 text-slate-500' : 'bg-white/10 text-silverText/60'}`}>内置</span>}
               </div>
             </div>
 
@@ -328,11 +330,10 @@ function VectorTab() {
           <button
             onClick={handleRebuild}
             disabled={rebuilding}
-            className={`w-full flex items-center justify-center gap-2.5 py-3 rounded-xl font-semibold text-sm transition-all ${
-              rebuilding
-                ? isLight ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/5 text-silverText/40 cursor-not-allowed'
-                : 'bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 border border-primeAccent/20'
-            }`}
+            className={`w-full flex items-center justify-center gap-2.5 py-3 rounded-xl font-semibold text-sm transition-all ${rebuilding
+              ? isLight ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/5 text-silverText/40 cursor-not-allowed'
+              : 'bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 border border-primeAccent/20'
+              }`}
           >
             {rebuilding ? (
               <>
@@ -348,6 +349,262 @@ function VectorTab() {
           </button>
         </div>
 
+      </div>
+    </div>
+  );
+}
+
+// ============ Tab: 服务器地址探测 ============
+function ServerTab() {
+  const [activeUrl, setActiveUrlState] = useState('');
+  const [results, setResults] = useState([]);
+  const [testing, setTesting] = useState(false);
+  const [statusMsg, setStatusMsg] = useState('');
+  const [testBaseUrl, setTestBaseUrl] = useState(''); // 测速基准地址
+  const { mode } = useTheme();
+  const isLight = mode === 'light';
+
+  // 初始化：加载缓存数据
+  useEffect(() => {
+    const cachedUrl = getActiveServerUrl();
+    const cachedResults = getSpeedTestResults();
+    setActiveUrlState(cachedUrl);
+    setResults(cachedResults || []);
+    setTestBaseUrl(window.location.origin); // 默认为浏览器当前地址
+  }, []);
+
+  // 显示状态消息
+  const showStatus = (msg, type) => {
+    setStatusMsg({ text: msg, type });
+    setTimeout(() => setStatusMsg(''), 3000);
+  };
+
+  // 渲染测速结果列表
+  const renderResults = (testResults, currentUrl, recommendedUrl = null) => {
+    if (!testResults || testResults.length === 0) {
+      return (
+        <div className={`text-center py-6 ${isLight ? 'text-slate-400' : 'text-silverText/40'}`}>
+          暂无测速数据，点击下方按钮开始测速
+        </div>
+      );
+    }
+
+    const successResults = testResults.filter(r => r.success).sort((a, b) => a.latency - b.latency);
+
+    return (
+      <div className="space-y-2">
+        {testResults.map((r, idx) => {
+          const isActive = r.url === currentUrl;
+          const isRecommended = r.url === recommendedUrl && !currentUrl;
+          const isSuccess = r.success;
+
+          return (
+            <div
+              key={idx}
+              onClick={() => {
+                if (isSuccess) {
+                  handleSelectUrl(r.url);
+                }
+              }}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all cursor-pointer overflow-hidden ${isActive
+                ? isLight
+                  ? 'bg-primeAccent/10 border-primeAccent/30 ring-2 ring-primeAccent/20'
+                  : 'bg-primeAccent/10 border-primeAccent/30 ring-2 ring-primeAccent/20'
+                : isRecommended
+                  ? isLight
+                    ? 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+                    : 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20'
+                  : isSuccess
+                    ? isLight
+                      ? 'bg-slate-50 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+                      : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10'
+                    : isLight
+                      ? 'bg-red-50 border-red-200 opacity-60'
+                      : 'bg-red-500/10 border-red-500/20 opacity-60'
+                }`}
+            >
+              {isSuccess ? (
+                <Wifi size={14} className={`shrink-0 ${isActive ? 'text-primeAccent' : isLight ? 'text-slate-400' : 'text-silverText/50'}`} />
+              ) : (
+                <WifiOff size={14} className="shrink-0 text-red-400" />
+              )}
+              <div className={`flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-mono ${isActive ? 'text-primeAccent font-semibold' : isLight ? 'text-slate-700' : 'text-white/80'}`}>
+                {r.url}
+              </div>
+              <div className="shrink-0 flex items-center gap-1 text-[12px] font-mono whitespace-nowrap">
+                {isSuccess ? (
+                  <>
+                    <Clock size={12} className={isActive ? 'text-primeAccent' : isLight ? 'text-slate-500' : 'text-silverText/50'} />
+                    <span className={isActive ? 'text-primeAccent' : isLight ? 'text-slate-500' : 'text-silverText/50'}>{r.latency}ms</span>
+                  </>
+                ) : (
+                  <span className="text-red-400">失败</span>
+                )}
+                {isActive && <Check size={12} className="text-primeAccent" />}
+                {isRecommended && !isActive && <span className="text-emerald-500">(推荐)</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // 选择地址
+  const handleSelectUrl = (url) => {
+    setActiveServerUrl(url);
+    setActiveUrlState(url);
+    setResults(prev => [...prev]); // 触发重新渲染
+    showStatus(`已切换到 ${url}`, 'success');
+  };
+
+  // 执行测速
+  const handleSpeedTest = async () => {
+    setTesting(true);
+    setResults([]);
+    setStatusMsg({ text: '正在获取地址列表...', type: 'loading' });
+
+    const serverUrl = testBaseUrl.replace(/\/$/, '');
+
+    try {
+      const { results: testResults, recommendedUrl } = await fetchAddressesAndTest(serverUrl);
+      setResults(testResults);
+      setSpeedTestResults(testResults);
+      setStatusMsg('');
+
+      if (!testResults.some(r => r.success)) {
+        showStatus('所有地址均无法连接', 'error');
+      } else {
+        showStatus(`测速完成，推荐地址: ${recommendedUrl}`, 'success');
+      }
+    } catch (e) {
+      setStatusMsg('');
+      showStatus(e.message || '测速失败', 'error');
+    }
+
+    setTesting(false);
+  };
+
+  // 清除激活地址（恢复默认）
+  const handleClearActiveUrl = () => {
+    setActiveServerUrl('');
+    setActiveUrlState('');
+    setResults(prev => [...prev]); // 触发重新渲染
+    showStatus('已恢复默认服务器地址', 'success');
+  };
+
+  return (
+    <div className="flex flex-1 overflow-hidden min-h-[400px]">
+      {/* 左侧：设置项 */}
+      <div
+        style={{ backgroundColor: isLight ? '#f8fafc' : 'var(--bg-sidebar)' }}
+        className={`w-[420px] shrink-0 border-r flex flex-col p-6 gap-5 overflow-y-auto custom-scrollbar backdrop-blur ${isLight ? 'border-slate-200' : 'border-white/5'}`}
+      >
+        {/* 当前激活地址 */}
+        <div className={`rounded-xl p-4 ${isLight ? 'bg-white border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
+          <div className={`text-[11px] uppercase tracking-wider mb-2 font-mono ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>当前服务器</div>
+          <div className="flex items-center gap-2">
+            <Server size={14} className={`shrink-0 ${activeUrl ? 'text-primeAccent' : isLight ? 'text-slate-400' : 'text-silverText/50'}`} />
+            <span className={`text-[13px] font-mono truncate flex-1 min-w-0 ${activeUrl ? 'text-primeAccent' : isLight ? 'text-slate-600' : 'text-white/70'}`}>
+              {activeUrl || '默认 (当前域名)'}
+            </span>
+            {activeUrl && (
+              <button
+                onClick={handleClearActiveUrl}
+                className={`shrink-0 text-[11px] px-2 py-1 rounded-lg transition-colors ${isLight
+                  ? 'bg-slate-200 hover:bg-slate-300 text-slate-600'
+                  : 'bg-white/10 hover:bg-white/20 text-silverText/70'
+                  }`}
+              >
+                恢复默认
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 服务器地址输入 */}
+        <div className={`rounded-xl p-4 ${isLight ? 'bg-white border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
+          <div className={`text-[11px] uppercase tracking-wider mb-2 font-mono ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>测速基准地址</div>
+          <div className="flex gap-2 items-center">
+            <input
+              type="text"
+              value={testBaseUrl}
+              onChange={(e) => setTestBaseUrl(e.target.value)}
+              placeholder="http://localhost:3344"
+              className={`flex-1 rounded-lg px-3 py-2 text-[13px] font-mono outline-none transition-colors ${isLight
+                ? 'bg-slate-100 text-slate-600 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-primeAccent/30'
+                : 'bg-white/5 text-silverText/70 placeholder-silverText/40 focus:bg-white/10 focus:ring-2 focus:ring-primeAccent/30'
+                }`}
+            />
+            <button
+              onClick={handleSpeedTest}
+              disabled={testing || !testBaseUrl}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-semibold text-[13px] transition-all shrink-0 ${testing || !testBaseUrl
+                ? isLight
+                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                  : 'bg-white/5 text-silverText/40 cursor-not-allowed'
+                : 'bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 border border-primeAccent/30'
+                }`}
+            >
+              {testing ? (
+                <>
+                  <Loader2 size={12} className="animate-spin" />
+                  测速中
+                </>
+              ) : (
+                <>
+                  <Zap size={12} />
+                  开始测速
+                </>
+              )}
+            </button>
+          </div>
+          <div className={`text-[11px] mt-2 ${isLight ? 'text-slate-400' : 'text-silverText/40'}`}>
+            输入服务器地址进行测速，默认为当前浏览器访问地址
+          </div>
+        </div>
+
+        {/* 状态消息 */}
+        {statusMsg && (
+          <div className={`rounded-xl p-3 text-[12px] flex items-center gap-2 ${statusMsg.type === 'success'
+            ? isLight ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-500/10 text-emerald-400'
+            : statusMsg.type === 'error'
+              ? isLight ? 'bg-red-50 text-red-600' : 'bg-red-500/10 text-red-400'
+              : isLight ? 'bg-slate-100 text-slate-600' : 'bg-white/5 text-silverText/70'
+            }`}>
+            {statusMsg.type === 'loading' && <Loader2 size={12} className="animate-spin" />}
+            {statusMsg.text}
+          </div>
+        )}
+
+        {/* 使用说明 */}
+        <div className={`rounded-xl p-4 ${isLight ? 'bg-white border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
+          <div className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-silverText/50'}`}>
+            <div className="flex items-center gap-1.5 mb-2 font-mono uppercase tracking-wider">
+              <AlertCircle size={12} className={isLight ? 'text-slate-400' : 'text-silverText/40'} />
+              使用说明
+            </div>
+            <ul className="list-disc list-inside space-y-1 ml-1 text-[12px]">
+              <li>测速会向服务器请求所有可用IP地址</li>
+              <li>每个地址将并发调用 /ping 测量延迟</li>
+              <li>点击右侧列表中的地址可切换服务器</li>
+              <li>"恢复默认"将使用当前域名</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* 右侧：测速结果 */}
+      <div
+        style={{ backgroundColor: 'var(--bg-modal)' }}
+        className={`flex-1 p-6 flex flex-col backdrop-blur`}
+      >
+        <div className={`text-[11px] uppercase tracking-wider mb-3 font-mono ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>
+          测速结果
+        </div>
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          {renderResults(results, activeUrl)}
+        </div>
       </div>
     </div>
   );
@@ -446,11 +703,10 @@ function SynonymTab() {
           <button
             onClick={handleSync}
             disabled={syncing}
-            className={`w-full flex items-center justify-center gap-2.5 py-3 rounded-xl font-semibold text-sm transition-all ${
-              syncing
-                ? isLight ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/5 text-silverText/40 cursor-not-allowed'
-                : 'bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 border border-primeAccent/20'
-            }`}
+            className={`w-full flex items-center justify-center gap-2.5 py-3 rounded-xl font-semibold text-sm transition-all ${syncing
+              ? isLight ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/5 text-silverText/40 cursor-not-allowed'
+              : 'bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 border border-primeAccent/20'
+              }`}
           >
             {syncing ? (
               <>
@@ -487,11 +743,10 @@ function AppearanceTab() {
               <button
                 key={t.id}
                 onClick={() => setTheme(t.id)}
-                className={`group relative p-4 rounded-xl border transition-all ${
-                  theme === t.id
-                    ? isLight ? 'bg-slate-100 border-slate-300 ring-2 ring-[var(--prime-accent)]' : 'bg-white/10 border-white/20 ring-2 ring-[var(--prime-accent)]'
-                    : isLight ? 'bg-white border-slate-200 hover:bg-slate-50' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10'
-                }`}
+                className={`group relative p-4 rounded-xl border transition-all ${theme === t.id
+                  ? isLight ? 'bg-slate-100 border-slate-300 ring-2 ring-[var(--prime-accent)]' : 'bg-white/10 border-white/20 ring-2 ring-[var(--prime-accent)]'
+                  : isLight ? 'bg-white border-slate-200 hover:bg-slate-50' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10'
+                  }`}
               >
                 {/* 预览色块 */}
                 <div className="flex items-center justify-center mb-3">
@@ -525,11 +780,10 @@ function AppearanceTab() {
           <div className="flex gap-4">
             <button
               onClick={() => setMode('dark')}
-              className={`flex items-center gap-3 px-5 py-3 rounded-xl border transition-all ${
-                mode === 'dark'
-                  ? isLight ? 'bg-slate-100 border-slate-300 ring-2 ring-[var(--prime-accent)]' : 'bg-white/10 border-white/20 ring-2 ring-[var(--prime-accent)]'
-                  : isLight ? 'bg-white border-slate-200 hover:bg-slate-50' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05]'
-              }`}
+              className={`flex items-center gap-3 px-5 py-3 rounded-xl border transition-all ${mode === 'dark'
+                ? isLight ? 'bg-slate-100 border-slate-300 ring-2 ring-[var(--prime-accent)]' : 'bg-white/10 border-white/20 ring-2 ring-[var(--prime-accent)]'
+                : isLight ? 'bg-white border-slate-200 hover:bg-slate-50' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05]'
+                }`}
             >
               <Moon size={18} className={isLight ? 'text-slate-500' : 'text-silverText/60'} />
               <span className={`text-[14px] font-medium ${isLight ? 'text-slate-800' : 'text-white/90'}`}>暗色模式</span>
@@ -537,11 +791,10 @@ function AppearanceTab() {
             </button>
             <button
               onClick={() => setMode('light')}
-              className={`flex items-center gap-3 px-5 py-3 rounded-xl border transition-all ${
-                mode === 'light'
-                  ? isLight ? 'bg-slate-100 border-slate-300 ring-2 ring-[var(--prime-accent)]' : 'bg-white/10 border-white/20 ring-2 ring-[var(--prime-accent)]'
-                  : isLight ? 'bg-white border-slate-200 hover:bg-slate-50' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05]'
-              }`}
+              className={`flex items-center gap-3 px-5 py-3 rounded-xl border transition-all ${mode === 'light'
+                ? isLight ? 'bg-slate-100 border-slate-300 ring-2 ring-[var(--prime-accent)]' : 'bg-white/10 border-white/20 ring-2 ring-[var(--prime-accent)]'
+                : isLight ? 'bg-white border-slate-200 hover:bg-slate-50' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05]'
+                }`}
             >
               <Sun size={18} className={isLight ? 'text-slate-500' : 'text-silverText/60'} />
               <span className={`text-[14px] font-medium ${isLight ? 'text-slate-800' : 'text-white/90'}`}>亮色模式</span>
@@ -572,7 +825,7 @@ export default function SettingsModal({ onClose }) {
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div
         style={{ backgroundColor: 'var(--bg-modal)' }}
-        className={`backdrop-blur-xl border rounded-2xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
+        className={`backdrop-blur-xl border rounded-2xl w-full max-w-5xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
 
         {/* Header with Tabs */}
         <div
@@ -583,11 +836,10 @@ export default function SettingsModal({ onClose }) {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all ${
-                  activeTab === tab.id
-                    ? isLight ? 'bg-slate-200 text-slate-800' : 'bg-white/10 text-white'
-                    : isLight ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-100' : 'text-silverText/50 hover:text-white/80 hover:bg-white/5'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all ${activeTab === tab.id
+                  ? isLight ? 'bg-slate-200 text-slate-800' : 'bg-white/10 text-white'
+                  : isLight ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-100' : 'text-silverText/50 hover:text-white/80 hover:bg-white/5'
+                  }`}
               >
                 <tab.icon size={15} />
                 {tab.label}
@@ -600,9 +852,10 @@ export default function SettingsModal({ onClose }) {
         </div>
 
         {/* Tab Content */}
-        <div className="flex h-[500px] overflow-hidden">
+        <div className="flex h-[600px] overflow-hidden">
           {activeTab === 'appearance' && <AppearanceTab />}
           {activeTab === 'templates' && <TemplatesTab />}
+          {activeTab === 'server' && <ServerTab />}
           {activeTab === 'vector' && <VectorTab />}
           {activeTab === 'synonym' && <SynonymTab />}
         </div>

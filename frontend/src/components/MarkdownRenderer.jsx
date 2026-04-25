@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
+import { getActiveServerUrl } from '../api/client';
 
 export default function MarkdownRenderer({ content, className = '' }) {
 
@@ -14,7 +15,12 @@ export default function MarkdownRenderer({ content, className = '' }) {
         remarkPlugins={[remarkGfm, remarkMath, remarkBreaks]}
         rehypePlugins={[rehypeRaw, rehypeKatex]}
         components={{
-          img: ({ src, ...props }) => <img src={src} {...props} />,
+          img: ({ src, ...props }) => {
+            const activeUrl = getActiveServerUrl();
+            // 相对路径（以 / 开头）需要拼接服务器地址
+            const fullSrc = activeUrl && src?.startsWith('/') ? `${activeUrl}${src}` : src;
+            return <img src={fullSrc} {...props} />;
+          },
           code({node, className, children, ...props}) {
             const match = /language-(\w+)/.exec(className || '')
             const isBlock = match || String(children).includes('\n')
