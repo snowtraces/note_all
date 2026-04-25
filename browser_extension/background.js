@@ -1,4 +1,24 @@
-const DEFAULT_SERVER_URL = "http://localhost:8080";
+const DEFAULT_SERVER_URL = "http://localhost:3344";
+
+// ========== 获取当前激活URL ==========
+
+async function getActiveUrl() {
+  const storage = await chrome.storage.local.get([
+    'serverUrl', 'activeUrl', 'speedTestExpiry'
+  ]);
+
+  // 检查缓存是否过期
+  if (storage.speedTestExpiry && Date.now() >= storage.speedTestExpiry) {
+    console.log('Note All: Speed test cache expired');
+    // 返回serverUrl作为fallback，但不触发自动测速（由popup处理）
+    return storage.serverUrl || DEFAULT_SERVER_URL;
+  }
+
+  // 使用activeUrl或serverUrl
+  return storage.activeUrl || storage.serverUrl || DEFAULT_SERVER_URL;
+}
+
+// ========== 扩展原有功能 ==========
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
@@ -19,13 +39,11 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
     // 场景 B: 右键点击的是选中文本
     try {
-      // 1. Inject Turndown library and GFM plugin into the page
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         files: ['turndown.js', 'turndown-plugin-gfm.js']
       });
 
-      // 2. Execute a function to grab HTML and convert to Markdown
       const results = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: () => {
@@ -36,7 +54,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
               container.appendChild(selection.getRangeAt(i).cloneContents());
             }
 
-            // Deal with relative URLs (convert them to absolute)
             const baseUrl = window.location.href;
             container.querySelectorAll('a').forEach(a => {
               const href = a.getAttribute('href');
@@ -51,36 +68,31 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
               }
             });
 
-            // Convert using TurndownService (should be global now)
             if (window.TurndownService) {
               const turndownService = new window.TurndownService({
                 headingStyle: 'atx',
                 codeBlockStyle: 'fenced'
               });
 
-              // Add Github Flavored Markdown (tables, checklists, strikethrough)
               if (window.turndownPluginGfm) {
                 turndownService.use(window.turndownPluginGfm.gfm);
               }
 
-              // Strip unnecessary unseen elements
               turndownService.remove(['script', 'noscript', 'style', 'iframe', 'canvas', 'video', 'audio']);
 
               return turndownService.turndown(container.innerHTML);
             }
           }
-          return null; // Fallback will be triggered
+          return null;
         }
       });
 
       let markdown = results && results[0] ? results[0].result : null;
 
-      // 3. Fallback to info.selectionText if Turndown fails or gives nothing
       if (!markdown && info.selectionText) {
         markdown = info.selectionText;
       }
 
-      // 4. Send to Note All
       if (markdown) {
         const footer = `\n\n---\n来源: [${tab.title || '无标题'}](${tab.url})`;
         markdown += footer;
@@ -88,7 +100,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       }
     } catch (err) {
       console.error("Script injection failed. Fallback to plain text.", err);
-      // Fallback: If we couldn't inject script (e.g., chrome:// pages or no permission)
       if (info.selectionText) {
         const footer = `\n\n---\n来源: [${tab.title || '无标题'}](${tab.url})`;
         clipToNoteAll(info.selectionText + footer, "text");
@@ -99,16 +110,14 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
 async function clipImageFromFrontend(srcUrl) {
   try {
-    const result = await chrome.storage.local.get(["serverUrl", "apiToken"]);
-    const serverUrl = result.serverUrl || DEFAULT_SERVER_URL;
+    const serverUrl = await getActiveUrl();
+    const result = await chrome.storage.local.get(["apiToken"]);
     const apiUrl = `${serverUrl}/api/upload`;
     const token = result.apiToken || "";
 
-    // 1. 在浏览器侧下载图片（利用浏览器 Cookie/Session 绕过防盗链）
     const imageResp = await fetch(srcUrl);
     const blob = await imageResp.blob();
 
-    // 2. 准备文件名
     let filename = "web_image.jpg";
     try {
       const urlObj = new URL(srcUrl);
@@ -119,7 +128,6 @@ async function clipImageFromFrontend(srcUrl) {
       }
     } catch(e) {}
 
-    // 3. 构造 Multipart 表达
     const formData = new FormData();
     formData.append("file", blob, filename);
 
@@ -148,26 +156,30 @@ async function clipImageFromFrontend(srcUrl) {
   }
 }
 
-
-// Message listener for content script requests
-
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('Note All: Received message from content script', message);
-  
+  console.log('Note All: Received message', message);
+
   if (message.action === 'clipText') {
     const footer = `\n\n---\n来源: [${message.title || '无标题'}](${message.url})`;
     const contentWithFooter = message.content + footer;
-    
+
     clipToNoteAll(contentWithFooter, "text").then(success => {
       sendResponse({ status: success ? 'success' : 'error' });
     });
-    return true; // Keep message channel open for async response
+    return true;
+  }
+
+  if (message.action === 'getActiveUrl') {
+    getActiveUrl().then(url => {
+      sendResponse({ activeUrl: url });
+    });
+    return true;
   }
 });
 
 async function clipToNoteAll(content, type = "text") {
-  const result = await chrome.storage.local.get(["serverUrl", "apiToken"]);
-  const serverUrl = result.serverUrl || DEFAULT_SERVER_URL;
+  const serverUrl = await getActiveUrl();
+  const result = await chrome.storage.local.get(["apiToken"]);
   const apiUrl = `${serverUrl}/api/note/text`;
   const token = result.apiToken || "";
 

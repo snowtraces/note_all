@@ -32,10 +32,12 @@ func SetupRouter() *gin.Engine {
 
 	authApi := new(api.AuthApi)
 	shareApi := new(api.ShareApi)
+	serverApi := new(api.ServerApi)
 
 	// 1. 公开接口 (不需要鉴权)
 	r.POST("/api/auth/login", authApi.Login)
 	r.GET("/api/pub/share/:id", shareApi.GetPublicShare) // 这里是真正的公开分享端点
+	r.GET("/api/server/addresses", serverApi.GetAddresses) // 获取服务器可用地址列表
 
 	noteApi := new(api.NoteApi)
 	r.GET("/api/file/:id", noteApi.GetFile) // 本地图片公开访问

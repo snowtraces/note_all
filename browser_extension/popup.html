@@ -16,56 +16,57 @@
     body {
       width: 320px;
       margin: 0;
-      padding: 16px;
+      padding: 12px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       background-color: var(--bg-color);
       color: var(--text-color);
+      font-size: 13px;
     }
 
     .header {
       display: flex;
       align-items: center;
-      gap: 12px;
-      margin-bottom: 20px;
+      gap: 10px;
+      margin-bottom: 12px;
     }
 
     .logo {
-      width: 32px;
-      height: 32px;
+      width: 28px;
+      height: 28px;
       background: var(--primary-color);
-      border-radius: 8px;
+      border-radius: 6px;
     }
 
     .title {
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 700;
       color: var(--text-color);
     }
 
     .subtitle {
-      font-size: 12px;
+      font-size: 11px;
       color: var(--secondary-text);
-      margin-top: 2px;
+      margin-top: 1px;
     }
 
     .form-group {
-      margin-bottom: 16px;
+      margin-bottom: 10px;
     }
 
     label {
       display: block;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
       color: var(--secondary-text);
     }
 
     input, textarea {
       width: 100%;
-      padding: 10px;
+      padding: 8px;
       border: 1px solid var(--border-color);
-      border-radius: 8px;
-      font-size: 14px;
+      border-radius: 6px;
+      font-size: 13px;
       box-sizing: border-box;
       outline: none;
       transition: border-color 0.2s;
@@ -76,21 +77,21 @@
     }
 
     textarea {
-      height: 120px;
+      height: 100px;
       resize: none;
     }
 
     .actions {
       display: flex;
       justify-content: flex-end;
-      gap: 8px;
-      margin-top: 16px;
+      gap: 6px;
+      margin-top: 10px;
     }
 
     button {
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-size: 14px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
       border: none;
@@ -105,7 +106,7 @@
     .btn-secondary {
       background-color: transparent;
       color: var(--secondary-text);
-      padding: 8px;
+      padding: 6px 8px;
     }
 
     button:hover {
@@ -113,16 +114,64 @@
     }
 
     .status {
-      margin-top: 12px;
+      margin-top: 8px;
       font-size: 12px;
       text-align: center;
-      min-height: 18px;
+      min-height: 16px;
     }
 
     .status-success { color: #10b981; }
     .status-error { color: #ef4444; }
 
     #settings-view { display: none; }
+
+    #settings-view .header {
+      margin-bottom: 8px;
+    }
+
+    /* 测速状态样式 */
+    .speed-test-section {
+      margin-top: 10px;
+      padding: 8px;
+      background: #f3f4f6;
+      border-radius: 6px;
+    }
+
+    .speed-test-section h4 {
+      margin: 0 0 6px 0;
+      font-size: 12px;
+      color: var(--text-color);
+    }
+
+    .speed-result-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 2px 0;
+      font-size: 11px;
+    }
+
+    .speed-result-item.active {
+      color: var(--primary-color);
+      font-weight: 600;
+    }
+
+    .speed-result-item.failed {
+      color: #ef4444;
+    }
+
+    #run-speed-test {
+      font-size: 11px;
+      padding: 4px 8px;
+    }
+
+    .active-url-display {
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--primary-color);
+      background: #eff6ff;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
   </style>
 </head>
 <body>
@@ -152,14 +201,31 @@
     <div class="header">
       <div class="title">扩展设置</div>
     </div>
+
+    <!-- 服务器主地址 -->
     <div class="form-group">
-      <label for="server-url">服务器地址 (Base URL)</label>
-      <input type="text" id="server-url" placeholder="http://localhost:8080">
+      <label for="server-url">服务器地址</label>
+      <input type="text" id="server-url" placeholder="http://localhost:3344">
     </div>
+
+    <!-- 系统密码 -->
     <div class="form-group">
       <label for="api-token">系统访问密码</label>
       <input type="password" id="api-token" placeholder="sys_password">
     </div>
+
+    <!-- 当前激活地址 -->
+    <div class="active-url-display" id="active-url-display">
+      当前使用: 未设置
+    </div>
+
+    <!-- 测速状态 -->
+    <div class="speed-test-section" id="speed-test-section">
+      <h4>地址测速结果</h4>
+      <div id="speed-results"></div>
+      <button id="run-speed-test" class="btn-secondary" style="margin-top: 8px;">🔄 重新测速</button>
+    </div>
+
     <div class="actions">
       <button id="back-to-main" class="btn-secondary">返回</button>
       <button id="save-settings" class="btn-primary">保存设置</button>

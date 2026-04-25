@@ -10,7 +10,7 @@
     "scripting"
   ],
   "host_permissions": [
-    "http://localhost:8080/*"
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js"
