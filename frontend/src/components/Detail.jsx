@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink, Link, Zap, Share2, RefreshCw, CheckCircle2, XCircle, ClipboardEdit, Eye, ImageDown } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
-import { getRelatedNotes, reprocessNote, uploadImage } from '../api/noteApi';
+import { getRelatedNotes, reprocessNote, uploadImage, getNote } from '../api/noteApi';
 import { getTemplates } from '../api/templateApi';
 import ShareModal from './ShareModal';
 import { useTheme } from '../context/ThemeContext';
@@ -58,13 +58,22 @@ export default function Detail({
 
   // 当外部 item 变化时，重新绑定 editValue 和加载关联内容
   useEffect(() => {
+    if (!item) return;
+
+    // 如果 item 不完整（比如来自图谱只有概要），则强制拉取一次详情
+    if (item.id && !item.ocr_text) {
+      getNote(item.id).then(fullItem => {
+        setSelectedItem(fullItem);
+      }).catch(err => console.error("Fetch full note failed:", err));
+    }
+
     setEditValue(item?.ocr_text || '');
     setReprocessStatus(null);
     setAnnotation(item?.user_comment || '');
-    if (item && item.id) {
+    if (item.id) {
        loadRelated();
     }
-  }, [item]);
+  }, [item, setSelectedItem]);
 
   useEffect(() => {
     loadTemplates();

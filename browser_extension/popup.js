@@ -238,15 +238,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         throw new Error("服务器未返回有效 Token");
       }
 
-      // 保存设置，使用主地址作为默认activeUrl
-      await chrome.storage.local.set({
+      // 保存设置，保留用户已选择的 activeUrl（测速后双击选择的地址）
+      const existing = await chrome.storage.local.get(["activeUrl"]);
+      const saveData = {
         serverUrl,
         apiToken: data.token,
         rawPassword: pwd,
-        activeUrl: serverUrl
-      });
+      };
+      // 仅在没有已选定地址时，才用 serverUrl 作为默认
+      if (!existing.activeUrl) {
+        saveData.activeUrl = serverUrl;
+      }
+      await chrome.storage.local.set(saveData);
 
-      updateActiveUrlDisplay(serverUrl);
+      updateActiveUrlDisplay(existing.activeUrl || serverUrl);
       showStatus("设置已保存", "success");
       setTimeout(() => {
         settingsView.style.display = "none";

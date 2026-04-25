@@ -632,6 +632,17 @@ func (a *NoteApi) SaveSynthesized(c *gin.Context) {
 		"data":    note,
 	})
 }
+// GetNote 获取单条笔记详情 (含标签和完整正文)
+func (a *NoteApi) GetNote(c *gin.Context) {
+	id := c.Param("id")
+	var note models.NoteItem
+	if err := global.DB.Preload("Tags").Preload("Parents").First(&note, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "笔记不存在"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": note})
+}
+
 // UpdateStatus 修改已有笔记的状态（手动标记已处理等）
 func (a *NoteApi) UpdateStatus(c *gin.Context) {
 	id := c.Param("id")

@@ -278,7 +278,7 @@ export default function GraphView({ onNodeClick, onClose, data: initialData, onD
 
   const handleNodeClick = useCallback(node => {
      if (node.type === 'note' && onNodeClick) {
-         onNodeClick({ id: node.note_id, ...node });
+         onNodeClick({ ...node, id: node.note_id });
      } else if (node.type === 'ghost') {
          // Ghost 节点处理: 如果系统有创建笔记的机制，可以在这里触发
          fgRef.current?.centerAt(node.x, node.y, 800);

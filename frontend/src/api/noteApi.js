@@ -12,6 +12,13 @@ export const searchNotes = async (query) => {
   return data.data || [];
 };
 
+export const getNote = async (id) => {
+  const res = await request(`/api/note/${id}`);
+  if (!res.ok) throw new Error("Get note failed");
+  const data = await res.json();
+  return data.data;
+};
+
 export const deleteNote = async (id, hard = false) => {
   const res = await request(`/api/note/${id}${hard ? '/hard' : ''}`, { method: 'DELETE' });
   if (!res.ok) throw new Error("Delete failed");

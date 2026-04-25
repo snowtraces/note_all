@@ -82,6 +82,7 @@ func SetupRouter() *gin.Engine {
 
 		// 4. 详细内容查询与更新
 		apiGroup.PATCH("/note/:id/text", noteApi.UpdateText)
+		apiGroup.GET("/note/:id", noteApi.GetNote)
 		apiGroup.PATCH("/note/:id/status", noteApi.UpdateStatus)
 		apiGroup.PATCH("/note/batch/archive", noteApi.BatchArchive)
 		apiGroup.GET("/note/:id/related", noteApi.RelatedNotes)
