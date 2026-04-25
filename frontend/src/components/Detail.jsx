@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink, Link, Zap, Share2, RefreshCw, CheckCircle2, XCircle, ClipboardEdit, Eye, ImageDown } from 'lucide-react';
+import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink, Link, Zap, Share2, RefreshCw, CheckCircle2, XCircle, ClipboardEdit, Eye, ImageDown, List } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
+import TableOfContents from './TableOfContents';
 import { getRelatedNotes, reprocessNote, uploadImage, getNote } from '../api/noteApi';
 import { getTemplates } from '../api/templateApi';
 import ShareModal from './ShareModal';
@@ -34,7 +35,9 @@ export default function Detail({
   const [localizingProgress, setLocalizingProgress] = useState(0); // 已处理数量
   const [totalImagesToLocalize, setTotalImagesToLocalize] = useState(0); // 本次本地化任务的总数
   const [isLocalizing, setIsLocalizing] = useState(false);
+  const [showToC, setShowToC] = useState(false);
   const textareaRef = useRef(null);
+  const contentScrollRef = useRef(null);
   const fileUrl = item?.storage_id ? `/api/file/${item.storage_id}` : '';
 
   // 自动调整文本框高度（保持滚动位置）
@@ -309,7 +312,10 @@ export default function Detail({
 
       {/* 内容区 */}
       <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
-        <div className="flex-1 p-5 lg:p-6 overflow-y-auto custom-scrollbar lg:border-r border-borderSubtle bg-main raw-textarea-scroll-container">
+        <div 
+          ref={contentScrollRef}
+          className="flex-1 p-5 lg:p-6 overflow-y-auto custom-scrollbar lg:border-r border-borderSubtle bg-main raw-textarea-scroll-container"
+        >
           {/* AI 分析框架 */}
           <div className="mb-5">
             <div className="flex items-center justify-between mb-2">
@@ -355,7 +361,7 @@ export default function Detail({
 
           {/* OCR 原文提取 */}
           <div className="mb-4">
-            <div className="flex items-center justify-between border-b border-primeAccent/20 pb-2 mb-3">
+            <div className="sticky -top-5 lg:-top-6 z-40 bg-main flex items-center justify-between border-b border-primeAccent/20 pt-4 pb-3 -mx-5 px-5 lg:-mx-6 lg:px-6 mb-3 shadow-sm transition-all">
               <h2 className="text-[11px] text-primeAccent uppercase tracking-[0.2em] font-bold flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-primeAccent animate-pulse shadow-[0_0_10px_color-mix(in_srgb,var(--prime-accent),transparent_20%)]"></span> 
                 {item.original_url ? '源网页正文推断' : 'OCR 核心视觉提取文本'}
@@ -391,13 +397,36 @@ export default function Detail({
                       : `图片本地化 ${localImages.length}/${externalImages.length + localImages.length}`}
                   </button>
                 )}
-                <button
-                  onClick={() => setIsRawMode(!isRawMode)}
-                  className="flex items-center gap-1.5 px-3 py-1 bg-sidebar hover:bg-card text-textSecondary hover:text-textPrimary transition-colors rounded-md text-[10px] font-mono border border-borderSubtle uppercase"
-                  title={isRawMode ? "切换为 Markdown 预览" : "查看原始提取文本"}
-                >
-                  {isRawMode ? <><FileText size={12} /> 预览模式</> : <><Code size={12} /> RAW 模式</>}
-                </button>
+                <div className="relative flex items-center">
+                  {!isRawMode && (
+                    <button
+                      onClick={() => setShowToC(!showToC)}
+                      className={`flex items-center gap-1.5 px-3 py-1 transition-colors rounded-md text-[10px] font-mono border uppercase mr-3 ${showToC ? 'bg-primeAccent/20 text-primeAccent border-primeAccent/30' : 'bg-sidebar hover:bg-card text-textSecondary hover:text-textPrimary border-borderSubtle'}`}
+                      title="打开大纲导读"
+                    >
+                      <List size={12} /> 大纲导读
+                    </button>
+                  )}
+                  {showToC && !isRawMode && (
+                    <div className="absolute top-full right-[80px] mt-2 w-64 glass-panel border border-borderSubtle shadow-2xl rounded-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 origin-top-right">
+                       <div className="px-3 py-2 bg-header border-b border-borderSubtle flex items-center justify-between">
+                         <span className="text-[11px] text-textSecondary font-bold tracking-widest font-mono uppercase">Document Index</span>
+                         <button onClick={() => setShowToC(false)} className="text-textSecondary hover:text-red-400 transition-colors bg-sidebar p-1 rounded-md border border-borderSubtle"><X size={12} /></button>
+                       </div>
+                       <div className="p-1 max-h-[300px] overflow-y-auto custom-scrollbar">
+                         <TableOfContents content={item.ocr_text} containerRef={contentScrollRef} />
+                       </div>
+                    </div>
+                  )}
+                  
+                  <button
+                    onClick={() => { setIsRawMode(!isRawMode); setShowToC(false); }}
+                    className="flex items-center gap-1.5 px-3 py-1 bg-sidebar hover:bg-card text-textSecondary hover:text-textPrimary transition-colors rounded-md text-[10px] font-mono border border-borderSubtle uppercase"
+                    title={isRawMode ? "切换为 Markdown 预览" : "查看原始提取文本"}
+                  >
+                    {isRawMode ? <><FileText size={12} /> 预览模式</> : <><Code size={12} /> RAW 模式</>}
+                  </button>
+                </div>
               </div>
             </div>
             

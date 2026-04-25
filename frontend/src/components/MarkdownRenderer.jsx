@@ -7,7 +7,7 @@ import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import { getActiveServerUrl } from '../api/client';
 
-export default function MarkdownRenderer({ content, className = '' }) {
+const MarkdownRenderer = React.memo(function MarkdownRenderer({ content, className = '' }) {
 
   return (
     <div className={`markdown-content ${className}`}>
@@ -47,9 +47,42 @@ export default function MarkdownRenderer({ content, className = '' }) {
           ul: ({node, ...props}) => <ul className="list-disc my-4 space-y-1.5 ml-6 opacity-90" {...props} />,
           ol: ({node, ...props}) => <ol className="list-decimal my-4 space-y-1.5 ml-6 opacity-90" {...props} />,
           li: ({node, ...props}) => <li className="pl-1" {...props} />,
-          h1: ({node, ...props}) => <h1 className="text-2xl font-bold text-textPrimary mt-8 mb-4 tracking-wider pb-2 border-b border-borderSubtle" {...props} />,
-          h2: ({node, ...props}) => <h2 className="text-xl font-semibold text-textPrimary mt-6 mb-3 tracking-wide" {...props} />,
-          h3: ({node, ...props}) => <h3 className="text-lg font-medium text-textPrimary mt-5 mb-2" {...props} />,
+          h1: ({node, children, ...props}) => {
+            const flatten = (children) => {
+              return React.Children.toArray(children).map(child => {
+                if (typeof child === 'string') return child;
+                if (child.props?.children) return flatten(child.props.children);
+                return '';
+              }).join('');
+            };
+            const text = flatten(children);
+            const id = text.toLowerCase().replace(/\s+/g, '-').replace(/[^\p{L}\p{N}_-]/gu, '');
+            return <h1 id={id} className="scroll-mt-24 text-2xl font-bold text-textPrimary mt-8 mb-4 tracking-wider pb-2 border-b border-borderSubtle" {...props}>{children}</h1>;
+          },
+          h2: ({node, children, ...props}) => {
+            const flatten = (children) => {
+              return React.Children.toArray(children).map(child => {
+                if (typeof child === 'string') return child;
+                if (child.props?.children) return flatten(child.props.children);
+                return '';
+              }).join('');
+            };
+            const text = flatten(children);
+            const id = text.toLowerCase().replace(/\s+/g, '-').replace(/[^\p{L}\p{N}_-]/gu, '');
+            return <h2 id={id} className="scroll-mt-24 text-xl font-semibold text-textPrimary mt-6 mb-3 tracking-wide" {...props}>{children}</h2>;
+          },
+          h3: ({node, children, ...props}) => {
+            const flatten = (children) => {
+              return React.Children.toArray(children).map(child => {
+                if (typeof child === 'string') return child;
+                if (child.props?.children) return flatten(child.props.children);
+                return '';
+              }).join('');
+            };
+            const text = flatten(children);
+            const id = text.toLowerCase().replace(/\s+/g, '-').replace(/[^\p{L}\p{N}_-]/gu, '');
+            return <h3 id={id} className="scroll-mt-24 text-lg font-medium text-textPrimary mt-5 mb-2" {...props}>{children}</h3>;
+          },
           a: ({node, ...props}) => <a className="text-primeAccent hover:text-primeAccentDim transition-colors underline underline-offset-4 decoration-primeAccent/30" target="_blank" rel="noopener noreferrer" {...props} />,
           p: ({node, ...props}) => <p className="my-3 leading-[1.8] text-textPrimary" {...props} />
         }}
@@ -58,4 +91,6 @@ export default function MarkdownRenderer({ content, className = '' }) {
       </ReactMarkdown>
     </div>
   );
-}
+});
+
+export default MarkdownRenderer;
