@@ -3,18 +3,7 @@ const DEFAULT_SERVER_URL = "http://localhost:3344";
 // ========== 获取当前激活URL ==========
 
 async function getActiveUrl() {
-  const storage = await chrome.storage.local.get([
-    'serverUrl', 'activeUrl', 'speedTestExpiry'
-  ]);
-
-  // 检查缓存是否过期
-  if (storage.speedTestExpiry && Date.now() >= storage.speedTestExpiry) {
-    console.log('Note All: Speed test cache expired');
-    // 返回serverUrl作为fallback，但不触发自动测速（由popup处理）
-    return storage.serverUrl || DEFAULT_SERVER_URL;
-  }
-
-  // 使用activeUrl或serverUrl
+  const storage = await chrome.storage.local.get(['serverUrl', 'activeUrl']);
   return storage.activeUrl || storage.serverUrl || DEFAULT_SERVER_URL;
 }
 

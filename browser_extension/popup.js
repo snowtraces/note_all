@@ -30,8 +30,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     activeUrlDisplay.textContent = `当前使用: ${url || "未设置"}`;
   }
 
-  // 渲染测速结果
-  function renderSpeedResults(results, activeUrl) {
+  // 渲染测速结果（双击可选择其他地址）
+  function renderSpeedResults(results, activeUrl, recommendedUrl = null) {
     speedResultsDiv.innerHTML = "";
     if (!results || results.length === 0) {
       const p = document.createElement("p");
@@ -45,18 +45,37 @@ document.addEventListener("DOMContentLoaded", async () => {
     results.forEach(r => {
       const item = document.createElement("div");
       const isActive = r.url === activeUrl;
-      const statusClass = r.success ? (isActive ? "active" : "") : "failed";
+      const isRecommended = r.url === recommendedUrl && !activeUrl;
+      const statusClass = r.success ? (isActive ? "active" : (isRecommended ? "recommended" : "")) : "failed";
       item.className = `speed-result-item ${statusClass}`;
+      item.style.cursor = r.success ? "pointer" : "default";
 
       const urlSpan = document.createElement("span");
       urlSpan.textContent = r.url;
 
       const latencySpan = document.createElement("span");
       const latencyText = r.success ? `${r.latency}ms` : "失败";
-      latencySpan.textContent = isActive ? `${latencyText} ✓` : latencyText;
+      if (isActive) {
+        latencySpan.textContent = `${latencyText} ✓`;
+      } else if (isRecommended) {
+        latencySpan.textContent = `${latencyText} (推荐)`;
+      } else {
+        latencySpan.textContent = latencyText;
+      }
 
       item.appendChild(urlSpan);
       item.appendChild(latencySpan);
+
+      // 双击选择此地址
+      if (r.success) {
+        item.addEventListener("dblclick", async () => {
+          await chrome.storage.local.set({ activeUrl: r.url });
+          updateActiveUrlDisplay(r.url);
+          renderSpeedResults(results, r.url);
+          showStatus(`已切换到 ${r.url}`, "success");
+        });
+      }
+
       speedResultsDiv.appendChild(item);
     });
   }
@@ -76,23 +95,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  // 并发测速并选择最快
-  async function selectFastestUrl(urls) {
-    const results = await Promise.all(urls.map(measureUrlSpeed));
-    const successResults = results.filter(r => r.success).sort((a, b) => a.latency - b.latency);
-    const activeUrl = successResults.length > 0 ? successResults[0].url : urls[0];
-    return { activeUrl, results };
-  }
-
   // 从服务器获取候选地址并测速
   async function fetchAddressesAndTest(serverUrl) {
-    speedResultsDiv.innerHTML = "";
-    const loadingP = document.createElement("p");
-    loadingP.style.color = "var(--secondary-text)";
-    loadingP.style.fontSize = "12px";
-    loadingP.textContent = "正在获取地址列表...";
-    speedResultsDiv.appendChild(loadingP);
-
     try {
       // 获取候选地址列表
       const resp = await fetch(`${serverUrl}/api/server/addresses`, {
@@ -105,28 +109,39 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
 
       const data = await resp.json();
-      const addresses = data.addresses || [];
+      let addresses = data.addresses || [];
+
+      // 将用户输入的主地址加入测速列表（如果不存在）
+      if (!addresses.includes(serverUrl)) {
+        addresses.unshift(serverUrl);
+      }
 
       if (addresses.length === 0) {
         throw new Error("服务器未返回地址");
       }
 
-      // 并发测速
+      // 更新loading提示
+      speedResultsDiv.innerHTML = "";
+      const loadingP = document.createElement("p");
+      loadingP.style.color = "var(--secondary-text)";
+      loadingP.style.fontSize = "12px";
       loadingP.textContent = "正在测速...";
-      const { activeUrl, results } = await selectFastestUrl(addresses);
+      speedResultsDiv.appendChild(loadingP);
 
-      // 缓存结果
+      // 并发测速
+      const results = await Promise.all(addresses.map(measureUrlSpeed));
+      const successResults = results.filter(r => r.success).sort((a, b) => a.latency - b.latency);
+
+      // 缓存测速结果（不自动选择，让用户双击选择）
       await chrome.storage.local.set({
         serverUrl,
-        activeUrl,
-        speedTestResults: results,
-        speedTestExpiry: Date.now() + 12 * 60 * 60 * 1000
+        speedTestResults: results
       });
 
-      renderSpeedResults(results, activeUrl);
-      updateActiveUrlDisplay(activeUrl);
+      // 渲染结果，标记推荐地址
+      renderSpeedResults(results, null, successResults[0]?.url);
 
-      return { activeUrl, results };
+      return { results, recommendedUrl: successResults[0]?.url };
     } catch (err) {
       speedResultsDiv.innerHTML = "";
       const p = document.createElement("p");
@@ -142,6 +157,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   runSpeedTestBtn.addEventListener("click", async () => {
     runSpeedTestBtn.disabled = true;
     runSpeedTestBtn.textContent = "测速中...";
+
+    // 清除显示
+    speedResultsDiv.innerHTML = "";
+    const loadingP = document.createElement("p");
+    loadingP.style.color = "var(--secondary-text)";
+    loadingP.style.fontSize = "12px";
+    loadingP.textContent = "正在获取地址列表...";
+    speedResultsDiv.appendChild(loadingP);
 
     const serverUrl = serverUrlInput.value.trim().replace(/\/$/, "");
     await fetchAddressesAndTest(serverUrl);
@@ -215,27 +238,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         throw new Error("服务器未返回有效 Token");
       }
 
-      // 保存基础设置，清除旧的测速缓存
+      // 保存设置，使用主地址作为默认activeUrl
       await chrome.storage.local.set({
         serverUrl,
         apiToken: data.token,
         rawPassword: pwd,
-        activeUrl: null,
-        speedTestResults: null,
-        speedTestExpiry: null
+        activeUrl: serverUrl
       });
 
-      // 获取候选地址并测速
-      const testResult = await fetchAddressesAndTest(serverUrl);
-      if (!testResult) {
-        showStatus("地址验证成功，但测速失败", "error");
-      } else {
-        showStatus("设置已保存，已选择最优地址", "success");
-        setTimeout(() => {
-          settingsView.style.display = "none";
-          mainView.style.display = "block";
-        }, 800);
-      }
+      updateActiveUrlDisplay(serverUrl);
+      showStatus("设置已保存", "success");
+      setTimeout(() => {
+        settingsView.style.display = "none";
+        mainView.style.display = "block";
+      }, 800);
     } catch (err) {
       showStatus(`❌ ${err.message}`, "error");
     } finally {

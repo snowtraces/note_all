@@ -14,10 +14,7 @@ func (s *ServerApi) GetAddresses(c *gin.Context) {
 	addresses := []string{}
 	port := "3344"
 
-	// 1. localhost
-	addresses = append(addresses, "http://localhost:"+port)
-
-	// 2. 获取所有网络接口的IP地址
+	// 获取所有网络接口的IP地址（不含localhost）
 	interfaces, err := net.Interfaces()
 	if err == nil {
 		for _, iface := range interfaces {
