@@ -77,8 +77,13 @@ Note All 使用 **SQLite** 存储所有数据，强调零维护和便携性。
 - **ChatSessions 表**：持久化多轮对话历史。
 - **Templates 表**：存储自定义的 AI 处理 Prompt 模版。
 
-## 客户端生态
+## 远程 AI 智能体控制 (Remote Agent Control)
 
-- **WeChat ClawBot**：基于 iLink 协议，将微信变为知识收集的入口。
-- **Android 分享集成**：深度集成系统分享面板，实现一键收录。
-- **Windows 全局热键**：利用 Win32 API 实现 `Alt+Q` (截图) 和 `Alt+Shift+Q` (闪记) 的系统级唤起。
+系统支持远程监控和操控安装在 Windows 端的 AI 编程智能体（如 Claude Code）。通过端到端加密协议，将复杂的终端输出转化为可交互的移动端视图。
+
+### 核心特性
+- **端到端加密 (E2EE)**：基于 NaCl Secretbox，确保代码和隐私在传输过程中不可泄露。
+* **结构化同步**：将原始 TTY 流解析为“思考”、“执行”、“权限请求”等结构化事件。
+* **人机协作 (HITL)**：远程批准或拒绝 AI 的敏感指令。
+
+详细设计请参考 [远程 AI 智能体控制设计](design/remote-control.md)。

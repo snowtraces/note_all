@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Note All - 远程系统终端</title>
+    <link rel="stylesheet" href="lib/xterm.css" />
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --panel-bg: #161b22;
+            --text-main: #c9d1d9;
+            --border: #30363d;
+            --accent: #58a6ff;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            overflow: hidden;
+            font-family: -apple-system, system-ui, sans-serif;
+        }
+
+        #setup-screen {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .setup-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            padding: 2rem;
+            border-radius: 12px;
+            width: 380px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        .input-group { margin-bottom: 1.2rem; }
+        .input-group label { display: block; margin-bottom: 0.5rem; color: #8b949e; font-size: 0.9rem; }
+        .input-group input {
+            width: 100%; box-sizing: border-box; background: #0d1117; border: 1px solid var(--border);
+            color: white; padding: 0.8rem; border-radius: 6px; outline: none;
+        }
+        .input-group input:focus { border-color: var(--accent); }
+
+        .primary-btn {
+            width: 100%; background: var(--accent); color: #0d1117; border: none;
+            padding: 0.8rem; border-radius: 6px; font-weight: 600; cursor: pointer;
+        }
+
+        #terminal-screen {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+        }
+
+        header {
+            height: 40px;
+            padding: 0 1rem;
+            background: var(--panel-bg);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.85rem;
+        }
+
+        #terminal-container {
+            flex: 1;
+            padding: 10px;
+            background: #000;
+        }
+
+        .xterm-viewport { overflow-y: auto !important; }
+
+        /* --- 权限请求弹窗 --- */
+        #permission-modal {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 350px;
+            background: #21262d;
+            border: 1px solid var(--accent);
+            padding: 1.2rem;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            display: none;
+            z-index: 2000;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <div class="setup-card">
+            <h2 style="margin-top:0">接入远程终端</h2>
+            <div class="input-group">
+                <label>中继地址</label>
+                <input type="text" id="relay-host" value="localhost:3344">
+            </div>
+            <div class="input-group">
+                <label>会谈 ID</label>
+                <input type="text" id="session-id" value="demo-session-001">
+            </div>
+            <div class="input-group">
+                <label>访问 Key</label>
+                <input type="password" id="access-key" value="happy-note-all-123">
+            </div>
+            <button class="primary-btn" onclick="App.connect()">进入终端</button>
+        </div>
+    </div>
+
+    <div id="terminal-screen">
+        <header>
+            <div>
+                <span style="color: #3fb950">●</span>
+                <span id="header-sid" style="margin-left: 8px; font-weight: bold">Offline</span>
+            </div>
+            <div style="color: #8b949e">Note All Terminal v2.0 (Powered by xterm.js)</div>
+        </header>
+        <div id="terminal-container"></div>
+    </div>
+
+    <div id="permission-modal">
+        <div style="font-weight:bold; margin-bottom: 10px">⚠️ 敏感操作请求</div>
+        <div id="permission-desc" style="font-family: monospace; font-size: 0.8rem; opacity: 0.8; margin-bottom: 1rem"></div>
+        <div style="display:flex; gap: 8px">
+            <button onclick="App.replyPermission(true)" style="flex:1; background:#238636; color:white; border:none; padding:6px; border-radius:4px">允许 (Y)</button>
+            <button onclick="App.replyPermission(false)" style="flex:1; background:#da3633; color:white; border:none; padding:6px; border-radius:4px">拒绝 (N)</button>
+        </div>
+    </div>
+
+    <script src="lib/xterm.js"></script>
+    <script src="lib/forge.min.js"></script>
+    <script src="crypto.js"></script>
+    <script src="remote.js"></script>
+</body>
+</html>

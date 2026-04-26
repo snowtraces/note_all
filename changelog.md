@@ -1,6 +1,13 @@
 # Changelog
 
 ## [Unreleased]
+- **远程控制与中继系统开发 (Remote Agent & Relay System)**:
+  - **全链路加密驱动**: 实现基于 AES-GCM 的端到端加密（E2EE）远程控制协议，通过 `internal/crypto` 确保控制端与代理端通信隐私。
+  - **双模式连接架构**: 支持直连模式（Direct）与跨内网的中继模式（Relay），通过 WebSocket 建立稳定的实时指令通道。
+  - **高稳定性 Agent**: 在 `remote_agent` 中基于 `conpty` 实现高性能伪终端，并修复了在高频重连场景下的 Goroutine 泄漏风险，确保长周期运行稳定。
+  - **内置 Web UI**: 代理端与中继端均集成了基于 `xterm.js` 的 Web UI，支持扫码连接、自动填单与免配置接入。
+  - **多端协作优化**: 支持将原始 TTY 流解析为结构化事件，并提供远程权限请求（HITL）交互。
+  - **文档基建**: 为 `remote_agent` 和 `remote_relay` 补齐了完整的 README 使用文档与架构说明。
 - **深色模式对比度与纯净视觉优化 (Dark Mode Contrast & Pure Visual Polish)**:
   - **极致深色分层**: 重新设计了暗色模式的明度阶梯。采用层级明度（Base #05 -> Main #07 -> Sidebar #08 -> Card #12 -> Panel #18）替代之前的微亮灰色，保持了深邃感的同时拉开了组件间距。
   - **锐利边缘 (Rim Light) 取代模糊发光**: 彻底移除了所有“脏感”明显的 fuzzy shadows 和蓝色/白色发光光晕（Halos）。改用高对比度的 1px 实线边框 (`white/20`) 以及针对卡片顶部的锐利提亮线（`border-top`）来勾勒轮廓。
