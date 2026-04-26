@@ -311,324 +311,42 @@ func AgentAsk(sessionID uint, query string) (*AgentResponse, error) {
 IntentAnalyzer → IntentMultiStep
     │
     ├── SubTask[0]: "找出关于Go语言的文章"
-    │       └── ToolCall: search(query="Go语言")
-    │           └── Result: 5 documents [ID: 1,3,7,9,12]
+    │       └── ToolCall: search
     │
-    └── SubTask[1]: "总结它们的特点"
-            └── ToolCall: summarize(documents=[1,3,7,9,12])
-                └── Result: "Go语言特点包括..."
-
-ResponseBuilder → 最终回复（带引用标注）
+    ├── SubTask[1]: "总结它们的特点"
+    │       └── ToolCall: summarize
 ```
 
 ---
 
-## 5. 对话历史压缩策略
+## 5. 指代词库定义
 
-### 5.1 问题
-
-长对话会导致：
-1. Token 数爆炸，超出 LLM 限制
-2. 无关历史干扰当前推理
-3. 存储/加载性能下降
-
-### 5.2 压缩方案
-
-**策略：滑动窗口 + 语义摘要**
+系统预设了常用的指代词，用于检测 `follow_up` / `clarify` 意图：
 
 ```go
-func (sm *SessionManager) CompressIfNeeded(session *ConversationSession, maxTokens int) {
-    // 1. 计算当前历史 token 数
-    currentTokens := estimateTokens(session.Messages)
-
-    if currentTokens > maxTokens {
-        // 2. 保留最近 N 轮 + 压缩早期对话
-        keepTurns := 4
-        recent := session.Messages[len(session.Messages)-keepTurns:]
-
-        // 3. 早期对话生成摘要
-        early := session.Messages[:len(session.Messages)-keepTurns]
-        summary := generateSummary(early)
-
-        // 4. 替换历史
-        session.Messages = []ConversationMessage{
-            {Role: "system", Content: "历史对话摘要：" + summary},
-        }
-        session.Messages = append(session.Messages, recent...)
-    }
-}
-```
-
-**摘要 Prompt：**
-
-```
-请将以下对话历史压缩为一段简短摘要（保留关键讨论点和引用的文档）：
-
-[对话历史...]
-
-输出格式：
-讨论了X、Y、Z话题，主要涉及文档：[ID列表]，关键结论：...
-```
-
----
-
-## 6. API 变更设计
-
-### 6.1 新增端点
-
-```go
-// POST /api/agent/ask
-type AgentAskRequest struct {
-    SessionID  uint   `json:"session_id"`     // 可选，0 表示新建
-    Query      string `json:"query" binding:"required"`
-}
-
-type AgentAskResponse struct {
-    Content      string          `json:"content"`
-    SessionID    uint            `json:"session_id"`
-    References   []ReferenceItem `json:"references"`
-    Intent       string          `json:"intent"`
-    ToolCalls    []ToolCallInfo  `json:"tool_calls,omitempty"`  // 可选：透明化过程
-}
-```
-
-### 6.2 兼容现有 API
-
-保持 `/api/ask` 端点不变，内部可降级为单轮 RAG。
-
----
-
-## 7. 数据模型扩展
-
-### 7.1 新增字段
-
-```go
-// ChatSession 扩展
-type ChatSession struct {
-    // ... existing fields
-    ContextSummary string `gorm:"type:text" json:"context_summary"`  // 历史压缩摘要
-    ActiveDocs     string `gorm:"size:255" json:"active_docs"`       // 当前关注文档 JSON
-}
-
-// ChatMessage 扩展
-type ChatMessage struct {
-    // ... existing fields
-    Intent         string `gorm:"size:32" json:"intent"`             // 该轮意图类型
-    ToolCalls      string `gorm:"type:text" json:"tool_calls"`       // 工具调用 JSON
-}
-```
-
----
-
-## 8. 实现计划
-
-### Phase 1：基础设施（预估 2 天）
-
-| 任务 | 文件 | 说明 |
-|------|------|------|
-| SessionManager | `service/session.go` | 加载/保存/压缩历史 |
-| 模型扩展 | `models/note.go` | 新增字段 |
-| 数据迁移 | 数据库 | 回填字段 |
-
-### Phase 2：意图分析（预估 1 天）
-
-| 任务 | 文件 | 说明 |
-|------|------|------|
-| IntentAnalyzer | `service/intent.go` | 意图分类逻辑 |
-| QueryRewriter | `service/rewrite.go` | 指代重写逻辑 |
-
-### Phase 3：Agent 工作流（预估 2 天）
-
-| 任务 | 文件 | 说明 |
-|------|------|------|
-| AgentAsk | `service/agent.go` | 主流程整合 |
-| ToolExecutor | `service/tools.go` | 工具调用封装 |
-| ResponseBuilder | `service/response.go` | 回复构建 |
-
-### Phase 4：API & 测试（预估 1 天）
-
-| 任务 | 文件 | 说明 |
-|------|------|------|
-| 新端点 | `api/agent.go` | `/api/agent/ask` |
-| 单元测试 | `service/*_test.go` | 各模块测试 |
-| 集成测试 | 全流程验证 | |
-
----
-
-## 9. 风险与对策
-
-| 风险 | 影响 | 对策 |
-|------|------|------|
-| 意图识别错误 | 错误分支处理 | 低置信度时降级为单轮 RAG |
-| 历史压缩丢失关键信息 | 上下文断裂 | 压缩时保留文档 ID 列表 |
-| 多步任务执行失败 | 任务中断 | 支持断点续传 |
-| Token 超限 | API 报错 | 级联压缩策略 |
-
----
-
-## 11. 详细实现规格
-
-### 11.1 设计决策汇总
-
-| 决策点 | 选择 | 说明 |
-|--------|------|------|
-| 意图识别 | 规则匹配 | 关键词 + 前缀检测，低置信度降级为 `new_topic` |
-| 历史压缩 | 4轮 + 摘要 | 滑动窗口保留最近 4 轮，早期生成 LLM 摘要 |
-| 多步任务 | 静态拆解 | 3 种预设模板，顺序执行 |
-| 透明度 | 返回所有过程 | `tool_calls` 字段完整返回 |
-| 指代词库 | 预设 15 个词 | 覆盖常见场景，无需动态扩展 |
-| ActiveDocuments | 自动追踪 | 每轮引用文档自动成为关注对象 |
-| 引用粒度 | 文档级 | 前端展示文档卡片，不追踪分片 |
-
----
-
-### 11.2 指代词库定义
-
-```go
-// 15 个预设指代词，用于检测 follow_up / clarify 意图
 var referenceWords = []string{
     "它", "它们", "这个", "那个", "这些", "那些",
     "上面", "刚才", "之前", "之前提到的",
     "这篇文章", "那个文件", "上面的内容",
     "那个文档", "上面的文档",
 }
-
-// 指代词检测函数
-func containsReference(query string) bool {
-    for _, word := range referenceWords {
-        if strings.Contains(query, word) {
-            return true
-        }
-    }
-    return false
-}
 ```
 
 ---
 
-### 11.3 意图识别规则表
+## 6. 历史压缩详细逻辑
 
-```go
-// IntentAnalyzer 核心规则匹配逻辑
-func (ia *IntentAnalyzer) Analyze(query string, history []ConversationMessage, context *SessionContext) IntentResult {
-    query = strings.ToLower(strings.TrimSpace(query))
-
-    // 优先级 1: 多步任务（包含拆解关键词）
-    if strings.Contains(query, "先") && strings.Contains(query, "再") {
-        return IntentResult{
-            Type:       IntentMultiStep,
-            SubTasks:   parseMultiStep(query),
-            Confidence: 0.9,
-        }
-    }
-    if strings.Contains(query, "然后") || strings.Contains(query, "接着") {
-        return IntentResult{
-            Type:       IntentMultiStep,
-            SubTasks:   parseMultiStep(query),
-            Confidence: 0.85,
-        }
-    }
-
-    // 优先级 2: 话题切换
-    switchMarkers := []string{"换个话题", "说另外", "换个话题", "不聊这个", "换个方向"}
-    for _, marker := range switchMarkers {
-        if strings.Contains(query, marker) {
-            return IntentResult{
-                Type:       IntentSwitch,
-                Confidence: 0.95,
-            }
-        }
-    }
-
-    // 优先级 3: 指代追问（有上下文时）
-    if len(history) > 0 && len(context.ActiveDocuments) > 0 {
-        if containsReference(query) {
-            return IntentResult{
-                Type:       IntentFollowUp,
-                Reference:  extractReference(query),
-                Confidence: 0.8,
-            }
-        }
-
-        // 优先级 4: 澄清请求
-        clarifyMarkers := []string{"什么意思", "具体", "能解释", "详细说", "展开"}
-        for _, marker := range clarifyMarkers {
-            if strings.Contains(query, marker) {
-                return IntentResult{
-                    Type:       IntentClarify,
-                    Confidence: 0.75,
-                }
-            }
-        }
-    }
-
-    // 默认: 新话题
-    return IntentResult{
-        Type:       IntentNewTopic,
-        Confidence: 0.5,
-    }
-}
-```
+当对话长度或 Token 数达到阈值时，系统会自动触发压缩流程：
+1. **滑动窗口**：保留最近的 4 轮完整对话。
+2. **语义摘要**：将早期对话交给 LLM 生成一段 500 字以内的摘要。
+3. **上下文注入**：摘要作为 `system` 消息注入到后续对话中，确保知识的连续性。
 
 ---
 
-### 11.4 查询重写策略
+## 7. 多步任务模板定义
 
 ```go
-// QueryRewriter 重写逻辑
-func (qr *QueryRewriter) Rewrite(query string, history []ConversationMessage, context *SessionContext) RewriteResult {
-    result := RewriteResult{
-        OriginalQuery:  query,
-        RewrittenQuery: query,
-        FocusDocuments: context.ActiveDocuments,
-    }
-
-    // 如果有指代词，结合上下文重写
-    if containsReference(query) && len(context.ActiveDocuments) > 0 {
-        // 获取上轮讨论的文档标题/话题
-        topic := context.ActiveTopic
-        if topic == "" && len(context.ActiveDocuments) > 0 {
-            // 从文档中提取话题
-            topic = getDocumentTitle(context.ActiveDocuments[0])
-        }
-
-        // 替换指代词为具体话题
-        for _, ref := range referenceWords {
-            if strings.Contains(query, ref) {
-                result.RewrittenQuery = strings.Replace(query, ref, topic, 1)
-                break
-            }
-        }
-    }
-
-    return result
-}
-
-// 示例输出：
-// 输入: "它的特点是什么？"
-// 上下文: ActiveDocuments=[5], ActiveTopic="设计模式"
-// 输出: RewrittenQuery="设计模式的特点是什么？", FocusDocuments=[5]
-```
-
----
-
-### 11.5 多步任务模板
-
-**3 种预设模板：**
-
-```go
-// MultiStepTemplate 多步任务模板定义
-type MultiStepTemplate struct {
-    Name      string
-    Pattern   string           // 匹配正则
-    Steps     []StepDefinition // 执行步骤
-}
-
-type StepDefinition struct {
-    Tool       Tool
-    InputFrom  string           // "query" 或 "prev_result" 或 "prev_documents"
-}
-
+// 多步任务模板
 var multiStepTemplates = []MultiStepTemplate{
     // 模板 1: 检索 → 总结
     {
@@ -685,7 +403,7 @@ func parseMultiStep(query string) []SubTask {
 
 ---
 
-### 11.6 历史压缩详细规格
+## 8. 历史压缩详细规格
 
 ```go
 // 压缩参数
@@ -762,7 +480,7 @@ func (sm *SessionManager) generateSummary(messages []ConversationMessage) string
 
 ---
 
-### 11.7 ActiveDocuments 自动追踪
+### 9.1 ActiveDocuments 自动追踪
 
 ```go
 // updateContext 更新会话上下文
@@ -813,7 +531,7 @@ func extractDocumentIDs(results []ToolResult) []uint {
 
 ---
 
-### 11.8 文档级引用数据结构
+### 9.2 文档级引用数据结构
 
 ```go
 // ReferenceItem 文档级引用（前端展示卡片）
@@ -845,7 +563,7 @@ func buildReferences(docs []SearchResult) []ReferenceItem {
 
 ---
 
-### 11.9 ToolCalls 透明化数据结构
+### 9.3 ToolCalls 透明化数据结构
 
 ```go
 // ToolCallInfo 返回给前端的工具调用信息
@@ -895,7 +613,7 @@ func buildToolCallInfo(step int, call ToolCall, result ToolResult, duration int6
 
 ---
 
-### 11.10 完整 API 响应示例
+### 9.4 完整 API 响应示例
 
 ```json
 {
@@ -942,9 +660,9 @@ func buildToolCallInfo(step int, call ToolCall, result ToolResult, duration int6
 
 ---
 
-## 12. 前端展示建议
+## 10. 前端展示建议
 
-### 12.1 ToolCalls 展示
+### 10.1 ToolCalls 展示
 
 ```
 ┌─────────────────────────────────────┐
@@ -962,7 +680,7 @@ func buildToolCallInfo(step int, call ToolCall, result ToolResult, duration int6
 └─────────────────────────────────────┘
 ```
 
-### 12.2 References 展示（文档卡片）
+### 10.2 References 展示（文档卡片）
 
 ```
 ┌──────────────────┐  ┌──────────────────┐
@@ -975,7 +693,7 @@ func buildToolCallInfo(step int, call ToolCall, result ToolResult, duration int6
 
 ---
 
-## 13. 后续演进
+## 11. 后续演进
 
 - **流式输出**：支持 SSE 推送中间结果
 - **记忆增强**：长期记忆存储用户偏好
