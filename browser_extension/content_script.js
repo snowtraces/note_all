@@ -313,6 +313,57 @@
     return markdown.replace(/\\([-\*\+\#\>\!\_\[\]\(\)\`\.])/g, '$1');
   }
 
+  // 提取选区中的标题作为 original_name
+  function extractTitleFromElement(element) {
+    // 特例规则：针对特定网站的结构化标题元素，优先匹配
+    const specialCases = [
+      '[data-testid="twitter-article-title"]',  // Twitter 文章标题
+    ];
+    for (const selector of specialCases) {
+      const specialEl = element.querySelector(selector);
+      if (specialEl) {
+        const text = specialEl.innerText.trim();
+        if (text) {
+          return text;
+        }
+      }
+    }
+
+    // 通用规则：查找选区内所有标题元素，按级别排序（h1 > h2 > ... > h6）
+    const headingSelectors = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+    for (const selector of headingSelectors) {
+      const headings = element.querySelectorAll(selector);
+      if (headings.length > 0) {
+        // 取该级别第一个标题的纯文本
+        const text = headings[0].innerText.trim();
+        if (text) {
+          return text;
+        }
+      }
+    }
+    // 找不到标题，取选区第一个有意义文本行
+    const getFirstMeaningfulLine = (el) => {
+      // 过滤常见噪音标签
+      const noiseTags = ['BUTTON', 'SCRIPT', 'STYLE', 'NOSCRIPT', 'IFRAME', 'SVG', 'INPUT', 'LABEL', 'A'];
+      const clone = el.cloneNode(true);
+      noiseTags.forEach(tag => clone.querySelectorAll(tag).forEach(n => n.remove()));
+      // 取第一行非空文本
+      const lines = clone.innerText.trim().split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed && trimmed.length > 2) {  // 忽略过短的碎片
+          return trimmed;
+        }
+      }
+      return '';
+    };
+    const firstLine = getFirstMeaningfulLine(element);
+    if (firstLine.length > 30) {
+      return firstLine.substring(0, 30) + '...';
+    }
+    return firstLine || '网页摘录';
+  }
+
   sendButton.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -320,12 +371,14 @@
     if (currentHighlightedElement) {
       console.log("Note All: Starting conversion for", currentHighlightedElement);
       const markdown = convertToMarkdown(currentHighlightedElement);
-      
+      const originalName = extractTitleFromElement(currentHighlightedElement);
+
       chrome.runtime.sendMessage({
         action: 'clipText',
         content: markdown,
         url: window.location.href,
-        title: document.title
+        title: document.title,
+        original_name: originalName
       }, (response) => {
         if (chrome.runtime.lastError) {
           console.error("Note All: Error sending message:", chrome.runtime.lastError);

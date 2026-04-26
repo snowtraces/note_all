@@ -225,17 +225,25 @@ func UploadAndCreateNote(file *multipart.FileHeader) (*models.NoteItem, error) {
 
 // CreateNoteFromText 直接以纯文本创建笔记，跳过 OCR，直接调用 LLM 提炼摘要与标签
 // 如果传入的是单纯的可达 URL 链接，系统会自动尝试抓取正文并解析为 Markdown。
-func CreateNoteFromText(text string) (*models.NoteItem, error) {
+// providedName 为可选参数，来自浏览器插件提取的标题，优先使用。
+func CreateNoteFromText(text string, providedName string) (*models.NoteItem, error) {
 	text = strings.TrimSpace(text)
 
-	originalName := ""
+	// 长度校验：防止恶意或异常的超长标题（数据库字段限制 255 字符）
+	originalName := providedName
+	if len([]rune(originalName)) > 200 {
+		originalName = string([]rune(originalName)[:200]) + "..."
+	}
+
 	isURLFetch := false
 	originalUrl := ""
 	pureContentLen := 0
 	if processor.IsURL(text) {
 		title, markdown, cLen, err := processor.FetchURLContent(text)
 		if err == nil {
-			originalName = title
+			if originalName == "" {
+				originalName = title
+			}
 			originalUrl = text
 			text = markdown
 			pureContentLen = cLen
@@ -247,14 +255,14 @@ func CreateNoteFromText(text string) (*models.NoteItem, error) {
 
 	if originalName == "" {
 		runes := []rune(text)
-		name := string(runes)
-		if len(runes) > 30 {
-			name = string(runes[:30]) + "..."
+		switch {
+		case len(runes) == 0:
+			originalName = "文本录入"
+		case len(runes) > 30:
+			originalName = string(runes[:30]) + "..."
+		default:
+			originalName = string(runes)
 		}
-		if name == "" {
-			name = "文本录入"
-		}
-		originalName = name
 	}
 
 	storageID := fmt.Sprintf("text_%d", time.Now().UnixNano())

@@ -360,7 +360,7 @@ func handleWeixinText(cred models.WeixinBotCredential, userID, text, contextToke
 	} else {
 		// 执行笔记录入
 		go func() {
-			note, err := CreateNoteFromText(text)
+			note, err := CreateNoteFromText(text, "")
 			if err != nil {
 				ReplyText(cred, userID, "❌ 笔记录入失败: "+err.Error(), contextToken)
 				return

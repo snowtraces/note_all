@@ -152,7 +152,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const footer = `\n\n---\n来源: [${message.title || '无标题'}](${message.url})`;
     const contentWithFooter = message.content + footer;
 
-    clipToNoteAll(contentWithFooter, "text").then(success => {
+    clipToNoteAll(contentWithFooter, "text", message.original_name).then(success => {
       sendResponse({ status: success ? 'success' : 'error' });
     });
     return true;
@@ -166,7 +166,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-async function clipToNoteAll(content, type = "text") {
+async function clipToNoteAll(content, type = "text", originalName = "") {
   const serverUrl = await getActiveUrl();
   const result = await chrome.storage.local.get(["apiToken"]);
   const apiUrl = `${serverUrl}/api/note/text`;
@@ -179,10 +179,12 @@ async function clipToNoteAll(content, type = "text") {
       headers["Authorization"] = `Bearer ${token}`;
     }
 
+    const payload = { text: content, ...(originalName && { original_name: originalName }) };
+
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: headers,
-      body: JSON.stringify({ text: content })
+      body: JSON.stringify(payload)
     });
 
     if (response.ok) {
