@@ -30,7 +30,7 @@ module.exports = {
         borderSubtle: 'var(--border-subtle)',
       },
       fontFamily: {
-        sans: ['"Inter"', 'system-ui', '"PingFang SC"', '"Microsoft YaHei"', 'sans-serif'], // 理工科极简美学排版
+        sans: ['"Microsoft YaHei"', '"Noto Sans SC"', '"PingFang SC"', 'system-ui', 'sans-serif'],
       },
     },
   },
