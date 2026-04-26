@@ -58,6 +58,7 @@ export default function NavRail({
       id: 'graph',
       icon: <Network size={22} />,
       label: '关系矩阵',
+      hiddenOnMobile: true,
       active: viewMode === 'graph' && !showTrash,
       onClick: () => {
         setViewMode('graph');
@@ -91,6 +92,7 @@ export default function NavRail({
       id: 'weixin',
       icon: <Bot size={22} />,
       label: '微信同步',
+      hiddenOnMobile: true,
       active: viewMode === 'weixin' && !showTrash,
       onClick: () => {
         setViewMode('weixin');
@@ -101,9 +103,9 @@ export default function NavRail({
   ];
 
   return (
-    <div className={`w-[72px] flex-shrink-0 flex flex-col items-center pt-6 pb-6 z-[60] bg-sidebar border-r border-subtle`}>
-      {/* Logo Area */}
-      <div className="mb-10 relative group cursor-pointer">
+    <div className={`w-full md:w-[72px] h-[60px] md:h-full flex-shrink-0 flex flex-row md:flex-col items-center justify-around md:justify-start md:pt-6 md:pb-6 z-[60] bg-sidebar border-t md:border-t-0 md:border-r border-borderSubtle`}>
+      {/* Logo Area - hidden on mobile */}
+      <div className="hidden md:block mb-10 relative group cursor-pointer">
         <div className="absolute inset-0 bg-primeAccent/20 rounded-xl blur-lg group-hover:bg-primeAccent/40 transition-all"></div>
         <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-primeAccent/20 to-sidebar border border-primeAccent flex items-center justify-center text-primeAccent">
           <BrainCircuit size={24} />
@@ -111,14 +113,15 @@ export default function NavRail({
       </div>
 
       {/* Nav Items */}
-      <div className="flex-1 flex flex-col gap-4 w-full px-2">
+      <div className="flex-1 md:flex-none overflow-x-auto md:overflow-visible custom-scrollbar flex flex-row md:flex-col justify-start md:justify-start gap-1 md:gap-4 w-full h-full md:h-auto items-center px-2 md:px-2">
         {navItemsList.map((item) => (
           <button
             key={item.id}
             onClick={item.onClick}
             title={item.label}
             className={`
-              relative w-full aspect-square flex items-center justify-center rounded-2xl transition-all duration-300 group
+              ${item.hiddenOnMobile ? 'hidden md:flex' : 'flex'} relative items-center justify-center transition-all duration-300 group
+              w-12 h-12 shrink-0 md:w-full md:aspect-square md:rounded-2xl rounded-xl
               ${item.active
                 ? 'bg-primeAccent/10 text-primeAccent'
                 : 'text-silverText/40 hover:bg-white/5 hover:text-textPrimary'
@@ -126,7 +129,10 @@ export default function NavRail({
             `}
           >
             {item.active && (
-              <div className="absolute left-0 w-1 h-6 bg-primeAccent/60 rounded-r-full"></div>
+              <>
+                <div className="hidden md:block absolute left-0 w-1 h-6 bg-primeAccent/60 rounded-r-full"></div>
+                <div className="md:hidden absolute bottom-0 w-6 h-1 bg-primeAccent/60 rounded-t-full"></div>
+              </>
             )}
 
             <div className={`transition-transform duration-300 ${item.active ? 'scale-110' : 'group-hover:scale-110'}`}>
@@ -135,25 +141,25 @@ export default function NavRail({
 
             {/* Badge */}
             {getBadgeValue(item.id) !== null && (
-              <div className={`absolute top-2.5 right-2.5 w-4 h-4 rounded-full bg-primeAccent text-white-fixed dark:text-black text-[9px] font-bold flex items-center justify-center pointer-events-none border-2 border-sidebar`}>
-                {getBadgeValue(item.id)}
-              </div>
+               <div className={`absolute top-1 md:top-2.5 right-1 md:right-2.5 w-4 h-4 rounded-full bg-primeAccent text-white-fixed dark:text-black text-[9px] font-bold flex items-center justify-center pointer-events-none border-2 border-sidebar`}>
+                 {getBadgeValue(item.id)}
+               </div>
             )}
 
             {/* Tooltip */}
-            <div className={`absolute left-[70px] px-2 py-1.5 rounded-md text-[11px] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-[100] bg-modal border border-subtle text-textPrimary shadow-lg`}>
+            <div className={`hidden md:block absolute left-[70px] px-2 py-1.5 rounded-md text-[11px] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-[100] bg-modal border border-subtle text-textPrimary shadow-lg`}>
               {item.label}
             </div>
           </button>
         ))}
       </div>
 
-      {/* Bottom Area */}
-      <div className="mt-auto px-2 w-full flex flex-col gap-4">
+      {/* Bottom Area - On mobile make it part of horizontal row */}
+      <div className="flex md:mt-auto px-2 flex-row md:flex-col gap-1 md:gap-4 items-center">
         <button
           onClick={() => setShowSettings(true)}
           title="设置"
-          className={`w-full aspect-square flex items-center justify-center rounded-2xl transition-all group text-silverText/40 hover:bg-white/5 hover:text-textPrimary`}
+          className={`w-12 h-12 shrink-0 md:w-full md:aspect-square flex items-center justify-center md:rounded-2xl rounded-xl transition-all group text-silverText/40 hover:bg-white/5 hover:text-textPrimary`}
         >
           <Settings size={22} className="group-hover:rotate-45 transition-transform duration-500" />
         </button>
@@ -165,7 +171,7 @@ export default function NavRail({
             }
           }}
           title="退出登录"
-          className="w-full aspect-square flex items-center justify-center rounded-2xl text-red-500/30 hover:bg-red-500/10 hover:text-red-500 transition-all group"
+          className="w-12 h-12 shrink-0 md:w-full md:aspect-square flex items-center justify-center md:rounded-2xl rounded-xl text-red-500/30 hover:bg-red-500/10 hover:text-red-500 transition-all group"
         >
           <LogOut size={20} />
         </button>

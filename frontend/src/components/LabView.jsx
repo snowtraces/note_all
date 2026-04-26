@@ -298,13 +298,13 @@ export default function LabView({
 
             {/* Layout */}
 
-            <div className="flex flex-1 overflow-hidden">
+            <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
 
                 {/* Controls */}
 
-                <div className={`flex-1 min-w-0 flex flex-col p-8 border-r overflow-y-auto relative z-10 ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
+                <div className={`w-full md:w-1/2 md:flex-1 min-w-0 flex flex-col p-4 md:p-8 border-b md:border-b-0 md:border-r overflow-y-auto relative z-10 ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
 
-                    <div className="max-w-xl mx-auto w-full flex flex-col gap-8">
+                    <div className="max-w-xl mx-auto w-full flex flex-col gap-6 md:gap-8">
 
                         {/* Prompt */}
 
@@ -319,21 +319,21 @@ export default function LabView({
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
                                 rows={8}
-                                className={`w-full border rounded-2xl p-5 text-sm focus:outline-none focus:border-primeAccent/50 transition-all ${isLight ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-white/[0.02] border-white/10 text-white/90'}`}
+                                className={`w-full border rounded-2xl p-4 md:p-5 text-sm focus:outline-none focus:border-primeAccent/50 transition-all ${isLight ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-white/[0.02] border-white/10 text-white/90'}`}
                             />
 
                         </div>
 
                         {/* Presets */}
 
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
 
                             {promptPresets.map((preset, i) => (
 
                                 <button
                                     key={i}
                                     onClick={() => setPrompt(preset.prompt)}
-                                    className={`px-4 py-2 rounded-xl text-[11px] text-left transition-all ${isLight ? 'bg-slate-100 border border-slate-200 hover:border-primeAccent/30 hover:text-primeAccent' : 'bg-white/5 border border-white/5 hover:border-primeAccent/30 hover:text-primeAccent'}`}
+                                    className={`px-3 py-2 md:px-4 rounded-xl text-[11px] text-left transition-all ${isLight ? 'bg-slate-100 border border-slate-200 hover:border-primeAccent/30 hover:text-primeAccent' : 'bg-white/5 border border-white/5 hover:border-primeAccent/30 hover:text-primeAccent'}`}
                                 >
 
                                     {preset.icon} {preset.label}
@@ -355,7 +355,7 @@ export default function LabView({
                         <button
                             onClick={handleSynthesize}
                             disabled={generating || basket.length === 0}
-                            className={`w-full py-4 rounded-2xl flex items-center justify-center gap-3 font-bold text-sm transition-colors disabled:opacity-50 ${isLight ? 'bg-primeAccent/20 hover:bg-primeAccent/30 text-primeAccent' : 'bg-primeAccent/30 hover:bg-primeAccent/40 text-white'}`}
+                            className={`w-full py-3 md:py-4 rounded-2xl flex items-center justify-center gap-3 font-bold text-sm transition-colors disabled:opacity-50 ${isLight ? 'bg-primeAccent/20 hover:bg-primeAccent/30 text-primeAccent' : 'bg-primeAccent/30 hover:bg-primeAccent/40 text-white'}`}
                         >
 
                             {generating
@@ -383,37 +383,35 @@ export default function LabView({
 
                 {/* Result */}
 
-                <div className="flex-1 min-w-0 bg-sidebar flex flex-col">
+                <div className="w-full md:w-1/2 md:flex-1 min-w-0 bg-sidebar flex flex-col">
 
                     {result ? (
 
                         <>
-                            <div className={`p-8 border-b flex justify-between items-center ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
-                                <div className="flex items-center gap-6">
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            id="archive-sources-final"
-                                            checked={archiveChecked}
-                                            onChange={(e) => setArchiveChecked(e.target.checked)}
-                                            className={`w-4 h-4 rounded cursor-pointer focus:ring-0 focus:ring-offset-0 ${isLight ? 'border-slate-300 bg-slate-100 text-primeAccent' : 'border-white/10 bg-white/5 text-primeAccent'}`}
-                                        />
-                                        <label htmlFor="archive-sources-final" className="text-[11px] text-silverText/40 cursor-pointer select-none">
-                                            归档原始素材
-                                        </label>
-                                    </div>
-
-                                    <button
-                                        onClick={handleSave}
-                                        disabled={generating}
-                                        className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs transition-transform disabled:opacity-50 font-bold ${isLight ? 'bg-primeAccent/10 text-primeAccent border border-primeAccent/30 hover:bg-primeAccent/20' : 'bg-primeAccent text-black hover:bg-primeAccent/90'}`}
-                                    >
-                                        {generating ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} 确认并保存
-                                    </button>
+                            <div className={`p-4 md:p-8 border-b flex flex-col sm:flex-row gap-4 sm:gap-0 justify-between items-start sm:items-center ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        id="archive-sources-final"
+                                        checked={archiveChecked}
+                                        onChange={(e) => setArchiveChecked(e.target.checked)}
+                                        className={`w-4 h-4 rounded cursor-pointer focus:ring-0 focus:ring-offset-0 ${isLight ? 'border-slate-300 bg-slate-100 text-primeAccent' : 'border-white/10 bg-white/5 text-primeAccent'}`}
+                                    />
+                                    <label htmlFor="archive-sources-final" className="text-[11px] text-silverText/40 cursor-pointer select-none">
+                                        归档原始素材
+                                    </label>
                                 </div>
+
+                                <button
+                                    onClick={handleSave}
+                                    disabled={generating}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs transition-transform disabled:opacity-50 font-bold ${isLight ? 'bg-primeAccent/10 text-primeAccent border border-primeAccent/30 hover:bg-primeAccent/20' : 'bg-primeAccent text-black hover:bg-primeAccent/90'}`}
+                                >
+                                    {generating ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} 确认并保存
+                                </button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-8">
+                            <div className="flex-1 overflow-y-auto p-4 md:p-8">
 
                                 <MarkdownRenderer content={result.content} />
 
@@ -423,7 +421,7 @@ export default function LabView({
 
                     ) : (
 
-                        <div className={`flex-1 flex items-center justify-center ${isLight ? 'text-slate-400' : 'opacity-30 text-white/40'}`}>
+                        <div className={`flex-1 flex items-center justify-center p-8 text-center ${isLight ? 'text-slate-400' : 'opacity-30 text-white/40'}`}>
                             Waiting for reaction...
                         </div>
 

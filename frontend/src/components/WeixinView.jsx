@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, RefreshCcw, Bot, Send, ShieldCheck, Zap } from 'lucide-react';
+import { MessageSquare, RefreshCcw, Bot, Send, ShieldCheck, Zap, ChevronLeft } from 'lucide-react';
 import { getWeixinBot, getWeixinMessages, sendWeixinReply } from '../api/weixinApi';
 import { useTheme } from '../context/ThemeContext';
 
-export default function WeixinView({ active }) {
+export default function WeixinView({ active, onClose }) {
     const { mode } = useTheme();
     const isLight = mode === 'light';
     const [status, setStatus] = useState('loading'); // loading, confirmed, idle
@@ -84,16 +84,19 @@ export default function WeixinView({ active }) {
 
     if (status === 'confirmed' && loginInfo) {
         return (
-            <div className="w-full h-full flex flex-col bg-base p-6 lg:p-10 animate-in fade-in duration-700">
+            <div className="w-full h-full flex flex-col bg-base p-0 md:p-6 lg:p-10 animate-in fade-in duration-700">
                 {/* 交互会话流面板 (Full Width Chat View) */}
-                <div className={`max-w-5xl mx-auto w-full flex flex-col rounded-[32px] overflow-hidden shadow-2xl backdrop-blur-xl flex-1 mb-4 ${isLight ? 'bg-slate-100 border border-slate-200' : 'bg-white/[0.02] border border-white/5'}`}>
+                <div className={`max-w-5xl mx-auto w-full flex flex-col md:rounded-[32px] overflow-hidden md:shadow-2xl backdrop-blur-xl flex-1 mb-0 md:mb-4 ${isLight ? 'bg-slate-100 border border-slate-200' : 'bg-white/[0.02] border border-white/5'}`}>
                     {/* Session Header */}
-                    <div className={`px-8 py-5 border-b flex items-center justify-between ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.01] border-white/5'}`}>
-                        <div className="flex items-center gap-4">
+                    <div className={`px-4 md:px-8 py-4 md:py-5 border-b flex items-center justify-between ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.01] border-white/5'}`}>
+                        <div className="flex items-center gap-2 md:gap-4">
+                            <button onClick={onClose} className="md:hidden p-1 mr-1 text-silverText/60 hover:text-white transition-colors">
+                                <ChevronLeft size={24} />
+                            </button>
                             <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
                             <div className="flex flex-col">
-                                <span className={`text-[13px] font-medium ${isLight ? 'text-slate-800' : 'text-white/90'}`}>微信实时交互中心</span>
-                                <span className="text-[10px] text-silverText/30 font-mono">Connected to {loginInfo.ilink_user_id}</span>
+                                <span className={`text-[13px] font-medium ${isLight ? 'text-slate-800' : 'text-white/90'}`}>微信实时交互</span>
+                                <span className="hidden sm:inline text-[10px] text-silverText/30 font-mono">Connected to {loginInfo.ilink_user_id}</span>
                             </div>
                         </div>
                         <div className="flex items-center gap-4">
@@ -165,16 +168,19 @@ export default function WeixinView({ active }) {
 
     // 未登录/等待中 欢迎页 (Welcome / Setup Guide)
     return (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-base p-10 text-center animate-in fade-in zoom-in duration-1000">
-            <div className="relative mb-10">
+        <div className="w-full h-full flex flex-col items-center justify-center bg-base p-6 md:p-10 text-center animate-in fade-in zoom-in duration-1000 relative">
+            <button onClick={onClose} className="md:hidden absolute top-4 left-4 p-2 text-silverText/60 hover:text-white transition-colors">
+                <ChevronLeft size={28} />
+            </button>
+            <div className="relative mb-8 md:mb-10 mt-8 md:mt-0">
                 <div className="absolute inset-0 bg-primeAccent/20 blur-[100px] rounded-full"></div>
-                <div className="relative w-32 h-32 rounded-[40px] bg-gradient-to-br from-primeAccent/20 to-transparent border border-primeAccent/30 flex items-center justify-center text-primeAccent shadow-2xl">
-                    <Bot size={64} className="opacity-80" />
+                <div className="relative w-24 h-24 md:w-32 md:h-32 rounded-[30px] md:rounded-[40px] bg-gradient-to-br from-primeAccent/20 to-transparent border border-primeAccent/30 flex items-center justify-center text-primeAccent shadow-2xl">
+                    <Bot size={48} className="opacity-80 md:w-16 md:h-16" />
                 </div>
             </div>
 
-            <h2 className={`text-3xl font-medium mb-4 tracking-tight ${isLight ? 'text-slate-800' : 'text-white'}`}>微信机器人助手</h2>
-            <p className="text-silverText/40 max-w-md mx-auto leading-relaxed mb-12 font-light text-lg">
+            <h2 className={`text-2xl md:text-3xl font-medium mb-3 md:mb-4 tracking-tight ${isLight ? 'text-slate-800' : 'text-white'}`}>微信机器人助手</h2>
+            <p className="text-silverText/40 max-w-md mx-auto leading-relaxed mb-8 md:mb-12 font-light text-base md:text-lg">
                 将移动端的灵感瞬间，无缝同步至您的私有知识矩阵。
             </p>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink, Link, Zap, Share2, RefreshCw, CheckCircle2, XCircle, ClipboardEdit, Eye, ImageDown, List } from 'lucide-react';
+import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink, Link, Zap, Share2, RefreshCw, CheckCircle2, XCircle, ClipboardEdit, Eye, ImageDown, List, ChevronLeft } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
 import TableOfContents from './TableOfContents';
 import { getRelatedNotes, reprocessNote, uploadImage, getNote } from '../api/noteApi';
@@ -263,46 +263,54 @@ export default function Detail({
   return (
     <div className="w-full h-full flex flex-col animate-in fade-in zoom-in-95 duration-300">
       {/* 顶栏控制 */}
-      <div className="flex items-center justify-between px-5 py-2.5 border-b border-borderSubtle bg-main shrink-0">
-        <div className="font-medium text-textPrimary tracking-wide flex items-center gap-2 text-[15px]">
-          <BrainCircuit size={18} className="text-primeAccent" /> 碎片的完整映射
+      <div className="flex items-center justify-between px-4 md:px-5 py-2.5 border-b border-borderSubtle bg-main shrink-0">
+        <div className="font-medium text-textPrimary tracking-wide flex items-center gap-1 md:gap-2 text-[15px]">
+          <button onClick={() => setSelectedItem(null)} className="md:hidden p-1 -ml-1 mr-1 text-silverText/60 hover:text-white transition-colors">
+            <ChevronLeft size={24} />
+          </button>
+          <BrainCircuit size={18} className="text-primeAccent hidden md:block" /> 
+          <span className="truncate text-sm md:text-[15px]">碎片的完整映射</span>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2 md:gap-3">
           {showTrash ? (
             <>
               <button 
                 onClick={() => handleRestore(item.id)} 
-                className="px-4 py-1.5 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/20"
+                className="px-2 md:px-4 py-1.5 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/20"
+                title="撤销删除"
               >
-                <ArchiveRestore size={14} /> 撤销删除
+                <ArchiveRestore size={14} /> <span className="hidden md:inline">撤销删除</span>
               </button>
               <button 
                 onClick={() => handleDelete(item.id, true)} 
-                className="px-4 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.1)]"
+                className="px-2 md:px-4 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.1)]"
+                title="彻底摧毁"
               >
-                <Trash2 size={14} /> 彻底摧毁
+                <Trash2 size={14} /> <span className="hidden md:inline">彻底摧毁</span>
               </button>
             </>
           ) : (
             <button 
               onClick={() => handleDelete(item.id)} 
-              className="px-4 py-1.5 bg-red-500/5 text-red-500/60 hover:bg-red-500/10 hover:text-red-500 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-red-500/10"
+              className="px-2 md:px-4 py-1.5 bg-red-500/5 text-red-500/60 hover:bg-red-500/10 hover:text-red-500 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-red-500/10"
+              title="移入垃圾篓"
             >
-              <Trash2 size={14} /> 移入垃圾篓
+              <Trash2 size={14} /> <span className="hidden md:inline">移入垃圾篓</span>
             </button>
           )}
 
           {!showTrash && (
             <button 
               onClick={() => setShowShareModal(true)} 
-              className="px-4 py-1.5 bg-primeAccent/5 text-primeAccent/60 hover:bg-primeAccent/10 hover:text-primeAccent transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/10"
+              className="px-2 md:px-4 py-1.5 bg-primeAccent/5 text-primeAccent/60 hover:bg-primeAccent/10 hover:text-primeAccent transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/10"
+              title="分享碎片"
             >
-              <Share2 size={14} /> 分享碎片
+              <Share2 size={14} /> <span className="hidden md:inline">分享碎片</span>
             </button>
           )}
           <button
             onClick={() => setSelectedItem(null)}
-            className={`p-1.5 rounded-full transition-colors ml-2 ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700' : 'bg-white/5 hover:bg-white/10 text-white/60 hover:text-white'}`}
+            className={`hidden md:block p-1.5 rounded-full transition-colors ml-2 ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700' : 'bg-white/5 hover:bg-white/10 text-white/60 hover:text-white'}`}
             title="关闭详情视图 (Esc)"
           >
             <X size={18} />
@@ -311,10 +319,10 @@ export default function Detail({
       </div>
 
       {/* 内容区 */}
-      <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
+      <div className="flex flex-1 overflow-y-auto lg:overflow-hidden flex-col lg:flex-row">
         <div 
           ref={contentScrollRef}
-          className="flex-1 p-5 lg:p-6 overflow-y-auto custom-scrollbar lg:border-r border-borderSubtle bg-main raw-textarea-scroll-container"
+          className="flex-none lg:flex-1 h-auto lg:h-full p-4 md:p-5 lg:p-6 overflow-visible lg:overflow-y-auto custom-scrollbar lg:border-r border-borderSubtle bg-main raw-textarea-scroll-container"
         >
           {/* AI 分析框架 */}
           <div className="mb-5">
@@ -322,13 +330,13 @@ export default function Detail({
               <h3 className="text-[11px] text-textSecondary uppercase tracking-widest font-mono flex items-center gap-2 bg-sidebar inline-flex px-3 py-1 rounded-full border border-borderSubtle">
                   <BrainCircuit size={12} /> AI 智能总结
               </h3>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 {reprocessStatus && (
                   <span className={`text-[11px] font-mono flex items-center gap-1 ${
                     reprocessStatus.type === 'success' ? 'text-green-400' : 'text-red-400'
                   }`}>
-                    {reprocessStatus.type === 'success' ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
-                    {reprocessStatus.msg}
+                    {reprocessStatus.type === 'success' ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+                    <span className="hidden sm:inline">{reprocessStatus.msg}</span>
                   </span>
                 )}
                 
@@ -336,9 +344,10 @@ export default function Detail({
                   value={selectedTemplateId} 
                   onChange={(e) => setSelectedTemplateId(e.target.value)}
                   disabled={isReprocessing}
-                  className="bg-sidebar border border-borderSubtle text-textSecondary text-[11px] rounded px-2 py-1 outline-none focus:border-primeAccent/30"
+                  className="bg-sidebar border border-borderSubtle text-textSecondary text-[10px] sm:text-[11px] rounded px-1 sm:px-2 py-1 outline-none focus:border-primeAccent/30 max-w-[80px] sm:max-w-[150px] truncate"
+                  title="选择模板"
                 >
-                  <option value="" className="bg-header text-textPrimary">(默认激活模板)</option>
+                  <option value="" className="bg-header text-textPrimary">默认模板</option>
                   {templates.map(t => (
                     <option key={t.id} value={t.id} className="bg-header text-textPrimary">{t.name} {t.is_active ? '(激活)' : ''}</option>
                   ))}
@@ -347,10 +356,11 @@ export default function Detail({
                 <button
                   onClick={handleReprocess}
                   disabled={isReprocessing}
-                  className="flex items-center gap-1.5 px-3 py-1 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 transition-all rounded text-[10px] uppercase font-bold disabled:opacity-50"
+                  className="flex items-center gap-1.5 p-1.5 sm:px-3 sm:py-1 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 transition-all rounded text-[10px] uppercase font-bold disabled:opacity-50"
+                  title="重新 AI 处理"
                 >
-                  <RefreshCw size={12} className={isReprocessing ? 'animate-spin' : ''} />
-                  {isReprocessing ? '处理中...' : '重新 AI 处理'}
+                  <RefreshCw size={14} className={isReprocessing ? 'animate-spin' : ''} />
+                  <span className="hidden sm:inline">{isReprocessing ? '处理中...' : '重新处理'}</span>
                 </button>
               </div>
             </div>
@@ -361,22 +371,22 @@ export default function Detail({
 
           {/* OCR 原文提取 */}
           <div className="mb-4">
-            <div className="sticky -top-5 lg:-top-6 z-40 bg-main flex items-center justify-between border-b border-primeAccent/20 pt-4 pb-3 -mx-5 px-5 lg:-mx-6 lg:px-6 mb-3 shadow-sm transition-all">
-              <h2 className="text-[11px] text-primeAccent uppercase tracking-[0.2em] font-bold flex items-center gap-2">
+            <div className="sticky top-0 lg:-top-6 z-40 bg-main flex items-center justify-between border-b border-primeAccent/20 pt-4 pb-3 -mx-4 px-4 md:-mx-5 md:px-5 lg:-mx-6 lg:px-6 mb-3 shadow-sm transition-all">
+              <h2 className="text-[11px] text-primeAccent uppercase tracking-[0.2em] font-bold flex items-center gap-2 whitespace-nowrap">
                 <span className="w-1.5 h-1.5 rounded-full bg-primeAccent animate-pulse shadow-[0_0_10px_color-mix(in_srgb,var(--prime-accent),transparent_20%)]"></span> 
-                {item.original_url ? '源网页正文推断' : 'OCR 核心视觉提取文本'}
+                {item.original_url ? <><span className="hidden sm:inline">源网页正文推断</span><span className="sm:hidden">网页正文</span></> : <><span className="hidden sm:inline">OCR 核心视觉提取文本</span><span className="sm:hidden">OCR 提取</span></>}
               </h2>
               
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 {item.original_url && (
                   <a
                     href={item.original_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1 bg-primeAccent/10 hover:bg-primeAccent/20 text-primeAccent transition-colors rounded-md text-[10px] font-mono border border-primeAccent/20 uppercase shadow-[0_0_10px_color-mix(in_srgb,var(--prime-accent),transparent_90%)]"
+                    className="flex items-center gap-1.5 p-1.5 sm:px-3 sm:py-1 bg-primeAccent/10 hover:bg-primeAccent/20 text-primeAccent transition-colors rounded-md text-[10px] font-mono border border-primeAccent/20 uppercase shadow-[0_0_10px_color-mix(in_srgb,var(--prime-accent),transparent_90%)]"
                     title="直达原文"
                   >
-                    <ExternalLink size={12} /> 直达源网址
+                    <ExternalLink size={14} /> <span className="hidden sm:inline">直达源网址</span>
                   </a>
                 )}
                 {/* 图片本地化按钮 - 有图片时显示 */}
@@ -384,31 +394,33 @@ export default function Detail({
                   <button
                     onClick={handleLocalizeImages}
                     disabled={isLocalizing || externalImages.length === 0}
-                    className={`flex items-center gap-1.5 px-3 py-1 transition-colors rounded-md text-[10px] font-mono ${
+                    className={`flex items-center gap-1.5 p-1.5 sm:px-3 sm:py-1 transition-colors rounded-md text-[10px] font-mono justify-center ${
                       externalImages.length === 0
                         ? 'bg-green-500/10 text-green-400 border border-green-500/20'
                         : 'bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/20'
                     }`}
                     title={externalImages.length === 0 ? "图片已全部本地化" : "将第三方图片下载并本地化存储"}
                   >
-                    <ImageDown size={12} className={isLocalizing ? 'animate-pulse' : ''} />
+                    <ImageDown size={14} className={isLocalizing ? 'animate-pulse' : ''} />
+                    <span className="hidden sm:inline">
                     {isLocalizing
                       ? `本地化中 ${localizingProgress}/${totalImagesToLocalize}`
                       : `图片本地化 ${localImages.length}/${externalImages.length + localImages.length}`}
+                    </span>
                   </button>
                 )}
-                <div className="relative flex items-center">
+                <div className="relative flex items-center gap-2">
                   {!isRawMode && (
                     <button
                       onClick={() => setShowToC(!showToC)}
-                      className={`flex items-center gap-1.5 px-3 py-1 transition-colors rounded-md text-[10px] font-mono border uppercase mr-3 ${showToC ? 'bg-primeAccent/20 text-primeAccent border-primeAccent/30' : 'bg-sidebar hover:bg-card text-textSecondary hover:text-textPrimary border-borderSubtle'}`}
+                      className={`flex items-center justify-center gap-1.5 p-1.5 sm:px-3 sm:py-1 transition-colors rounded-md text-[10px] font-mono border uppercase ${showToC ? 'bg-primeAccent/20 text-primeAccent border-primeAccent/30' : 'bg-sidebar hover:bg-card text-textSecondary hover:text-textPrimary border-borderSubtle'}`}
                       title="打开大纲导读"
                     >
-                      <List size={12} /> 大纲导读
+                      <List size={14} /> <span className="hidden sm:inline">大纲导读</span>
                     </button>
                   )}
                   {showToC && !isRawMode && (
-                    <div className="absolute top-full right-[80px] mt-2 w-64 glass-panel border border-borderSubtle shadow-2xl rounded-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 origin-top-right">
+                    <div className="absolute top-full right-0 mt-2 w-64 glass-panel border border-borderSubtle shadow-2xl rounded-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 origin-top-right">
                        <div className="px-3 py-2 bg-header border-b border-borderSubtle flex items-center justify-between">
                          <span className="text-[11px] text-textSecondary font-bold tracking-widest font-mono uppercase">Document Index</span>
                          <button onClick={() => setShowToC(false)} className="text-textSecondary hover:text-red-400 transition-colors bg-sidebar p-1 rounded-md border border-borderSubtle"><X size={12} /></button>
@@ -421,10 +433,10 @@ export default function Detail({
                   
                   <button
                     onClick={() => { setIsRawMode(!isRawMode); setShowToC(false); }}
-                    className="flex items-center gap-1.5 px-3 py-1 bg-sidebar hover:bg-card text-textSecondary hover:text-textPrimary transition-colors rounded-md text-[10px] font-mono border border-borderSubtle uppercase"
+                    className="flex items-center justify-center gap-1.5 p-1.5 sm:px-3 sm:py-1 bg-sidebar hover:bg-card text-textSecondary hover:text-textPrimary transition-colors rounded-md text-[10px] font-mono border border-borderSubtle uppercase"
                     title={isRawMode ? "切换为 Markdown 预览" : "查看原始提取文本"}
                   >
-                    {isRawMode ? <><FileText size={12} /> 预览模式</> : <><Code size={12} /> RAW 模式</>}
+                    {isRawMode ? <><FileText size={14} /> <span className="hidden sm:inline">预览模式</span></> : <><Code size={14} /> <span className="hidden sm:inline">RAW 模式</span></>}
                   </button>
                 </div>
               </div>
@@ -463,9 +475,9 @@ export default function Detail({
         </div>
 
         {/* 源侧边区 (分层结构，底部固定) */}
-        <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 bg-panel/80 flex flex-col h-full relative border-l border-borderSubtle">
+        <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 bg-panel/80 flex flex-col flex-none h-auto lg:h-full relative border-t lg:border-t-0 lg:border-l border-borderSubtle">
           {/* 上部可滚动元数据区 */}
-          <div className="flex-1 overflow-y-auto p-5 custom-scrollbar scrollbar-hide flex flex-col gap-4">
+          <div className="flex-none lg:flex-1 overflow-visible lg:overflow-y-auto p-5 custom-scrollbar scrollbar-hide flex flex-col gap-4">
             {/* 图像源展示 (缩小高度) */}
             <div className="w-full h-[180px] shrink-0 bg-sidebar border border-borderSubtle rounded-2xl flex items-center justify-center relative overflow-hidden group shadow-lg shadow-black/10 dark:shadow-black/40 text-center">
             <div className="absolute top-3 left-3 bg-modal/50 backdrop-blur-md px-2 py-0.5 rounded text-[10px] text-textSecondary tracking-widest uppercase font-mono z-10 pointer-events-none border border-borderSubtle shadow-md">源视觉</div>

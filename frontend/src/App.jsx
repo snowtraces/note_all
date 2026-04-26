@@ -297,217 +297,230 @@ function App() {
   }
 
   return (
-    <div className="h-screen w-full flex bg-main text-textPrimary overflow-hidden font-sans">
-      <NavRail 
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-        showTrash={showTrash}
-        setShowTrash={setShowTrash}
-        setShowSettings={setShowSettings}
-        setSelectedItem={setSelectedItem}
-        labBasket={labBasket}
-      />
-
-      <Sidebar
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-        showTrash={showTrash}
-        setShowTrash={setShowTrash}
-        query={query}
-        setQuery={setQuery}
-        handleSearch={executeSearch}
-        loading={loading}
-        results={results}
-        selectedItem={selectedItem}
-        setSelectedItem={setSelectedItem}
-        uploading={uploading}
-        handleUpload={handleUpload}
-        handleTextSubmit={handleTextSubmit}
-        handleAskAI={executeAskAI}
-        loadChatSession={loadChatSession}
-        currentSessionId={currentSessionId}
-        askLoading={askLoading}
-        setShowSettings={setShowSettings}
-        labBasket={labBasket}
-        toggleLabItem={toggleLabItem}
-      />
-
-      {/* 右侧面板 */}
-      <div className="flex-1 flex flex-col bg-base relative overflow-hidden">
-        {selectedItem && (
-          <div className="absolute inset-0 z-50 bg-base">
-            <Detail
-              item={selectedItem}
-              showTrash={showTrash}
-              handleRestore={handleRestore}
-              handleDelete={handleDelete}
-              setSelectedItem={setSelectedItem}
-              setPreviewImage={setPreviewImage}
-              handleUpdateText={handleUpdateText}
-              handleUpdateStatus={handleUpdateStatus}
-            />
-          </div>
-        )}
-
-        {/* Global Graph Layer - Hidden or Shown based on viewMode to prevent Re-layout/Redraw */}
-        <div className={`absolute inset-0 transition-opacity duration-300 ${viewMode === 'graph' && !selectedItem ? 'z-40 opacity-100 pointer-events-auto' : '-z-10 opacity-0 pointer-events-none'}`}>
-           <GraphView 
-              active={viewMode === 'graph' && !selectedItem}
-              onNodeClick={setSelectedItem} 
-              onClose={() => setViewMode('notes')} 
-              data={cachedGraphData}
-              onDataLoad={setCachedGraphData}
-           />
-        </div>
-
-        {/* Knowledge Lab Layer */}
-        <div className={`absolute inset-0 transition-opacity duration-300 ${viewMode === 'lab' && !selectedItem ? 'z-40 opacity-100 pointer-events-auto' : '-z-10 opacity-0 pointer-events-none'}`}>
-           <LabView 
-              basket={labBasket}
-              allNotes={results}
-              onClose={() => setViewMode('notes')}
-              removeFromBasket={removeFromLabItem}
-              onSaveSuccess={async (sourceIds, shouldArchive) => {
-                if (shouldArchive && sourceIds.length > 0) {
-                   try { await batchArchiveNotes(sourceIds, true); } catch(e) { console.error(e); }
-                }
-                setLabBasket([]);
-                setViewMode('notes');
-                executeSearch(query);
-              }}
-           />
-        </div>
-
-        {/* Weixin View Layer */}
-        <div className={`absolute inset-0 transition-opacity duration-300 ${viewMode === 'weixin' && !selectedItem ? 'z-40 opacity-100 pointer-events-auto' : '-z-10 opacity-0 pointer-events-none'}`}>
-           <WeixinView 
-              active={viewMode === 'weixin' && !selectedItem}
-              onClose={() => setViewMode('notes')}
-           />
-        </div>
-
-        {!selectedItem && viewMode !== 'graph' && (
-          chatHistory.length > 0 && viewMode === 'chats' ? (
-            <div className={`w-full h-full flex flex-col ${isLight ? 'bg-slate-100' : 'bg-sidebar'}`}>
-              {/* 顶栏 */}
-              <div className={`flex items-center justify-between px-10 py-5 border-b ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-sidebar/80 border-white/5'} backdrop-blur shrink-0 z-20`}>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primeAccent/20 flex items-center justify-center border border-primeAccent/30 shadow-[0_0_10px_rgba(255,215,0,0.1)]">
-                    <span className="text-sm">🤖</span>
-                  </div>
-                  <h2 className={`text-lg tracking-widest text-primeAccent/90 uppercase`}>Insight Engine</h2>
-                </div>
-                <button
-                  onClick={() => {
-                    setChatHistory([]);
-                    setCurrentSessionId(0);
-                  }}
-                  className={`text-[11px] font-mono transition-colors ${isLight ? 'text-slate-400 hover:text-slate-600' : 'text-silverText/40 hover:text-white'}`}
-                >
-                  CLOSE SESSION [ESC]
-                </button>
-              </div>
-
-              {/* 对话流 */}
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-10">
-                <div className="max-w-3xl mx-auto flex flex-col gap-10">
-                  {chatHistory.map((chat, idx) => (
-                    <div key={idx} className={`flex flex-col ${chat.role === 'user' ? 'items-end' : 'items-start'}`}>
-                      <div className={`rounded-2xl px-4 leading-relaxed text-[14px] shadow-sm ${chat.role === 'user'
-                        ? isLight
-                          ? 'bg-primeAccent/10 border border-primeAccent/20 text-primeAccent rounded-tr-none min-w-[20px] max-w-[80%]'
-                          : 'bg-primeAccent/10 border border-primeAccent/20 text-white/90 rounded-tr-none min-w-[20px] max-w-[80%]'
-                        : isLight ? 'bg-white border border-slate-200 text-slate-700 rounded-tl-none max-w-[90%]' : 'bg-white/[0.03] border border-white/5 text-silverText/90 rounded-tl-none max-w-[90%]'
-                        }`}>
-                        <MarkdownRenderer content={chat.content} />
-
-                  {chat.references && chat.references.length > 0 && (
-                          <div className={`mt-6 pt-4 border-t ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
-                            <div className={`flex items-center gap-1.5 text-[10px] uppercase font-mono mb-3 tracking-widest ${isLight ? 'text-slate-400' : 'text-silverText/30'}`}>
-                              <BookOpen size={10} /> 智能引证
-                            </div>
-                            <div className="flex flex-col gap-2">
-                              {chat.references.map(ref => (
-                                <div
-                                    key={ref.id}
-                                    onClick={() => setSelectedItem(ref)}
-                                    className={`flex items-center gap-3 p-2 rounded-lg border transition-all cursor-pointer ${isLight ? 'bg-slate-50 border-slate-200 hover:bg-slate-100 hover:border-primeAccent/30' : 'bg-white/[0.02] border-white/5 hover:bg-white/5 hover:border-primeAccent/20'}`}
-                                  >
-                                    <div className="min-w-0 flex-1">
-                                      <div className="flex items-center justify-between gap-2 mb-1">
-                                        <div className="flex flex-wrap gap-1 max-h-[16px] overflow-hidden">
-                                          {(ref.ai_tags || "").split(',').slice(0, 2).map((t, i) => t.trim() && (
-                                            <span key={i} className="text-[9px] bg-primeAccent/10 text-primeAccent/70 px-1 rounded">#{t.trim()}</span>
-                                          ))}
-                                        </div>
-                                        <span className={`text-[9px] font-mono shrink-0 ${isLight ? 'text-slate-400' : 'text-silverText/20'}`}>
-                                          {new Date(ref.created_at).toLocaleDateString('zh-CN', {month:'2-digit', day:'2-digit'})}
-                                        </span>
-                                      </div>
-                                      <div className={`text-[11px] leading-snug line-clamp-2 ${isLight ? 'text-slate-600' : 'text-white/70'}`}>{ref.ai_summary || '碎片内容细节...'}</div>
-                                    </div>
-                                  </div>
-                                ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-
-                  {askLoading && (
-                    <div className="flex items-start">
-                      <div className={`border rounded-2xl rounded-tl-none px-6 py-4 animate-pulse ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.02] border-white/5'}`}>
-                        <div className="flex gap-1.5 items-center">
-                          <div className="w-1.5 h-1.5 rounded-full bg-primeAccent/40"></div>
-                          <div className="w-1.5 h-1.5 rounded-full bg-primeAccent/40"></div>
-                          <div className="w-1.5 h-1.5 rounded-full bg-primeAccent/40"></div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div ref={chatEndRef} />
-                </div>
-              </div>
-
-              {/* 底部追问输入框 */}
-              <div className={`p-8 pb-12 shrink-0 ${isLight ? 'bg-slate-50' : 'bg-gradient-to-t from-[#080808] via-[#080808] to-transparent'}`}>
-                <div className="max-w-3xl mx-auto relative">
-                  <input
-                    type="text"
-                    placeholder="继续追问 AI..."
-                    disabled={askLoading}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && e.target.value.trim()) {
-                        executeAskAI(e.target.value.trim());
-                        e.target.value = '';
-                      }
-                    }}
-                    className={`w-full border rounded-2xl px-6 py-4 text-sm focus:outline-none focus:border-primeAccent/50 transition-all ${isLight ? 'bg-white border-slate-200 text-slate-800 placeholder-slate-400' : 'bg-white/[0.03] border-white/10 text-white/90 placeholder-white/20 focus:bg-white/[0.05]'}`}
-                  />
-                </div>
-              </div>
-            </div>
-          ) : (
-            <EmptyState
-              onTagClick={(tag) => {
-                const q = `#${tag}`;
-                setQuery(q);
-                executeSearch(q);
-              }}
-              onAsk={executeAskAI}
-              onItemClick={setSelectedItem}
-              serendipityData={serendipityData}
-              setSerendipityData={setSerendipityData}
-              setViewMode={setViewMode}
-              setShowSettings={setShowSettings}
-              labBasket={labBasket}
-              toggleLabItem={toggleLabItem}
-            />
-          )
-        )}
+    <div className="h-[100dvh] w-full flex flex-col md:flex-row bg-main text-textPrimary overflow-hidden font-sans relative">
+      <div className="order-last md:order-first z-[60] shrink-0 border-t md:border-t-0 md:border-r border-borderSubtle bg-sidebar">
+        <NavRail 
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          showTrash={showTrash}
+          setShowTrash={setShowTrash}
+          setShowSettings={setShowSettings}
+          setSelectedItem={setSelectedItem}
+          labBasket={labBasket}
+        />
       </div>
 
+      <div className="flex-1 flex flex-row relative overflow-hidden">
+        {/* Sidebar */}
+        <div className={`w-full md:w-[380px] xl:w-[420px] flex-shrink-0 flex-col border-r border-borderSubtle bg-modal relative z-50 transition-all ${
+          (selectedItem || viewMode === 'graph' || viewMode === 'weixin' || viewMode === 'lab' || (viewMode === 'chats' && chatHistory.length > 0)) ? 'hidden md:flex' : 'flex'
+        }`}>
+          <Sidebar
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            showTrash={showTrash}
+            setShowTrash={setShowTrash}
+            query={query}
+            setQuery={setQuery}
+            handleSearch={executeSearch}
+            loading={loading}
+            results={results}
+            selectedItem={selectedItem}
+            setSelectedItem={setSelectedItem}
+            uploading={uploading}
+            handleUpload={handleUpload}
+            handleTextSubmit={handleTextSubmit}
+            handleAskAI={executeAskAI}
+            loadChatSession={loadChatSession}
+            currentSessionId={currentSessionId}
+            askLoading={askLoading}
+            setShowSettings={setShowSettings}
+            labBasket={labBasket}
+            toggleLabItem={toggleLabItem}
+          />
+        </div>
+
+        {/* 右侧面板 */}
+        <div className={`flex-1 flex-col bg-base relative overflow-hidden ${
+          (selectedItem || viewMode === 'graph' || viewMode === 'weixin' || viewMode === 'lab' || (viewMode === 'chats' && chatHistory.length > 0)) ? 'flex w-full absolute inset-0 md:relative md:inset-auto z-50' : 'hidden md:flex'
+        }`}>
+          {selectedItem && (
+            <div className="absolute inset-0 z-50 bg-base flex flex-col">
+              <Detail
+                item={selectedItem}
+                showTrash={showTrash}
+                handleRestore={handleRestore}
+                handleDelete={handleDelete}
+                setSelectedItem={setSelectedItem}
+                setPreviewImage={setPreviewImage}
+                handleUpdateText={handleUpdateText}
+                handleUpdateStatus={handleUpdateStatus}
+              />
+            </div>
+          )}
+
+          {/* Global Graph Layer - Hidden or Shown based on viewMode to prevent Re-layout/Redraw */}
+          <div className={`absolute inset-0 transition-opacity duration-300 ${viewMode === 'graph' && !selectedItem ? 'z-40 opacity-100 pointer-events-auto flex flex-col' : '-z-10 opacity-0 pointer-events-none'}`}>
+             <GraphView 
+                active={viewMode === 'graph' && !selectedItem}
+                onNodeClick={setSelectedItem} 
+                onClose={() => setViewMode('notes')} 
+                data={cachedGraphData}
+                onDataLoad={setCachedGraphData}
+             />
+          </div>
+
+          {/* Knowledge Lab Layer */}
+          <div className={`absolute inset-0 transition-opacity duration-300 ${viewMode === 'lab' && !selectedItem ? 'z-40 opacity-100 pointer-events-auto flex flex-col' : '-z-10 opacity-0 pointer-events-none'}`}>
+             <LabView 
+                basket={labBasket}
+                allNotes={results}
+                onClose={() => setViewMode('notes')}
+                removeFromBasket={removeFromLabItem}
+                onSaveSuccess={async (sourceIds, shouldArchive) => {
+                  if (shouldArchive && sourceIds.length > 0) {
+                     try { await batchArchiveNotes(sourceIds, true); } catch(e) { console.error(e); }
+                  }
+                  setLabBasket([]);
+                  setViewMode('notes');
+                  executeSearch(query);
+                }}
+             />
+          </div>
+
+          {/* Weixin View Layer */}
+          <div className={`absolute inset-0 transition-opacity duration-300 ${viewMode === 'weixin' && !selectedItem ? 'z-40 opacity-100 pointer-events-auto flex flex-col' : '-z-10 opacity-0 pointer-events-none'}`}>
+             <WeixinView 
+                active={viewMode === 'weixin' && !selectedItem}
+                onClose={() => setViewMode('notes')}
+             />
+          </div>
+
+          {!selectedItem && viewMode !== 'graph' && (
+            chatHistory.length > 0 && viewMode === 'chats' ? (
+              <div className={`w-full h-full flex flex-col ${isLight ? 'bg-slate-100' : 'bg-sidebar'}`}>
+                {/* 顶栏 */}
+                <div className={`flex items-center justify-between px-4 md:px-10 py-4 md:py-5 border-b ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-sidebar/80 border-white/5'} backdrop-blur shrink-0 z-20`}>
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <button onClick={() => { setChatHistory([]); setCurrentSessionId(0); }} className="md:hidden mr-2 text-silverText/60 hover:text-white">
+                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <div className="w-8 h-8 rounded-full bg-primeAccent/20 flex items-center justify-center border border-primeAccent/30 shadow-[0_0_10px_rgba(255,215,0,0.1)]">
+                      <span className="text-sm">🤖</span>
+                    </div>
+                    <h2 className={`text-base md:text-lg tracking-widest text-primeAccent/90 uppercase`}>Insight Engine</h2>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setChatHistory([]);
+                      setCurrentSessionId(0);
+                    }}
+                    className={`hidden md:block text-[11px] font-mono transition-colors ${isLight ? 'text-slate-400 hover:text-slate-600' : 'text-silverText/40 hover:text-white'}`}
+                  >
+                    CLOSE SESSION [ESC]
+                  </button>
+                </div>
+
+                {/* 对话流 */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-10">
+                  <div className="max-w-3xl mx-auto flex flex-col gap-6 md:gap-10">
+                    {chatHistory.map((chat, idx) => (
+                      <div key={idx} className={`flex flex-col ${chat.role === 'user' ? 'items-end' : 'items-start'}`}>
+                        <div className={`rounded-2xl px-4 leading-relaxed text-[14px] shadow-sm ${chat.role === 'user'
+                          ? isLight
+                            ? 'bg-primeAccent/10 border border-primeAccent/20 text-primeAccent rounded-tr-none min-w-[20px] max-w-[80%]'
+                            : 'bg-primeAccent/10 border border-primeAccent/20 text-white/90 rounded-tr-none min-w-[20px] max-w-[80%]'
+                          : isLight ? 'bg-white border border-slate-200 text-slate-700 rounded-tl-none max-w-[90%]' : 'bg-white/[0.03] border border-white/5 text-silverText/90 rounded-tl-none max-w-[90%]'
+                          }`}>
+                          <MarkdownRenderer content={chat.content} />
+
+                    {chat.references && chat.references.length > 0 && (
+                            <div className={`mt-6 pt-4 border-t ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
+                              <div className={`flex items-center gap-1.5 text-[10px] uppercase font-mono mb-3 tracking-widest ${isLight ? 'text-slate-400' : 'text-silverText/30'}`}>
+                                <BookOpen size={10} /> 智能引证
+                              </div>
+                              <div className="flex flex-col gap-2">
+                                {chat.references.map(ref => (
+                                  <div
+                                      key={ref.id}
+                                      onClick={() => setSelectedItem(ref)}
+                                      className={`flex items-center gap-3 p-2 rounded-lg border transition-all cursor-pointer ${isLight ? 'bg-slate-50 border-slate-200 hover:bg-slate-100 hover:border-primeAccent/30' : 'bg-white/[0.02] border-white/5 hover:bg-white/5 hover:border-primeAccent/20'}`}
+                                    >
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex items-center justify-between gap-2 mb-1">
+                                          <div className="flex flex-wrap gap-1 max-h-[16px] overflow-hidden">
+                                            {(ref.ai_tags || "").split(',').slice(0, 2).map((t, i) => t.trim() && (
+                                              <span key={i} className="text-[9px] bg-primeAccent/10 text-primeAccent/70 px-1 rounded">#{t.trim()}</span>
+                                            ))}
+                                          </div>
+                                          <span className={`text-[9px] font-mono shrink-0 ${isLight ? 'text-slate-400' : 'text-silverText/20'}`}>
+                                            {new Date(ref.created_at).toLocaleDateString('zh-CN', {month:'2-digit', day:'2-digit'})}
+                                          </span>
+                                        </div>
+                                        <div className={`text-[11px] leading-snug line-clamp-2 ${isLight ? 'text-slate-600' : 'text-white/70'}`}>{ref.ai_summary || '碎片内容细节...'}</div>
+                                      </div>
+                                    </div>
+                                  ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+
+                    {askLoading && (
+                      <div className="flex items-start">
+                        <div className={`border rounded-2xl rounded-tl-none px-6 py-4 animate-pulse ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.02] border-white/5'}`}>
+                          <div className="flex gap-1.5 items-center">
+                            <div className="w-1.5 h-1.5 rounded-full bg-primeAccent/40"></div>
+                            <div className="w-1.5 h-1.5 rounded-full bg-primeAccent/40"></div>
+                            <div className="w-1.5 h-1.5 rounded-full bg-primeAccent/40"></div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div ref={chatEndRef} />
+                  </div>
+                </div>
+
+                {/* 底部追问输入框 */}
+                <div className={`p-4 md:p-8 md:pb-12 shrink-0 ${isLight ? 'bg-slate-50' : 'bg-gradient-to-t from-[#080808] via-[#080808] to-transparent'}`}>
+                  <div className="max-w-3xl mx-auto relative">
+                    <input
+                      type="text"
+                      placeholder="继续追问 AI..."
+                      disabled={askLoading}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && e.target.value.trim()) {
+                          executeAskAI(e.target.value.trim());
+                          e.target.value = '';
+                        }
+                      }}
+                      className={`w-full border rounded-2xl px-6 py-3 md:py-4 text-sm focus:outline-none focus:border-primeAccent/50 transition-all ${isLight ? 'bg-white border-slate-200 text-slate-800 placeholder-slate-400' : 'bg-white/[0.03] border-white/10 text-white/90 placeholder-white/20 focus:bg-white/[0.05]'}`}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <EmptyState
+                onTagClick={(tag) => {
+                  const q = `#${tag}`;
+                  setQuery(q);
+                  executeSearch(q);
+                }}
+                onAsk={executeAskAI}
+                onItemClick={setSelectedItem}
+                serendipityData={serendipityData}
+                setSerendipityData={setSerendipityData}
+                setViewMode={setViewMode}
+                setShowSettings={setShowSettings}
+                labBasket={labBasket}
+                toggleLabItem={toggleLabItem}
+              />
+            )
+          )}
+        </div>
+      </div>
       <Lightbox src={previewImage} onClose={() => setPreviewImage(null)} />
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>

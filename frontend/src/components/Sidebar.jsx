@@ -167,15 +167,15 @@ export default function Sidebar({
 
   return (
     <div 
-      className="w-[380px] md:w-[420px] flex-shrink-0 flex flex-col border-r border-borderSubtle bg-modal relative z-50 transition-all"
+      className="w-full md:w-[380px] xl:w-[420px] h-full flex-shrink-0 flex flex-col bg-transparent relative z-50 transition-all"
       onMouseLeave={() => setHoveredNote(null)}
     >
-      {/* Header 区 - 保持默认风格 */}
-      <div className="pt-6 px-5 pb-5 border-b border-borderSubtle relative shrink-0">
+      {/* Header 区 */}
+      <div className="pt-4 md:pt-6 px-4 md:px-5 pb-4 md:pb-5 border-b border-borderSubtle relative shrink-0">
         <div className="absolute top-0 right-0 w-32 h-32 bg-primeAccent/10 rounded-full blur-[50px] -z-10 pointer-events-none"></div>
 
-        <div className="flex justify-between items-center mb-6 h-11">
-          <h1 className={`text-2xl font-extrabold tracking-tight transition-colors leading-none ${showTrash ? 'text-red-500/80 shadow-[0_0_20px_rgba(239,68,68,0.1)]' : 'text-textPrimary'}`}>
+        <div className="flex justify-between items-center mb-4 md:mb-6 h-auto md:h-11">
+          <h1 className={`text-xl md:text-2xl font-extrabold tracking-tight transition-colors leading-none ${showTrash ? 'text-red-500/80 shadow-[0_0_20px_rgba(239,68,68,0.1)]' : 'text-textPrimary'}`}>
             {showTrash ? 'Trash ' : (viewMode === 'chats' ? 'Chat ' : viewMode === 'graph' ? 'Graph ' : viewMode === 'lab' ? 'Lab ' : 'Note ')}
             <span className={showTrash ? 'text-red-400' : 'text-primeAccent'}>
               {showTrash ? 'Bin' : (viewMode === 'chats' ? 'History' : viewMode === 'graph' ? 'Matrix' : viewMode === 'lab' ? 'Space' : 'All')}
@@ -184,7 +184,7 @@ export default function Sidebar({
           
           {/* Item Count or Status */}
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-mono text-textSecondary/30 uppercase tracking-widest bg-sidebar px-2 py-0.5 rounded-full border border-borderSubtle">
+            <span className="text-[9px] md:text-[10px] font-mono text-textSecondary/30 uppercase tracking-widest bg-sidebar px-2 py-0.5 rounded-full border border-borderSubtle">
               {results.length} FRAGMENTS
             </span>
           </div>
@@ -193,10 +193,10 @@ export default function Sidebar({
         {/* 搜素框 */}
         {viewMode === 'notes' && (
           <div className="relative w-full group" ref={dropdownRef}>
-            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+            <div className="absolute inset-y-0 left-3 md:left-4 flex items-center pointer-events-none">
               {query.startsWith('#') && !showTrash
                 ? <Tag size={16} className="text-primeAccent transition-colors" />
-                : <Search size={18} className="text-primeAccent/50 group-focus-within:text-primeAccent transition-colors" />
+                : <Search size={16} className="text-primeAccent/50 group-focus-within:text-primeAccent transition-colors" />
               }
             </div>
             <input
@@ -217,8 +217,7 @@ export default function Sidebar({
                 if (e.key === 'Escape') setShowTagDrop(false);
               }}
               placeholder={showTrash ? "回收站不支持搜索" : "搜索... 输入 #标签 或 ?提问"}
-              className={`w-full bg-sidebar border py-3 pl-12 pr-10 text-[15px] rounded-xl text-textPrimary placeholder-textSecondary/40 focus:outline-none transition-all ${showTrash ? 'border-borderSubtle opacity-50' : 'border-borderSubtle focus:border-primeAccent/50'
-                }`}
+              className={`w-full bg-sidebar border py-2.5 md:py-3 pl-10 md:pl-12 pr-10 text-[14px] md:text-[15px] rounded border-borderSubtle focus:border-primeAccent/50 text-textPrimary placeholder-textSecondary/40 focus:outline-none transition-all ${showTrash ? 'opacity-50' : ''}`}
             />
             {query && (
               <X size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-silverText/40 cursor-pointer hover:text-white" onClick={() => { setQuery(''); handleSearch(''); }} />
@@ -238,7 +237,7 @@ export default function Sidebar({
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-3 relative">
+      <div className="flex-1 overflow-y-auto custom-scrollbar px-4 md:px-5 py-4 flex flex-col gap-3 relative">
         {viewMode === 'notes' ? (
           <>
             {loading && results.length === 0 && (
