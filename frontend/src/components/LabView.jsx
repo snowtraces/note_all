@@ -265,7 +265,7 @@ export default function LabView({
 
             {/* Header */}
 
-            <div className={`flex items-center justify-between px-8 py-4 border-b backdrop-blur ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/5 bg-sidebar/80'}`}>
+            <div className={`flex items-center justify-between px-8 py-4 border-b backdrop-blur z-20 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-card/90'}`}>
 
                 <div className="flex items-center gap-3">
 

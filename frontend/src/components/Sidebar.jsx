@@ -173,10 +173,10 @@ export default function Sidebar({
     >
       {/* Header 区 */}
       <div className="pt-4 md:pt-6 px-4 md:px-5 pb-4 md:pb-5 border-b border-borderSubtle relative shrink-0">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-primeAccent/10 rounded-full blur-[50px] -z-10 pointer-events-none"></div>
+
 
         <div className="flex justify-between items-center mb-4 md:mb-6 h-auto md:h-11">
-          <h1 className={`text-xl md:text-2xl font-extrabold tracking-tight transition-colors leading-none ${showTrash ? 'text-red-500/80 shadow-[0_0_20px_rgba(239,68,68,0.1)]' : 'text-textPrimary'}`}>
+          <h1 className={`text-xl md:text-2xl font-extrabold tracking-tight transition-colors leading-none ${showTrash ? 'text-red-500/80' : 'text-textPrimary'}`}>
             {showTrash ? 'Trash ' : (viewMode === 'chats' ? 'Chat ' : viewMode === 'graph' ? 'Graph ' : viewMode === 'lab' ? 'Lab ' : viewMode === 'image_gen' ? 'Image ' : 'Note ')}
             <span className={showTrash ? 'text-red-400' : 'text-primeAccent'}>
               {showTrash ? 'Bin' : (viewMode === 'chats' ? 'History' : viewMode === 'graph' ? 'Matrix' : viewMode === 'lab' ? 'Space' : viewMode === 'image_gen' ? 'Studio' : 'All')}
@@ -260,7 +260,7 @@ export default function Sidebar({
                   onClick={() => setSelectedItem(item)}
                   className={`p-4 rounded-xl transition-all duration-300 flex flex-col min-w-0 border-l-[3px] cursor-pointer ${isSelected
                     ? 'bg-primeAccent/10 border-l-primeAccent/60'
-                    : 'bg-sidebar border-l-transparent hover:bg-card hover:border-l-primeAccent/30 border border-borderSubtle text-textSecondary'
+                    : 'bg-card/40 border-l-transparent hover:bg-card hover:border-l-primeAccent/30 border border-white/10 text-textSecondary'
                     } group`}
                 >
                   <div className="flex justify-between items-start mb-2 relative">

@@ -36,8 +36,7 @@ export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipity
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-start py-8 text-silverText/20 bg-sidebar relative overflow-y-auto custom-scrollbar">
-      {/* 背景光晕 */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primeAccent/5 rounded-full blur-[100px] pointer-events-none" />
+
 
       <div className="relative z-10 flex flex-col items-center w-full max-w-5xl px-4 md:px-8">
         {/* 图标 + 标题区 */}
@@ -51,7 +50,7 @@ export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipity
 
         {/* ================= Ask AI 大搜索框 ================= */}
         <div className="w-full max-w-xl relative group mb-8">
-          <div className="absolute -inset-[1px] bg-gradient-to-r from-primeAccent/30 via-primeAccent/10 to-transparent rounded-2xl blur-md opacity-20 group-hover:opacity-40 transition-opacity duration-500"></div>
+
           <div className="relative flex items-center bg-card border border-borderSubtle rounded-2xl px-5 h-[62px] w-full shadow-2xl focus-within:border-primeAccent/50 focus-within:ring-4 focus-within:ring-primeAccent/5 transition-all duration-300">
             <Sparkles size={18} className="text-primeAccent mr-3 shrink-0 opacity-60 group-focus-within:opacity-100 transition-opacity" />
             <input
@@ -85,11 +84,8 @@ export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipity
         {serendipity && (
           <div className="w-full mb-8 animate-in fade-in slide-in-from-bottom-4 duration-1200 cursor-default">
             
-            <div className="bg-gradient-to-br from-borderSubtle to-transparent border border-borderSubtle rounded-2xl p-px relative overflow-hidden group shadow-xl">
-               {/* 边缘细微的高亮线条效果 */}
-              <div className="absolute inset-x-0 -top-px h-px w-full bg-gradient-to-r from-transparent via-primeAccent/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
-              
-              <div className="bg-card backdrop-blur-xl rounded-[15px] p-5 md:p-6 relative z-10 flex flex-col gap-4">
+            <div className="border border-borderSubtle rounded-2xl relative overflow-hidden group">
+              <div className="bg-card rounded-[15px] p-5 md:p-6 relative z-10 flex flex-col gap-4">
                 
                 {/* 装饰水印 */}
                 <div className={`absolute top-6 right-6 p-4 opacity-[0.05] sm:opacity-[0.08] -rotate-12 group-hover:rotate-0 transition-transform duration-700 pointer-events-none ${isLight ? 'text-slate-400' : 'text-white'}`}>
@@ -97,7 +93,7 @@ export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipity
                 </div>
 
                 {/* 顶部：标题与操作栏 (更紧凑) */}
-                <div className={`flex items-center justify-between border-b pb-3 relative z-10 ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
+                <div className={`flex items-center justify-between px-8 py-4 border-b backdrop-blur z-20 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-card/90'}`}>
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-primeAccent/10 flex items-center justify-center border border-primeAccent/20">
                        <Inbox size={14} className="text-primeAccent" />
@@ -147,7 +143,7 @@ export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipity
                         <div 
                           key={ref.id}
                           onClick={() => onItemClick?.(ref)}
-                          className="flex flex-col gap-2 p-4 rounded-xl bg-transparent border border-borderSubtle hover:border-primeAccent/50 hover:bg-primeAccent/5 transition-all cursor-pointer group/ref h-full min-h-[130px] relative"
+                          className={`flex flex-col gap-2 p-4 rounded-xl border transition-all cursor-pointer group/ref h-full min-h-[130px] relative shadow-sm ${isLight ? 'bg-slate-50 border-slate-200 hover:bg-white' : 'bg-card border-white/15 hover:border-white/30 hover:bg-panel'}`}
                         >
                           {/* 加入 Lab 按钮 */}
                           <button 

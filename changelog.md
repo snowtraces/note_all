@@ -1,6 +1,11 @@
 # Changelog
 
 ## [Unreleased]
+- **深色模式对比度与纯净视觉优化 (Dark Mode Contrast & Pure Visual Polish)**:
+  - **极致深色分层**: 重新设计了暗色模式的明度阶梯。采用层级明度（Base #05 -> Main #07 -> Sidebar #08 -> Card #12 -> Panel #18）替代之前的微亮灰色，保持了深邃感的同时拉开了组件间距。
+  - **锐利边缘 (Rim Light) 取代模糊发光**: 彻底移除了所有“脏感”明显的 fuzzy shadows 和蓝色/白色发光光晕（Halos）。改用高对比度的 1px 实线边框 (`white/20`) 以及针对卡片顶部的锐利提亮线（`border-top`）来勾勒轮廓。
+  - **全局去杂质处理**: 清理了 `EmptyState` 背景的大面积模糊光斑、搜索框聚焦时的扩散阴影以及 AI 助手头像的呼吸发光层，实现了极简、冷峻的纯粹视觉风格。
+  - **布局稳定性维护**: 修复了侧边栏碎片列表在应用新样式后由于 `overflow-hidden` 导致的卡片高度塌陷（消失）问题，确保列表项随内容自然伸展。
 - **AI 绘图系统全链路异步化与 UI 增强 (Asynchronous Image Generation & Mosaic UI)**:
   - **任务制异步架构**: 后端重构为任务制（ImageTask/ImageResult），支持一次请求生成多张图片。采用 Goroutine 背景轮询 + 系统级 SSE 总线实时同步状态。
   - **图片全自动本地化**: 生成成功后自动将在线图片下载至 `SnowStorage` 块存储，消除对外部临时 URL 的依赖，确保创作内容永久留存。
