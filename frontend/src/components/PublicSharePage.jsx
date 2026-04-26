@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { BrainCircuit, BookOpen, Clock, Globe, ShieldCheck, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { BookOpen, Clock, Globe, ShieldCheck, ArrowLeft, AlertCircle, List, Sun, Moon } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
+import TableOfContents from './TableOfContents';
 import { getPublicShare } from '../api/shareApi';
 import { useTheme } from '../context/ThemeContext';
 
 export default function PublicSharePage({ shareId }) {
-   const { mode } = useTheme();
+   const { mode, toggleMode } = useTheme();
    const isLight = mode === 'light';
    const [loading, setLoading] = useState(true);
    const [item, setItem] = useState(null);
@@ -59,11 +60,8 @@ export default function PublicSharePage({ shareId }) {
          {/* Top Branding Section */}
          <div className="w-full h-[300px] absolute top-0 left-0 bg-gradient-to-b from-primeAccent/10 to-transparent pointer-events-none"></div>
 
-         <header className={`relative z-10 max-w-5xl mx-auto px-6 pt-12 pb-8 text-center border-b ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primeAccent/10 border border-primeAccent/20 mb-8">
-               <BrainCircuit className="w-7 h-7 text-primeAccent" strokeWidth={1.5} />
-            </div>
-            <h1 className="text-4xl font-light tracking-[0.1em] text-textPrimary mb-6 animate-in slide-in-from-bottom-4 duration-500">{item.original_name || 'Note Instance'}</h1>
+         <header className={`relative z-10 max-w-5xl mx-auto px-6 pt-8 pb-6 text-center border-b ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
+            <h1 className="text-3xl font-light tracking-[0.1em] text-textPrimary mb-4 animate-in slide-in-from-bottom-4 duration-500">{item.original_name || 'Note Instance'}</h1>
             <div className="flex flex-wrap items-center justify-center gap-4 text-textSecondary/40 text-[10px] uppercase font-mono tracking-widest leading-relaxed">
                <span className="flex items-center gap-1.5"><Clock size={12} /> {new Date(item.created_at || item.CreatedAt).toLocaleDateString()}</span>
                <span className="w-1 h-1 rounded-full bg-borderSubtle hidden sm:block"></span>
@@ -73,7 +71,30 @@ export default function PublicSharePage({ shareId }) {
             </div>
          </header>
 
-         <main className="relative z-10 max-w-5xl mx-auto px-6 mt-8 space-y-10">
+         {/* 临时主题切换按钮 */}
+         <button
+            onClick={toggleMode}
+            className={`fixed top-6 right-6 z-30 p-2.5 rounded-xl border transition-all ${isLight ? 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200' : 'bg-card border-white/10 text-textSecondary hover:bg-white/10 hover:text-white'}`}
+         >
+            {isLight ? <Moon size={18} /> : <Sun size={18} />}
+         </button>
+
+         {/* 右侧标题导航栏 - fixed 定位不挤占空间 */}
+         {(item.ocr_text || item.ai_summary) && (
+            <aside className={`hidden lg:block fixed right-6 top-24 w-52 border rounded-2xl backdrop-blur-sm z-20 ${isLight ? 'bg-slate-50/80 border-slate-200 shadow-lg' : 'bg-card border-white/10 shadow-xl'}`}>
+               <div className={`px-4 py-3 border-b ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
+                  <div className="flex items-center gap-2 text-textSecondary/60">
+                     <List size={14} />
+                     <span className="text-[11px] uppercase tracking-widest font-medium">目录导航</span>
+                  </div>
+               </div>
+               <TableOfContents
+                  content={item.ocr_text || item.ai_summary}
+               />
+            </aside>
+         )}
+
+         <main className="relative z-10 max-w-5xl mx-auto px-6 mt-6 space-y-6">
             {/* Visual Section if Image */}
             {item.file_type?.includes('image') && (
                <div className={`group relative rounded-3xl overflow-hidden shadow-2xl animate-in fade-in duration-700 ${isLight ? 'border border-slate-200 bg-slate-100' : 'border border-white/10 bg-black'}`}>
@@ -87,21 +108,21 @@ export default function PublicSharePage({ shareId }) {
             )}
 
             {/* AI Summary Frame */}
-            <div className="bg-primeAccent/5 border border-primeAccent/10 rounded-[40px] p-8 lg:p-10 animate-in slide-in-from-bottom-8 duration-700 delay-150">
-               <div className="flex items-center gap-3 mb-6">
-                  <div className="p-3 bg-primeAccent/10 rounded-2xl text-primeAccent shadow-[0_0_20px_rgba(255,215,0,0.15)]">
-                     <BookOpen size={20} />
+            <div className={`rounded-[28px] p-5 lg:p-6 animate-in slide-in-from-bottom-8 duration-700 delay-150 ${isLight ? 'bg-primeAccent/5 border border-primeAccent/10' : 'bg-card border border-white/10'}`}>
+               <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2.5 bg-primeAccent/10 rounded-xl text-primeAccent">
+                     <BookOpen size={18} />
                   </div>
-                  <h3 className="text-[12px] text-primeAccent/80 uppercase tracking-[0.3em] font-bold">精炼总结 · Synthesis</h3>
+                  <h3 className="text-[11px] text-primeAccent/80 uppercase tracking-[0.3em] font-bold">精炼总结 · Synthesis</h3>
                </div>
-               <div className="text-silverText/92 text-[16px] leading-8 lg:text-[18px] markdown-ocr">
+               <div className="text-silverText/92 text-[15px] leading-7 lg:text-[16px] markdown-ocr">
                   <MarkdownRenderer content={item.ai_summary || "暂无 AI 摘要记录"} />
                </div>
 
                {item.ai_tags && (
-                  <div className="mt-8 flex flex-wrap gap-2.5">
+                  <div className="mt-5 flex flex-wrap gap-2">
                      {item.ai_tags.split(',').map((tag, idx) => (
-                        <span key={idx} className="px-4 py-1.5 bg-primeAccent/10 text-primeAccent border border-primeAccent/20 rounded-xl text-[11px] font-mono tracking-tighter cursor-default">
+                        <span key={idx} className="px-3 py-1 bg-primeAccent/10 text-primeAccent border border-primeAccent/20 rounded-lg text-[10px] font-mono tracking-tighter cursor-default">
                            #{tag.trim()}
                         </span>
                      ))}
@@ -109,25 +130,31 @@ export default function PublicSharePage({ shareId }) {
                )}
             </div>
 
-            {/* OCR Full Text Section - Re-stylized to be prominent */}
+            {/* OCR Full Text Section */}
             {item.ocr_text && (
                <div className="animate-in slide-in-from-bottom-8 duration-700 delay-300">
-                  <div className="px-10 mb-6 flex items-center gap-4">
-                     <div className="w-2 h-2 rounded-full bg-primeAccent/40"></div>
-                     <h4 className="text-[12px] text-textSecondary/50 uppercase tracking-[0.1m] font-mono">原始记录全貌 · FULL INTELLECT</h4>
+                  <div className="px-6 mb-4 flex items-center gap-3">
+                     <div className="w-1.5 h-1.5 rounded-full bg-primeAccent/40"></div>
+                     <h4 className="text-[11px] text-textSecondary/50 uppercase tracking-[0.1em] font-mono">原始记录全貌 · FULL INTELLECT</h4>
                      <div className={`flex-1 h-px ${isLight ? 'bg-slate-200' : 'bg-white/5'}`}></div>
                   </div>
-                  <div className={`bg-card border rounded-[40px] p-8 lg:p-10 text-textPrimary/90 text-[16px] leading-9 font-normal selection:bg-primeAccent selection:text-white shadow-inner markdown-ocr ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
+                  <div className={`rounded-[28px] p-5 lg:p-6 text-textPrimary/90 text-[15px] leading-8 font-normal selection:bg-primeAccent selection:text-white markdown-ocr ${isLight ? 'bg-card border border-slate-200' : 'bg-card border border-white/10'}`}>
                      <MarkdownRenderer content={item.ocr_text} />
                   </div>
                </div>
             )}
          </main>
 
-         <footer className={`relative z-10 max-w-5xl mx-auto px-6 mt-12 pt-10 border-t text-center ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
-            <div className="opacity-20 hover:opacity-100 transition-opacity duration-500 cursor-default">
-               <div className="text-[10px] font-mono text-textSecondary/50 uppercase tracking-[0.4em] mb-4">Note All Intelligence Engine</div>
-               <div className="text-[9px] text-textSecondary/30 lowercase tracking-[0.1em]">private storage · curated knowledge · decentralized thoughts</div>
+         <footer className={`relative z-10 max-w-5xl mx-auto px-6 mt-8 pt-6 border-t text-center ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
+            <div className="opacity-20 hover:opacity-100 transition-opacity duration-500">
+               <a
+                  href="https://github.com/snowtraces/note_all"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] font-mono text-textSecondary/50 uppercase tracking-[0.4em] hover:text-primeAccent transition-colors"
+               >
+                  Note All Intelligence Engine
+               </a>
             </div>
          </footer>
       </div>

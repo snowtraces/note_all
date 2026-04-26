@@ -24,7 +24,7 @@ export function ThemeProvider({ children }) {
 
   const [mode, setModeState] = useState(() => {
     const saved = localStorage.getItem(MODE_KEY);
-    return saved || 'dark';
+    return saved || 'light';
   });
 
   // 应用主题到 DOM

@@ -54,18 +54,22 @@ export default function TableOfContents({ content, containerRef, onNavigate }) {
       });
     };
 
-    // Important: Re-query elements after headings state is updated
+    // Use viewport as root when no containerRef provided (page-level scrolling)
     const container = containerRef?.current;
-    if (!container) return;
-
-    observer.current = new IntersectionObserver(handleObserver, {
-      root: container,
-      rootMargin: '-10% 0% -80% 0%', // More sensitive to top of container
+    const observerOptions = {
+      rootMargin: '-10% 0% -80% 0%',
       threshold: 0
-    });
+    };
 
-    // Elements targeted specifically within the markdown-ocr container
-    const elements = container.querySelectorAll('.markdown-ocr h1, .markdown-ocr h2, .markdown-ocr h3');
+    if (container) {
+      observerOptions.root = container;
+    }
+
+    observer.current = new IntersectionObserver(handleObserver, observerOptions);
+
+    // Query elements from container or entire document
+    const queryRoot = container || document;
+    const elements = queryRoot.querySelectorAll('.markdown-ocr h1, .markdown-ocr h2, .markdown-ocr h3');
     elements.forEach((el) => observer.current.observe(el));
 
     return () => {
