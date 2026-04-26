@@ -7,8 +7,12 @@
 dist/
 /backend/data/
 /backend/storage/
+/backend/note_all_backend
 *.exe
 *.exe~
+
+# Deploy
+deploy_arm64.sh
 
 # Libraries
 /backend/libs/bge-small-zh-v1.5/

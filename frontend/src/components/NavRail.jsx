@@ -9,7 +9,8 @@ import {
   Trash2,
   Settings,
   BrainCircuit,
-  LogOut
+  LogOut,
+  Image as ImageIcon
 } from 'lucide-react';
 import { logout } from '../api/authApi';
 import { useTheme } from '../context/ThemeContext';
@@ -62,6 +63,17 @@ export default function NavRail({
       active: viewMode === 'graph' && !showTrash,
       onClick: () => {
         setViewMode('graph');
+        setShowTrash(false);
+        setSelectedItem(null);
+      }
+    },
+    {
+      id: 'image_gen',
+      icon: <ImageIcon size={22} />,
+      label: '图片生成',
+      active: viewMode === 'image_gen' && !showTrash,
+      onClick: () => {
+        setViewMode('image_gen');
         setShowTrash(false);
         setSelectedItem(null);
       }

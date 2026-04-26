@@ -34,6 +34,8 @@ type AppConfig struct {
 	PaddleToken      string `json:"paddle_token"`
 	SysPassword      string `json:"sys_password"` // 访问系统所需密码
 	JwtSecret        string `json:"jwt_secret"`   // JWT 加密密钥
+	ImageApiUrl      string `json:"image_api_url"`
+	ImageApiToken    string `json:"image_api_token"`
 
 	// 分片配置
 	ChunkMaxSize    int `json:"chunk_max_size"`    // 单片最大字符数，默认 500

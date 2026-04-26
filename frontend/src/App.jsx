@@ -17,6 +17,7 @@ import NavRail from './components/NavRail';
 import LoginOverlay from './components/LoginOverlay';
 import PublicSharePage from './components/PublicSharePage';
 import WeixinView from './components/WeixinView';
+import ImageGenView from './components/ImageGenView';
 import { checkAuth } from './api/authApi';
 
 function App() {
@@ -65,8 +66,13 @@ function App() {
     url: '/api/stream',
     enabled: isLoggedIn && !showTrash && !window.location.pathname.startsWith('/s/'),
     onMessage: (data) => {
+      console.log("[SSE] Message received:", data);
       if (data === 'refresh') {
         executeSearch(query);
+      }
+      if (data === 'image_gen_refresh') {
+        console.log("[SSE] Triggering IMAGE_GEN_REFRESH");
+        window.dispatchEvent(new Event('IMAGE_GEN_REFRESH'));
       }
     },
   });
@@ -313,7 +319,7 @@ function App() {
       <div className="flex-1 flex flex-row relative overflow-hidden">
         {/* Sidebar */}
         <div className={`w-full md:w-[380px] xl:w-[420px] flex-shrink-0 flex-col border-r border-borderSubtle bg-modal relative z-50 transition-all ${
-          (selectedItem || viewMode === 'graph' || viewMode === 'weixin' || viewMode === 'lab' || (viewMode === 'chats' && chatHistory.length > 0)) ? 'hidden md:flex' : 'flex'
+          (selectedItem || viewMode === 'image_gen' || viewMode === 'graph' || viewMode === 'weixin' || viewMode === 'lab' || (viewMode === 'chats' && chatHistory.length > 0)) ? 'hidden md:flex' : 'flex'
         }`}>
           <Sidebar
             viewMode={viewMode}
@@ -342,7 +348,7 @@ function App() {
 
         {/* 右侧面板 */}
         <div className={`flex-1 flex-col bg-base relative overflow-hidden ${
-          (selectedItem || viewMode === 'graph' || viewMode === 'weixin' || viewMode === 'lab' || (viewMode === 'chats' && chatHistory.length > 0)) ? 'flex w-full absolute inset-0 md:relative md:inset-auto z-50' : 'hidden md:flex'
+          (selectedItem || viewMode === 'image_gen' || viewMode === 'graph' || viewMode === 'weixin' || viewMode === 'lab' || (viewMode === 'chats' && chatHistory.length > 0)) ? 'flex w-full absolute inset-0 md:relative md:inset-auto z-50' : 'hidden md:flex'
         }`}>
           {selectedItem && (
             <div className="absolute inset-0 z-50 bg-base flex flex-col">
@@ -396,7 +402,15 @@ function App() {
              />
           </div>
 
-          {!selectedItem && viewMode !== 'graph' && (
+          {/* Image Generation Layer */}
+          <div className={`absolute inset-0 transition-opacity duration-300 ${viewMode === 'image_gen' && !selectedItem ? 'z-40 opacity-100 pointer-events-auto flex flex-col' : '-z-10 opacity-0 pointer-events-none'}`}>
+             <ImageGenView 
+                active={viewMode === 'image_gen' && !selectedItem}
+                onClose={() => setViewMode('notes')}
+             />
+          </div>
+
+          {!selectedItem && viewMode !== 'graph' && viewMode !== 'image_gen' && (
             chatHistory.length > 0 && viewMode === 'chats' ? (
               <div className={`w-full h-full flex flex-col ${isLight ? 'bg-slate-100' : 'bg-sidebar'}`}>
                 {/* 顶栏 */}

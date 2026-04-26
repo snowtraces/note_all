@@ -122,6 +122,12 @@ func SetupRouter() *gin.Engine {
 		// 9.2 图片上传（独立接口，用于图片本地化）
 		apiGroup.POST("/image/upload", noteApi.UploadImage)
 
+		// 9.3 独立模块：生图
+		imageGenApi := new(api.ImageGenerationApi)
+		apiGroup.POST("/image_gen/create", imageGenApi.Generate)
+		apiGroup.GET("/image_gen/history", imageGenApi.List)
+		apiGroup.POST("/image_gen/:id/archive", imageGenApi.ToggleArchive)
+
 		// 9.5 知识图谱数据
 		apiGroup.GET("/graph", noteApi.GetGraph)
 

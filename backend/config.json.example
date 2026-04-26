@@ -9,6 +9,8 @@
   "paddle_token": "your_paddle_token_here",
   "sys_password": "your_admin_password_here",
   "jwt_secret": "your_jwt_secret_here",
+  "image_api_url": "https://api.dragoncode.codes/v1/images/generations",
+  "image_api_token": "your_dragoncode_token_here",
   "chunk_max_size": 500,
   "chunk_min_size": 100,
   "chunk_overlap": 50,

@@ -20,6 +20,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { deleteChatSession, getChatSessions, getTags } from '../api/noteApi';
 import { checkWeixinStatus, getWeixinBot, getWeixinQRCode, logoutWeixinBot, toggleWeixinBot } from '../api/weixinApi';
+import { generateImage } from '../api/imageGenApi';
 import { useTheme } from '../context/ThemeContext';
 
 export default function Sidebar({
@@ -176,9 +177,9 @@ export default function Sidebar({
 
         <div className="flex justify-between items-center mb-4 md:mb-6 h-auto md:h-11">
           <h1 className={`text-xl md:text-2xl font-extrabold tracking-tight transition-colors leading-none ${showTrash ? 'text-red-500/80 shadow-[0_0_20px_rgba(239,68,68,0.1)]' : 'text-textPrimary'}`}>
-            {showTrash ? 'Trash ' : (viewMode === 'chats' ? 'Chat ' : viewMode === 'graph' ? 'Graph ' : viewMode === 'lab' ? 'Lab ' : 'Note ')}
+            {showTrash ? 'Trash ' : (viewMode === 'chats' ? 'Chat ' : viewMode === 'graph' ? 'Graph ' : viewMode === 'lab' ? 'Lab ' : viewMode === 'image_gen' ? 'Image ' : 'Note ')}
             <span className={showTrash ? 'text-red-400' : 'text-primeAccent'}>
-              {showTrash ? 'Bin' : (viewMode === 'chats' ? 'History' : viewMode === 'graph' ? 'Matrix' : viewMode === 'lab' ? 'Space' : 'All')}
+              {showTrash ? 'Bin' : (viewMode === 'chats' ? 'History' : viewMode === 'graph' ? 'Matrix' : viewMode === 'lab' ? 'Space' : viewMode === 'image_gen' ? 'Studio' : 'All')}
             </span>
           </h1>
           
@@ -442,6 +443,8 @@ export default function Sidebar({
                  </ul>
               </div>
            </div>
+        ) : viewMode === 'image_gen' ? (
+           <ImageGenSidebarItem />
         ) : null}
       </div>
 
@@ -715,3 +718,116 @@ function WeixinBotSidebarItem() {
 
   return null;
 }
+
+function ImageGenSidebarItem() {
+  const { mode } = useTheme();
+  const isLight = mode === 'light';
+  
+  const [prompt, setPrompt] = useState('');
+  const [model, setModel] = useState('gpt-image-2');
+  const [quantity, setQuantity] = useState(1);
+  const [ratio, setRatio] = useState('auto');
+  const [resolution, setResolution] = useState('2k');
+  const [generating, setGenerating] = useState(false);
+
+  useEffect(() => {
+    if (resolution === '4k') {
+      const valid4kRatios = ['16:9', '9:16', '2:1', '1:2', '21:9', '9:21'];
+      if (!valid4kRatios.includes(ratio)) {
+        setRatio('16:9');
+      }
+    }
+  }, [resolution, ratio]);
+
+  const handleGenerate = async () => {
+    if (!prompt.trim() || generating) return;
+    setGenerating(true);
+    window.dispatchEvent(new Event('IMAGE_GEN_START'));
+    try {
+      await generateImage(prompt.trim(), model, quantity, ratio, resolution);
+      setPrompt('');
+      window.dispatchEvent(new Event('IMAGE_GEN_REFRESH'));
+    } catch (e) {
+      alert("生图失败: " + e.message);
+      window.dispatchEvent(new Event('IMAGE_GEN_END'));
+    }
+    setGenerating(false);
+  };
+
+  return (
+    <div className="w-full h-full flex flex-col gap-5 animate-in fade-in slide-in-from-left-4 duration-500 pb-6 px-1">
+      <div className="flex flex-col gap-2">
+        <label className={`text-[10px] uppercase tracking-wider font-bold ${isLight ? 'text-slate-500' : 'text-white/40'}`}>引擎 MODEL</label>
+        <select
+          value={model}
+          onChange={e => setModel(e.target.value)}
+          className={`w-full p-2.5 rounded-xl border text-xs appearance-none outline-none transition-all ${isLight ? 'bg-slate-50 border-slate-200 focus:border-primeAccent' : 'bg-sidebar border-borderSubtle focus:border-primeAccent/50'}`}
+        >
+          <option value="gpt-image-2">GPT Image 2</option>
+          <option value="flux">Flux AI</option>
+          <option value="dall-e-3">DALL-E 3</option>
+        </select>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <div className="flex flex-col gap-1.5 flex-1">
+          <label className={`text-[10px] uppercase tracking-wider font-bold ${isLight ? 'text-slate-500' : 'text-white/40'}`}>数量</label>
+          <select value={quantity} onChange={e => setQuantity(Number(e.target.value))} className={`p-2 text-xs rounded-lg border outline-none ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-sidebar border-borderSubtle'}`}>
+            <option value={1}>1 张</option>
+            <option value={2}>2 张</option>
+            <option value={3}>3 张</option>
+            <option value={4}>4 张</option>
+          </select>
+        </div>
+        <div className="flex flex-col gap-1.5 flex-1">
+          <label className={`text-[10px] uppercase tracking-wider font-bold ${isLight ? 'text-slate-500' : 'text-white/40'}`}>档位</label>
+          <select value={resolution} onChange={e => setResolution(e.target.value)} className={`p-2 text-xs rounded-lg border outline-none ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-sidebar border-borderSubtle'}`}>
+            <option value="1k">1K 标准</option>
+            <option value="2k">2K 推荐</option>
+            <option value="4k">4K 极致</option>
+          </select>
+        </div>
+        <div className="flex flex-col gap-1.5 flex-1">
+          <label className={`text-[10px] uppercase tracking-wider font-bold ${isLight ? 'text-slate-500' : 'text-white/40'}`}>比例</label>
+          <select value={ratio} onChange={e => setRatio(e.target.value)} className={`p-2 text-xs rounded-lg border outline-none ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-sidebar border-borderSubtle'}`}>
+            {resolution !== '4k' && <option value="auto">Auto</option>}
+            {resolution !== '4k' && <option value="1:1">1:1</option>}
+            {resolution !== '4k' && <option value="3:2">3:2</option>}
+            {resolution !== '4k' && <option value="4:3">4:3</option>}
+            <option value="16:9">16:9</option>
+            <option value="9:16">9:16</option>
+            <option value="2:1">2:1</option>
+            <option value="1:2">1:2</option>
+            <option value="21:9">21:9</option>
+            <option value="9:21">9:21</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2 flex-1 relative">
+        <label className={`text-[10px] uppercase tracking-wider font-bold ${isLight ? 'text-slate-500' : 'text-white/40'}`}>描述 PROMPT</label>
+        <div className={`flex-1 relative rounded-xl border transition-all flex flex-col min-h-[300px] max-h-[600px] ${isLight ? 'bg-slate-50 border-slate-200 focus-within:border-primeAccent focus-within:bg-white shadow-sm' : 'bg-sidebar border-borderSubtle focus-within:border-primeAccent/50 focus-within:bg-modal'}`}>
+           <textarea
+             value={prompt}
+             onChange={e => setPrompt(e.target.value)}
+             placeholder="你想生成的画面..."
+             rows={6}
+             className="w-full flex-1 p-4 bg-transparent outline-none resize-none custom-scrollbar text-[13px] leading-relaxed"
+           />
+           <div className={`p-3 border-t flex justify-between items-center shrink-0 ${isLight ? 'border-slate-200' : 'border-borderSubtle'}`}>
+             <span className="text-[10px] text-silverText/40 uppercase font-mono tracking-widest pl-1">Image<br/>Gen</span>
+             <button
+               onClick={handleGenerate}
+               disabled={generating || !prompt.trim()}
+               className={`px-4 py-1.5 rounded-lg flex items-center gap-2 text-xs font-bold transition-all ${generating || !prompt.trim() ? 'opacity-50 cursor-not-allowed bg-black/10 text-silverText border border-borderSubtle' : 'bg-primeAccent text-black hover:bg-yellow-400 hover:shadow-[0_0_15px_rgba(255,215,0,0.4)]'}`}
+             >
+               {generating ? <RefreshCcw size={14} className="animate-spin" /> : <Zap size={14} />}
+               {generating ? '渲染中...' : '生成'}
+             </button>
+           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
