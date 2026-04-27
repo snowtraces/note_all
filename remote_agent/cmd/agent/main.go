@@ -7,7 +7,6 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"remote_agent/internal/agent"
 	"syscall"
 
@@ -20,7 +19,7 @@ func main() {
 	relay := flag.String("relay", "localhost:3366", "Relay server address")
 	sid := flag.String("sid", "demo-session-001", "Session ID")
 	key := flag.String("key", "happy-note-all-123", "Access Key")
-	cmd := flag.String("cmd", "claude.exe", "Agent command to run")
+	cmd := flag.String("cmd", "claude", "Agent command to run")
 	flag.Parse()
 
 	log.Printf("Initializing Remote Agent in [ %s ] mode...", *mode)
@@ -35,14 +34,7 @@ func main() {
 		}
 		accessURL = fmt.Sprintf("http://%s/index.html?sid=%s&key=%s", *relay, *sid, *key)
 	} else {
-		ex, _ := os.Executable()
-		exPath := filepath.Dir(ex)
-		webDir := filepath.Join(exPath, "web")
-		if _, err := os.Stat(webDir); os.IsNotExist(err) {
-			webDir = "web"
-		}
-
-		if err := svc.StartDirectServer(*key, *port, *sid, webDir); err != nil {
+		if err := svc.StartDirectServer(*key, *port, *sid); err != nil {
 			log.Fatalf("Direct server failed: %v", err)
 		}
 
@@ -53,7 +45,7 @@ func main() {
 	// 打印精简版二维码
 	fmt.Println("\n--------------------------------------------------")
 	fmt.Printf("📱 扫码直接连接 (请确保手机与电脑在同一 Wi-Fi):\n")
-	
+
 	qrConfig := qrterminal.Config{
 		Level:     qrterminal.L,
 		Writer:    os.Stdout,
@@ -62,7 +54,7 @@ func main() {
 		QuietZone: 1,
 	}
 	qrterminal.GenerateHalfBlock(accessURL, qrConfig.Level, os.Stdout)
-	
+
 	fmt.Printf("\n🔗 访问链接: %s\n", accessURL)
 	fmt.Println("--------------------------------------------------\n")
 

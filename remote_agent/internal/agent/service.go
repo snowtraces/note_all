@@ -2,6 +2,7 @@ package agent
 
 import (
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"remote_agent/internal/crypto"
@@ -44,7 +45,7 @@ func (s *AgentService) StartRelaySession(passphrase, relayAddr, sessionID string
 }
 
 // StartDirectServer 模式：启动本地服务器供直接连接
-func (s *AgentService) StartDirectServer(passphrase, port, sessionID string, webDir string) error {
+func (s *AgentService) StartDirectServer(passphrase, port, sessionID string) error {
 	if s.SyncClient != nil {
 		s.SyncClient.Close()
 	}
@@ -68,11 +69,14 @@ func (s *AgentService) StartDirectServer(passphrase, port, sessionID string, web
 		fmt.Fprintf(w, `{"sid":"%s", "key":"%s", "mode":"direct"}`, sessionID, passphrase)
 	})
 
-	// 静态资源接口 (内置前端)
-	if webDir != "" {
-		mux.Handle("/", http.FileServer(http.Dir(webDir)))
-		log.Printf("Serving built-in Web UI from: %s", webDir)
+	// 静态资源接口 (嵌入的前端)
+	// 从 webFS 中提取 web 子目录作为 HTTP 文件系统
+	webSub, err := fs.Sub(webFS, "web")
+	if err != nil {
+		return fmt.Errorf("failed to extract embedded web assets: %w", err)
 	}
+	mux.Handle("/", http.FileServer(http.FS(webSub)))
+	log.Printf("Serving embedded Web UI")
 
 	serverAddr := ":" + port
 	log.Printf("--------------------------------------------------")

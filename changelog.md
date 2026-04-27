@@ -1,6 +1,10 @@
 # Changelog
 
 ## [Unreleased]
+- **Remote Agent 单文件分发优化 (Embed Static Assets)**:
+  - 将前端静态资源（Web UI）打包嵌入 `remote_agent.exe` 内部，实现单文件分发。
+  - 使用 Go 1.16+ `embed.FS` 功能，无需外部 `web/` 目录依赖。
+  - 简化部署流程，用户仅需携带 exe 即可运行远程控制服务。
 - **远程控制与中继系统开发 (Remote Agent & Relay System)**:
   - **全链路加密驱动**: 实现基于 AES-GCM 的端到端加密（E2EE）远程控制协议，通过 `internal/crypto` 确保控制端与代理端通信隐私。
   - **双模式连接架构**: 支持直连模式（Direct）与跨内网的中继模式（Relay），通过 WebSocket 建立稳定的实时指令通道。
