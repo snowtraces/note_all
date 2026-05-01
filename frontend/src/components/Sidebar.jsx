@@ -259,7 +259,7 @@ export default function Sidebar({
                   key={item.id}
                   onClick={() => setSelectedItem(item)}
                   className={`p-4 rounded-xl transition-all duration-300 flex flex-col min-w-0 border-l-[3px] cursor-pointer ${isSelected
-                    ? 'bg-primeAccent/10 border-l-primeAccent/60'
+                    ? 'bg-primeAccent/10 border-l-primeAccent/60 border border-transparent'
                     : 'bg-card/40 border-l-transparent hover:bg-card hover:border-l-primeAccent/30 border border-white/10 text-textSecondary'
                     } group`}
                 >
