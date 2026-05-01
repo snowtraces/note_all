@@ -1,7 +1,7 @@
-(function() {
+(function () {
   console.log('Note All: Content script loaded and initializing...');
   window.__NOTE_ALL_LOADED__ = true;
-  
+
   let isShiftDown = false;
   let currentHighlightedElement = null;
   let overlay = null;
@@ -14,8 +14,8 @@
   container.style.top = '0';
   container.style.left = '0';
   container.style.zIndex = '2147483647';
-  
-  const shadowRoot = container.attachShadow({mode: 'open'});
+
+  const shadowRoot = container.attachShadow({ mode: 'open' });
 
   // Add styles
   const style = document.createElement('style');
@@ -111,7 +111,7 @@
     // Get element at mouse position
     const elements = document.elementsFromPoint(e.clientX, e.clientY);
     let element = null;
-    
+
     // Find the first element that is not our container
     for (const el of elements) {
       if (el !== container && !container.contains(el)) {
@@ -122,7 +122,7 @@
 
     if (element && element !== currentHighlightedElement) {
       if (element === document.body || element === document.documentElement) return;
-      
+
       console.log('Note All: Hovering element', element);
       currentHighlightedElement = element;
       updateUI(element);
@@ -131,7 +131,7 @@
 
   function updateUI(element) {
     const rect = element.getBoundingClientRect();
-    
+
     overlay.style.top = `${rect.top}px`;
     overlay.style.left = `${rect.left}px`;
     overlay.style.width = `${rect.width}px`;
@@ -220,13 +220,36 @@
       }
     });
 
-    // 5. 强制将所有 <pre> 转换为 fenced 代码块（解决有些 pre 块没用 ``` 包裹的问题）
+    // 5. 处理所有 <pre>：最外层包裹成代码块，嵌套的只返回内容（跳过 Turndown 默认处理）
+    //    尝试提取第一行短文本作为语言标识（如 "Bash", "Python" 等）
     turndownService.addRule('fencedCodeBlock', {
       filter: 'pre',
-      replacement: function (content) {
-        // 如果已经是代码块格式了，就不要重复包装
-        if (content.trim().startsWith('```')) return '\n\n' + content.trim() + '\n\n';
-        return '\n\n```\n' + content.trim() + '\n```\n\n';
+      replacement: function (content, node) {
+        // 检查是否有 pre 祖先（嵌套情况）
+        let parent = node.parentNode;
+        while (parent) {
+          if (parent.nodeName === 'PRE') {
+            // 嵌套的 pre，只返回内容，不包裹
+            return content.trim() + '\n';
+          }
+          parent = parent.parentNode;
+        }
+        // 最外层 pre，处理语言标识并包裹成代码块
+        content = content.trim();
+        if (content.startsWith('```')) return '\n\n' + content + '\n\n';
+
+        // 尝试提取第一行作为语言标识（常见语言名列表）
+        const lines = content.split('\n');
+        const firstLine = lines[0].trim();
+        const commonLanguages = ['bash', 'python', 'javascript', 'js', 'typescript', 'ts', 'java', 'c', 'cpp', 'go', 'rust', 'ruby', 'php', 'swift', 'kotlin', 'sql', 'html', 'css', 'json', 'yaml', 'xml', 'markdown', 'shell', 'powershell', 'cmd', 'dockerfile', 'toml', 'ini', 'sh', 'zsh', 'bat'];
+
+        if (commonLanguages.includes(firstLine.toLowerCase())) {
+          // 第一行是语言标识，移除它并用作代码块标记
+          const restContent = lines.slice(1).join('\n').trim();
+          return '\n\n```' + firstLine + '\n' + restContent + '\n```\n\n';
+        }
+
+        return '\n\n```\n' + content + '\n```\n\n';
       }
     });
 
@@ -234,12 +257,12 @@
     // 这种方法可以绕过 Turndown 内部对文本节点空白符的强制压缩
     const BR_MARKER = '---NOTEBR---';
     const clone = element.cloneNode(true);
-    
+
     const processPreWrap = (orig, cln) => {
       if (orig.nodeType === 1) { // Element
         const style = window.getComputedStyle(orig);
         const isPre = style && (style.whiteSpace.includes('pre') || style.whiteSpace.includes('break-spaces'));
-        
+
         let clnIndex = 0;
         for (let i = 0; i < orig.childNodes.length; i++) {
           const oChild = orig.childNodes[i];
@@ -256,32 +279,32 @@
             const cStyle = window.getComputedStyle(oChild);
             let isInline = false;
             let isFlexRowChild = false;
-            
+
             if (cStyle) {
               const display = cStyle.display;
               if (display === 'inline' || display === 'inline-block' || display === 'inline-flex') {
                 isInline = true;
-              } 
+              }
               if (style && (style.display === 'flex' || style.display === 'inline-flex') && style.flexDirection.includes('row')) {
                 isInline = true;
                 isFlexRowChild = true;
               }
             }
-            
+
             // 将 block 元素伪装成 span，让 Turndown 认为它是内联元素
             if (isInline) {
               const blockTags = ['DIV', 'P', 'LI', 'ARTICLE', 'SECTION', 'ASIDE', 'NAV', 'HEADER', 'FOOTER'];
               if (blockTags.includes(cChild.nodeName)) {
                 const span = document.createElement('span');
                 Array.from(cChild.attributes).forEach(attr => span.setAttribute(attr.name, attr.value));
-                while(cChild.firstChild) span.appendChild(cChild.firstChild);
+                while (cChild.firstChild) span.appendChild(cChild.firstChild);
                 cChild.parentNode.replaceChild(span, cChild);
                 nextCChild = span;
               }
             }
-            
+
             processPreWrap(oChild, nextCChild);
-            
+
             // 为 flex row 子元素之间增加一个空格，防止文本挤在一起
             if (isFlexRowChild && i < orig.childNodes.length - 1) {
               nextCChild.parentNode.insertBefore(document.createTextNode(' '), nextCChild.nextSibling);
@@ -292,7 +315,7 @@
         }
       }
     };
-    
+
     // 执行标记预处理
     processPreWrap(element, clone);
 
@@ -386,7 +409,7 @@
           setTimeout(resetUI, 2000);
           return;
         }
-        
+
         if (response && response.status === 'success') {
           // Success Feedback
           sendButton.classList.add('success');
@@ -399,7 +422,7 @@
         } else {
           sendButton.innerHTML = `<span>Failed!</span>`;
         }
-        
+
         setTimeout(() => {
           resetUI();
         }, 1500);
@@ -418,13 +441,13 @@
     // If we click on something that isn't the send button or the container, reset
     // We use composedPath() to check if the click target is inside our shadow DOM
     const isInsideClick = e.composedPath().includes(container);
-    
+
     if (!isInsideClick && e.target !== currentHighlightedElement) {
-       // Only reset if we are NOT in shift-mode
-       if (!isShiftDown) {
-           console.log('Note All: Resetting UI due to outside click');
-           resetUI();
-       }
+      // Only reset if we are NOT in shift-mode
+      if (!isShiftDown) {
+        console.log('Note All: Resetting UI due to outside click');
+        resetUI();
+      }
     }
   });
 
@@ -435,10 +458,10 @@
   });
 
   function resetUI() {
-      overlay.style.display = 'none';
-      sendButton.style.display = 'none';
-      sendButton.classList.remove('success');
-      sendButton.innerHTML = buttonContent;
-      currentHighlightedElement = null;
+    overlay.style.display = 'none';
+    sendButton.style.display = 'none';
+    sendButton.classList.remove('success');
+    sendButton.innerHTML = buttonContent;
+    currentHighlightedElement = null;
   }
 })();
