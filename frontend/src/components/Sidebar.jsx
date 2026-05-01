@@ -18,6 +18,7 @@ import {
   Zap
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { deleteChatSession, getChatSessions, getTags } from '../api/noteApi';
 import { checkWeixinStatus, getWeixinBot, getWeixinQRCode, logoutWeixinBot, toggleWeixinBot } from '../api/weixinApi';
 import { generateImage } from '../api/imageGenApi';
@@ -56,6 +57,7 @@ export default function Sidebar({
   const fileInputRef = useRef(null);
   const dropdownRef = useRef(null);
   const textareaRef = useRef(null);
+  const sidebarRef = useRef(null);
 
   // 文本录入状态
   const [showTextInput, setShowTextInput] = useState(false);
@@ -64,7 +66,7 @@ export default function Sidebar({
 
   // 实验室视图卡片悬浮状态
   const [hoveredNote, setHoveredNote] = useState(null);
-  const [hoveredPos, setHoveredPos] = useState(0);
+  const [hoveredPos, setHoveredPos] = useState({ top: 0, sidebarRight: 0 });
 
   // 标签联想状态
   const [allTags, setAllTags] = useState([]);
@@ -167,7 +169,8 @@ export default function Sidebar({
   };
 
   return (
-    <div 
+    <div
+      ref={sidebarRef}
       className="w-full md:w-[380px] xl:w-[420px] h-full flex-shrink-0 flex flex-col bg-transparent relative z-50 transition-all"
       onMouseLeave={() => setHoveredNote(null)}
     >
@@ -387,8 +390,12 @@ export default function Sidebar({
                       className="p-4 rounded-xl bg-sidebar border border-borderSubtle relative group cursor-help transition-all duration-300 hover:bg-card"
                       onMouseEnter={(e) => {
                         setHoveredNote(note);
-                        // Use bounding rect to get absolute screen coordinates
-                        setHoveredPos(e.currentTarget.getBoundingClientRect().top);
+                        const cardRect = e.currentTarget.getBoundingClientRect();
+                        const sidebarRect = sidebarRef.current?.getBoundingClientRect();
+                        setHoveredPos({
+                          top: cardRect.top,
+                          sidebarRight: sidebarRect?.right ?? cardRect.right
+                        });
                       }}
                     >
                       <button
@@ -448,11 +455,15 @@ export default function Sidebar({
         ) : null}
       </div>
 
-      {/* Floating Portal-like Bubble for Lab Mode */}
-      {viewMode === 'lab' && hoveredNote && (
+      {/* Floating Portal-like Bubble for Lab Mode - rendered via Portal to escape overflow-hidden */}
+      {viewMode === 'lab' && hoveredNote && createPortal(
         <div
-          className="absolute left-full w-[416px] pl-4 z-[100] transition-all duration-200"
-          style={{ top: `${Math.max(0, hoveredPos)}px` }}
+          className="fixed z-[100] transition-all duration-200"
+          style={{
+            left: `${hoveredPos.sidebarRight + 16}px`,
+            top: `${Math.max(16, hoveredPos.top)}px`,
+            width: '420px'
+          }}
         >
           <div className={`bg-card backdrop-blur-xl p-5 rounded-2xl border shadow-[0_20px_50px_rgba(0,0,0,0.8)] flex flex-col max-h-[500px] relative animate-in fade-in zoom-in duration-200 ${isLight ? 'border-slate-200' : 'border-borderSubtle'}`}>
             {/* Triangle Pointer */}
@@ -467,7 +478,8 @@ export default function Sidebar({
               {hoveredNote.ocr_text || "NO CONTENT AVAILABLE"}
             </pre>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {!showTrash && viewMode === 'notes' && (
