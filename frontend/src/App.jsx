@@ -5,6 +5,8 @@ import { BookOpen } from 'lucide-react';
 import { getTrash, searchNotes, deleteNote, restoreNote, uploadNote, createTextNote, updateNoteText, updateNoteStatus, askAI, getChatMessages, batchArchiveNotes } from './api/noteApi';
 import { useSSE } from './hooks/useSSE';
 import { useTheme } from './context/ThemeContext';
+import { ToastProvider, useToast } from './context/ToastContext';
+import { getSSEEventConfig, DEFAULT_TOAST_CONFIG } from './constants/sseEvents';
 import Sidebar from './components/Sidebar';
 import Detail from './components/Detail';
 import EmptyState from './components/EmptyState';
@@ -18,9 +20,11 @@ import LoginOverlay from './components/LoginOverlay';
 import PublicSharePage from './components/PublicSharePage';
 import WeixinView from './components/WeixinView';
 import ImageGenView from './components/ImageGenView';
+import ToastContainer from './components/ToastContainer';
 import { checkAuth } from './api/authApi';
 
-function App() {
+// 内层组件，在 ToastProvider 内部使用 useToast
+function AppContent() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -32,6 +36,7 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const { mode } = useTheme();
+  const { showToast } = useToast();
   const isLight = mode === 'light';
   
   // Persist graph data to avoid re-fetching
@@ -61,18 +66,29 @@ function App() {
     initAuth();
   }, []);
 
-  // SSE 实时推送：收到 refresh 事件时刷新列表
+  // SSE 实时推送：根据事件类型执行相应动作并显示 toast
   useSSE({
     url: '/api/stream',
     enabled: isLoggedIn && !showTrash && !window.location.pathname.startsWith('/s/'),
     onMessage: (data) => {
       console.log("[SSE] Message received:", data);
-      if (data === 'refresh') {
-        executeSearch(query);
-      }
-      if (data === 'image_gen_refresh') {
-        console.log("[SSE] Triggering IMAGE_GEN_REFRESH");
-        window.dispatchEvent(new Event('IMAGE_GEN_REFRESH'));
+
+      const eventConfig = getSSEEventConfig(data);
+
+      if (eventConfig) {
+        // 已定义的事件：执行动作 + 显示 toast
+        if (eventConfig.action === 'refresh_list') {
+          executeSearch(query);
+        } else if (eventConfig.action === 'image_gen_refresh') {
+          window.dispatchEvent(new Event('IMAGE_GEN_REFRESH'));
+        }
+        showToast(eventConfig.message, {
+          duration: eventConfig.duration,
+          type: eventConfig.type,
+        });
+      } else {
+        // 未定义的普通消息：显示消息内容
+        showToast(data, DEFAULT_TOAST_CONFIG);
       }
     },
   });
@@ -537,7 +553,17 @@ function App() {
       </div>
       <Lightbox src={previewImage} onClose={() => setPreviewImage(null)} />
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      <ToastContainer />
     </div>
+  );
+}
+
+// 外层 App 组件，提供 ToastProvider
+function App() {
+  return (
+    <ToastProvider>
+      <AppContent />
+    </ToastProvider>
   );
 }
 
