@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { BrainCircuit, Sparkles, RefreshCw, BookOpen, Network, Settings, FlaskConical, ListChecks, Inbox, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BrainCircuit, Sparkles, RefreshCw, FlaskConical, Inbox, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getSerendipity } from '../api/noteApi';
 import MarkdownRenderer from './MarkdownRenderer';
 import { useTheme } from '../context/ThemeContext';
 
-export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipityData, setSerendipityData, setViewMode, setShowSettings, labBasket, toggleLabItem }) {
+export default function EmptyState({ onAsk, onItemClick, serendipityData, setSerendipityData, labBasket, toggleLabItem }) {
   const { mode } = useTheme();
   const isLight = mode === 'light';
   const [askInput, setAskInput] = useState('');
@@ -67,7 +67,7 @@ export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipity
               className="flex-1 bg-transparent border-none outline-none text-[15px] text-textPrimary placeholder-textSecondary/40 tracking-wide"
             />
             {askInput.trim() && (
-              <button 
+              <button
                 onClick={() => {
                   if (onAsk) onAsk(askInput.trim());
                   setAskInput('');
@@ -83,20 +83,23 @@ export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipity
         {/* 灵感碰撞区域 (Phase 3) */}
         {serendipity && (
           <div className="w-full mb-8 animate-in fade-in slide-in-from-bottom-4 duration-1200 cursor-default">
-            
-            <div className="border border-borderSubtle rounded-2xl relative overflow-hidden group">
-              <div className="bg-card rounded-[15px] p-5 md:p-6 relative z-10 flex flex-col gap-4">
-                
+
+            <div className="bg-gradient-to-br from-borderSubtle to-transparent border border-borderSubtle rounded-2xl p-px relative overflow-hidden group shadow-xl">
+              {/* 边缘细微的高亮线条效果 */}
+              <div className="absolute inset-x-0 -top-px h-px w-full bg-gradient-to-r from-transparent via-primeAccent/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+
+              <div className="bg-card backdrop-blur-xl rounded-[15px] p-5 md:p-6 relative z-10 flex flex-col gap-4">
+
                 {/* 装饰水印 */}
                 <div className={`absolute top-6 right-6 p-4 opacity-[0.05] sm:opacity-[0.08] -rotate-12 group-hover:rotate-0 transition-transform duration-700 pointer-events-none ${isLight ? 'text-slate-400' : 'text-white'}`}>
                   <Inbox size={110} />
                 </div>
 
                 {/* 顶部：标题与操作栏 (更紧凑) */}
-                <div className={`flex items-center justify-between px-8 py-4 border-b backdrop-blur z-20 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-card/90'}`}>
+                <div className={`flex items-center justify-between px-8 py-4 border-b z-20 `}>
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-primeAccent/10 flex items-center justify-center border border-primeAccent/20">
-                       <Inbox size={14} className="text-primeAccent" />
+                      <Inbox size={14} className="text-primeAccent" />
                     </div>
                     <div>
                       <h3 className="text-[12px] font-mono text-textPrimary tracking-widest uppercase font-medium">待处理灵感</h3>
@@ -106,76 +109,75 @@ export default function EmptyState({ onAsk, onItemClick, onTagClick, serendipity
                   <div className="flex items-center gap-3">
                     {/* 分页控制器 (紧凑型) */}
                     {serendipityData?.total > 9 && (
-                        <div className={`flex items-center gap-2 px-2 py-1 rounded-lg border ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-white/[0.03] border-white/5'}`}>
-                            <button
-                              disabled={page <= 1 || serendipityLoading}
-                              onClick={() => fetchSerendipity(page - 1)}
-                              className={`p-1 rounded transition-colors ${isLight ? 'hover:bg-slate-200 disabled:opacity-20 text-slate-500' : 'hover:bg-white/5 disabled:opacity-20 text-silverText/60'}`}
-                            >
-                              <ChevronLeft size={14} />
-                            </button>
-                            <span className="text-[10px] font-mono text-textSecondary/60 min-w-[36px] text-center">
-                              {page} / {Math.ceil(serendipityData.total / 9)}
-                            </span>
-                            <button
-                              disabled={page >= Math.ceil(serendipityData.total / 9) || serendipityLoading}
-                              onClick={() => fetchSerendipity(page + 1)}
-                              className={`p-1 rounded transition-colors ${isLight ? 'hover:bg-slate-200 disabled:opacity-20 text-slate-500' : 'hover:bg-white/5 disabled:opacity-20 text-silverText/60'}`}
-                            >
-                              <ChevronRight size={14} />
-                            </button>
-                        </div>
+                      <div className={`flex items-center gap-2 px-2 py-1 rounded-lg border`}>
+                        <button
+                          disabled={page <= 1 || serendipityLoading}
+                          onClick={() => fetchSerendipity(page - 1)}
+                          className={`p-1 rounded transition-colors`}
+                        >
+                          <ChevronLeft size={14} />
+                        </button>
+                        <span className="text-[10px] font-mono text-textSecondary/60 min-w-[36px] text-center">
+                          {page} / {Math.ceil(serendipityData.total / 9)}
+                        </span>
+                        <button
+                          disabled={page >= Math.ceil(serendipityData.total / 9) || serendipityLoading}
+                          onClick={() => fetchSerendipity(page + 1)}
+                          className={`p-1 rounded transition-colors `}
+                        >
+                          <ChevronRight size={14} />
+                        </button>
+                      </div>
                     )}
                     <button
-                        onClick={() => fetchSerendipity(1)}
-                        disabled={serendipityLoading}
-                        className={`p-2 border rounded-lg flex items-center gap-2 text-[10px] font-mono transition-all shadow-sm ${isLight ? 'bg-slate-100 border-slate-200 hover:bg-primeAccent/10 hover:border-primeAccent/30 text-slate-600 hover:text-primeAccent' : 'bg-white/[0.03] border-white/10 hover:bg-primeAccent/10 hover:border-primeAccent/30 text-silverText/70 hover:text-primeAccent'}`}
-                        title="刷新列表"
+                      onClick={() => fetchSerendipity(1)}
+                      disabled={serendipityLoading}
+                      className={`p-2 border rounded-lg flex items-center gap-2 text-[10px] font-mono transition-all shadow-sm`}
+                      title="刷新列表"
                     >
-                        <RefreshCw size={12} className={`text-primeAccent/70 ${serendipityLoading ? 'animate-spin' : ''}`} />
+                      <RefreshCw size={12} className={`text-primeAccent/70 ${serendipityLoading ? 'animate-spin' : ''}`} />
                     </button>
-                   </div>
+                  </div>
                 </div>
-                  {/* 下方：平铺待参考列表 */}
-                  {serendipity.references && serendipity.references.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
-                      {serendipity.references.map(ref => (
-                        <div 
-                          key={ref.id}
-                          onClick={() => onItemClick?.(ref)}
-                          className={`flex flex-col gap-2 p-4 rounded-xl border transition-all cursor-pointer group/ref h-full min-h-[130px] relative shadow-sm ${isLight ? 'bg-slate-50 border-slate-200 hover:bg-white' : 'bg-card border-white/15 hover:border-white/30 hover:bg-panel'}`}
-                        >
-                          {/* 加入 Lab 按钮 */}
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); toggleLabItem(ref.id); }}
-                            className={`absolute top-3 right-3 p-1.5 rounded-lg border transition-all ${
-                                labBasket.includes(ref.id) 
-                                ? 'bg-primeAccent/20 border-primeAccent/40 text-primeAccent shadow-[0_0_10px_rgba(255,215,0,0.2)]' 
-                                : 'bg-sidebar border-borderSubtle text-textSecondary/30 hover:text-textPrimary hover:bg-card'
+                {/* 下方：平铺待参考列表 */}
+                {serendipity.references && serendipity.references.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
+                    {serendipity.references.map(ref => (
+                      <div
+                        key={ref.id}
+                        onClick={() => onItemClick?.(ref)}
+                        className="flex flex-col gap-2 p-4 rounded-xl bg-transparent border border-borderSubtle hover:border-primeAccent/50 hover:bg-primeAccent/5 transition-all cursor-pointer group/ref h-full min-h-[130px] relative"
+                      >
+                        {/* 加入 Lab 按钮 */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleLabItem(ref.id); }}
+                          className={`absolute top-3 right-3 p-1.5 rounded-lg border transition-all ${labBasket.includes(ref.id)
+                            ? 'bg-primeAccent/20 border-primeAccent/40 text-primeAccent shadow-[0_0_10px_rgba(255,215,0,0.2)]'
+                            : 'bg-sidebar border-borderSubtle text-textSecondary/30 hover:text-textPrimary hover:bg-card'
                             }`}
-                            title="加入实验室合成篮"
-                          >
-                            <FlaskConical size={12} />
-                          </button>
+                          title="加入实验室合成篮"
+                        >
+                          <FlaskConical size={12} />
+                        </button>
 
-                          <div className="flex items-center mb-1">
-                            <span className="text-[9px] text-textSecondary font-mono tracking-wider group-hover/ref:text-primeAccent/60 transition-colors bg-sidebar px-1.5 py-0.5 rounded leading-none border border-borderSubtle">
-                              {ref.created_at || ref.CreatedAt ? new Date(ref.created_at || ref.CreatedAt).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }) : '未知时间'}
-                            </span>
-                          </div>
-
-                          <div className="text-[12.5px] text-textSecondary/80 leading-relaxed line-clamp-2 group-hover/ref:text-textPrimary transition-colors flex-1 pr-6">
-                            {ref.ai_summary || ref.original_name}
-                          </div>
-
+                        <div className="flex items-center mb-1">
+                          <span className="text-[9px] text-textSecondary font-mono tracking-wider group-hover/ref:text-primeAccent/60 transition-colors bg-sidebar px-1.5 py-0.5 rounded leading-none border border-borderSubtle">
+                            {ref.created_at || ref.CreatedAt ? new Date(ref.created_at || ref.CreatedAt).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }) : '未知时间'}
+                          </span>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+
+                        <div className="text-[12.5px] text-textSecondary/80 leading-relaxed line-clamp-2 group-hover/ref:text-textPrimary transition-colors flex-1 pr-6">
+                          {ref.ai_summary || ref.original_name}
+                        </div>
+
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
-          )}
+          </div>
+        )}
 
 
       </div>

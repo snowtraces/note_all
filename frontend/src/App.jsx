@@ -533,17 +533,10 @@ function AppContent() {
               </div>
             ) : (
               <EmptyState
-                onTagClick={(tag) => {
-                  const q = `#${tag}`;
-                  setQuery(q);
-                  executeSearch(q);
-                }}
                 onAsk={executeAskAI}
                 onItemClick={setSelectedItem}
                 serendipityData={serendipityData}
                 setSerendipityData={setSerendipityData}
-                setViewMode={setViewMode}
-                setShowSettings={setShowSettings}
                 labBasket={labBasket}
                 toggleLabItem={toggleLabItem}
               />
