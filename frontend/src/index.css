@@ -501,6 +501,65 @@ select {
   margin-bottom: 0;
 }
 
+/* ============ 图片懒加载占位符与过渡效果 ============ */
+.lazy-image-wrapper {
+  display: inline-block;
+  position: relative;
+  max-width: 100%;
+}
+
+.lazy-image-placeholder {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-card);
+  border-radius: 8px;
+  animation: pulse-placeholder 2s ease-in-out infinite;
+}
+
+.lazy-image-wrapper img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  opacity: 0;
+  transition: opacity 0.4s ease-out;
+}
+
+.lazy-image-wrapper img.loaded {
+  opacity: 1;
+}
+
+.lazy-image-wrapper img.loading {
+  min-height: 200px;
+}
+
+.lazy-image-wrapper img.error {
+  opacity: 1;
+  min-height: 80px;
+  padding: 8px;
+  background: var(--bg-card);
+  border: 1px dashed var(--border-subtle);
+  border-radius: 8px;
+}
+
+.lazy-image-wrapper.error::after {
+  content: '加载失败';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 4px 8px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  font-size: 11px;
+  text-align: center;
+  border-radius: 0 0 8px 8px;
+}
+
+@keyframes pulse-placeholder {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.8; }
+}
+
 /* ============ Toast 动画 ============ */
 @keyframes toast-in {
   from {

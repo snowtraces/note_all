@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
@@ -6,6 +6,34 @@ import remarkBreaks from 'remark-breaks';
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import { getActiveServerUrl } from '../api/client';
+
+// 懒加载图片组件：原生 loading="lazy" + 占位符过渡效果
+const LazyImage = ({ src, alt, ...props }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const activeUrl = getActiveServerUrl();
+  const fullSrc = activeUrl && src?.startsWith('/') ? `${activeUrl}${src}` : src;
+
+  const wrapperClass = hasError ? 'error' : '';
+  const imgClass = hasError ? 'error' : isLoaded ? 'loaded' : 'loading';
+
+  return (
+    <span className={`lazy-image-wrapper ${wrapperClass}`}>
+      {!isLoaded && !hasError && (
+        <span className="lazy-image-placeholder" />
+      )}
+      <img
+        src={fullSrc}
+        alt={alt}
+        loading="lazy"
+        onLoad={() => setIsLoaded(true)}
+        onError={() => setHasError(true)}
+        className={imgClass}
+        {...props}
+      />
+    </span>
+  );
+};
 
 const MarkdownRenderer = React.memo(function MarkdownRenderer({ content, className = '' }) {
 
@@ -15,12 +43,7 @@ const MarkdownRenderer = React.memo(function MarkdownRenderer({ content, classNa
         remarkPlugins={[remarkGfm, remarkMath, remarkBreaks]}
         rehypePlugins={[rehypeRaw, rehypeKatex]}
         components={{
-          img: ({ src, ...props }) => {
-            const activeUrl = getActiveServerUrl();
-            // 相对路径（以 / 开头）需要拼接服务器地址
-            const fullSrc = activeUrl && src?.startsWith('/') ? `${activeUrl}${src}` : src;
-            return <img src={fullSrc} {...props} />;
-          },
+          img: ({ src, alt, ...props }) => <LazyImage src={src} alt={alt} {...props} />,
           code({node, className, children, ...props}) {
             const match = /language-(\w+)/.exec(className || '')
             const isBlock = match || String(children).includes('\n')
