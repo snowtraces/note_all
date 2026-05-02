@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink, Link, Zap, Share2, RefreshCw, CheckCircle2, XCircle, ClipboardEdit, Eye, ImageDown, List, ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
 import TableOfContents from './TableOfContents';
-import { getRelatedNotes, reprocessNote, uploadImage, getNote } from '../api/noteApi';
+import { getRelatedNotes, reprocessNote, uploadImage, uploadImageFromUrl, getNote } from '../api/noteApi';
 import { getTemplates } from '../api/templateApi';
 import ShareModal from './ShareModal';
 import { useTheme } from '../context/ThemeContext';
@@ -175,18 +175,17 @@ export default function Detail({
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0);
         const dataUrl = canvas.toDataURL(mimeType);
-        // 去掉 data:image/xxx;base64, 前缀
         const base64Data = dataUrl.split(',')[1];
         resolve({ data: base64Data, mimeType });
       };
-      img.onerror = (err) => {
+      img.onerror = () => {
         reject(new Error(`无法加载图片: ${url}`));
       };
       img.src = url;
     });
   };
 
-  // 执行图片本地化
+  // 执行图片本地化（自适应：浏览器获取失败则自动切换后端代理）
   const handleLocalizeImages = async () => {
     if (!externalImages.length || isLocalizing) return;
 
@@ -195,32 +194,42 @@ export default function Detail({
     setTotalImagesToLocalize(externalImages.length);
 
     let updatedText = editValue;
+    let useBackendProxy = false;
 
     for (let i = 0; i < externalImages.length; i++) {
       const { url: originalUrl, mimeType: originalMimeType } = externalImages[i];
       try {
-        // 1. 从浏览器获取已渲染的图片内容（使用推断的 MIME type）
-        const { data, mimeType } = await fetchImageAsBase64(originalUrl, originalMimeType);
+        let newUrl;
 
-        // 2. 上传到服务器
-        const { url } = await uploadImage(data, mimeType);
+        if (!useBackendProxy) {
+          try {
+            const { data, mimeType } = await fetchImageAsBase64(originalUrl, originalMimeType);
+            const result = await uploadImage(data, mimeType);
+            newUrl = result.url;
+          } catch (frontendErr) {
+            console.warn(`浏览器获取失败，切换后端代理: ${originalUrl}`, frontendErr);
+            useBackendProxy = true;
+            const result = await uploadImageFromUrl(originalUrl, originalMimeType);
+            newUrl = result.url;
+          }
+        } else {
+          const result = await uploadImageFromUrl(originalUrl, originalMimeType);
+          newUrl = result.url;
+        }
 
-        // 3. 替换原文中的 URL
-        // 处理 markdown 格式 ![alt](url)
+        // 替换原文中的 URL
         updatedText = updatedText.replace(
           new RegExp(`!\\[([^\\]]*)\\]\\(${originalUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`, 'g'),
-          `![$1](${url})`
+          `![$1](${newUrl})`
         );
-        // 处理 HTML 格式 <img src="url">
         updatedText = updatedText.replace(
           new RegExp(`<img([^>]*)src=["']${originalUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']([^>]*)>`, 'gi'),
-          `<img$1src="${url}"$2>`
+          `<img$1src="${newUrl}"$2>`
         );
 
         setLocalizingProgress(i + 1);
       } catch (err) {
         console.error(`图片本地化失败: ${originalUrl}`, err);
-        // 继续处理下一张
         setLocalizingProgress(i + 1);
       }
     }

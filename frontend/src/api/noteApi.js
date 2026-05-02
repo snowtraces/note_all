@@ -207,3 +207,18 @@ export const uploadImage = async (imageData, mimeType) => {
   return { storageId: data.storage_id, url: data.url };
 };
 
+// uploadImageFromUrl 将外部图片 URL 发给后端下载存储，返回本地 URL
+export const uploadImageFromUrl = async (url, mimeType) => {
+  const res = await request("/api/image/upload_from_url", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url, mime_type: mimeType }),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || "Image download failed");
+  }
+  const data = await res.json();
+  return { storageId: data.storage_id, url: data.url };
+};
+

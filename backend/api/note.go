@@ -5,7 +5,9 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -713,6 +715,100 @@ func (a *NoteApi) UploadImage(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":    "图片上传成功",
+		"storage_id": storageID,
+		"url":        fmt.Sprintf("/api/file/%s", storageID),
+	})
+}
+
+// isPrivateHost 检查主机地址是否为内网或敏感地址
+func isPrivateHost(host string) bool {
+	// 去掉端口
+	hostname, _, err := net.SplitHostPort(host)
+	if err != nil {
+		hostname = host
+	}
+	ip := net.ParseIP(hostname)
+	if ip != nil {
+		return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast()
+	}
+	// 域名形式：禁止解析到 localhost 相关域名
+	return strings.ToLower(hostname) == "localhost" ||
+		strings.HasSuffix(strings.ToLower(hostname), ".local")
+}
+
+// UploadImageFromURL 从外部URL下载图片并存储，返回本地URL
+func (a *NoteApi) UploadImageFromURL(c *gin.Context) {
+	var body struct {
+		URL      string `json:"url" binding:"required"`
+		MimeType string `json:"mime_type"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误，需要 url"})
+		return
+	}
+
+	// 校验 URL 合法性，仅允许 http/https
+	parsedURL, err := url.Parse(body.URL)
+	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "URL格式无效"})
+		return
+	}
+	// 禁止内网地址
+	if isPrivateHost(parsedURL.Host) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "不允许访问内网地址"})
+		return
+	}
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(body.URL)
+	if err != nil {
+		fmt.Printf("[UploadImageFromURL] 下载失败: %v\n", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "下载图片失败"})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("下载图片失败，状态码: %d", resp.StatusCode)})
+		return
+	}
+
+	// 限制最大 50MB
+	imageData, err := io.ReadAll(io.LimitReader(resp.Body, 50<<20))
+	if err != nil {
+		fmt.Printf("[UploadImageFromURL] 读取失败: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "读取图片数据失败"})
+		return
+	}
+
+	mimeType := body.MimeType
+	if mimeType == "" {
+		mimeType = resp.Header.Get("Content-Type")
+		if mimeType == "" {
+			mimeType = "image/png"
+		}
+	}
+
+	secureName := fmt.Sprintf("img_%d_%s", time.Now().UnixNano(), strings.ReplaceAll(mimeType, "/", "_"))
+	storageID, err := global.Storage.Save(secureName, bytes.NewReader(imageData))
+	if err != nil {
+		fmt.Printf("[UploadImageFromURL] 存储失败: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "存储失败"})
+		return
+	}
+
+	fileMeta := models.FileMetadata{
+		StorageID: storageID,
+		MimeType:  mimeType,
+		FileSize:  int64(len(imageData)),
+		FileName:  secureName,
+	}
+	if err := global.DB.Create(&fileMeta).Error; err != nil {
+		fmt.Printf("[UploadImageFromURL] 创建文件元数据失败: %v\n", err)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":    "图片下载并存储成功",
 		"storage_id": storageID,
 		"url":        fmt.Sprintf("/api/file/%s", storageID),
 	})
