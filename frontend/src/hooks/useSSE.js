@@ -1,10 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { getAuthToken, logout } from '../api/authApi';
 
+// 重连配置
+const INIT_RETRY_DELAY = 1000;
+const MAX_RETRY_DELAY = 30000;
+// 心跳超时配置（后端心跳 15s，给 3 倍容错）
+const HEARTBEAT_TIMEOUT = 45000;
+
 /**
  * SSE 实时推送 Hook
  * 使用 fetch + ReadableStream 实现 SSE，支持 Authorization header
- * 内置自动重连机制（指数退避）
+ * 内置自动重连机制（指数退避）+ 心跳超时检测
  *
  * @param {string}   url       SSE 端点 URL
  * @param {boolean}  enabled   是否启用
@@ -17,10 +23,28 @@ export function useSSE({ url, enabled, onMessage }) {
   useEffect(() => {
     if (!enabled) return;
 
-    let controller = new AbortController();
+    const controller = new AbortController();
     let reader = null;
-    let retryDelay = 1000; // 初始重连延迟 1s
-    const maxDelay = 30000; // 最大延迟 30s
+    let heartbeatTimer = null;
+    let retryDelay = INIT_RETRY_DELAY;
+    let heartbeatExpired = false; // 标记心跳超时导致的 abort
+
+    const clearHeartbeatTimer = () => {
+      if (heartbeatTimer) {
+        clearTimeout(heartbeatTimer);
+        heartbeatTimer = null;
+      }
+    };
+
+    const startHeartbeatTimer = () => {
+      clearHeartbeatTimer();
+      heartbeatExpired = false;
+      heartbeatTimer = setTimeout(() => {
+        heartbeatExpired = true;
+        console.warn('[SSE] 心跳超时，主动断开重连');
+        controller.abort();
+      }, HEARTBEAT_TIMEOUT);
+    };
 
     const connect = async () => {
       const token = getAuthToken();
@@ -38,13 +62,14 @@ export function useSSE({ url, enabled, onMessage }) {
         }
 
         if (!response.ok) {
-          console.error('SSE connection failed:', response.status);
+          console.error('[SSE] 连接失败:', response.status);
           scheduleReconnect();
           return;
         }
 
-        // 连接成功，重置延迟
-        retryDelay = 1000;
+        // 连接成功，重置延迟并启动心跳检测
+        retryDelay = INIT_RETRY_DELAY;
+        startHeartbeatTimer();
 
         reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -53,10 +78,12 @@ export function useSSE({ url, enabled, onMessage }) {
         while (true) {
           const { done, value } = await reader.read();
           if (done) {
-            // 流正常结束，触发重连
             scheduleReconnect();
             break;
           }
+
+          // 收到任何数据都重置心跳计时器
+          startHeartbeatTimer();
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split('\n\n');
@@ -64,23 +91,31 @@ export function useSSE({ url, enabled, onMessage }) {
 
           for (const line of lines) {
             if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              onMessageRef.current(data);
+              onMessageRef.current(line.slice(6));
             }
           }
         }
       } catch (err) {
-        if (err.name !== 'AbortError') {
-          console.error('SSE error:', err);
+        if (err.name === 'AbortError') {
+          // 心跳超时导致的 abort 需要强制重连
+          if (heartbeatExpired) {
+            console.warn('[SSE] 心跳超时触发重连');
+            scheduleReconnect(true);
+          }
+          // 否则是用户主动 abort（组件卸载），不重连
+        } else {
+          console.error('[SSE] 连接错误:', err);
           scheduleReconnect();
         }
       }
     };
 
-    const scheduleReconnect = () => {
-      if (controller.signal.aborted) return;
+    const scheduleReconnect = (force = false) => {
+      clearHeartbeatTimer();
+      if (!force && controller.signal.aborted) return;
+
       const delay = retryDelay;
-      retryDelay = Math.min(retryDelay * 2, maxDelay); // 指数退避
+      retryDelay = Math.min(retryDelay * 2, MAX_RETRY_DELAY);
       setTimeout(connect, delay);
     };
 
@@ -88,9 +123,8 @@ export function useSSE({ url, enabled, onMessage }) {
 
     return () => {
       controller.abort();
-      if (reader) {
-        reader.cancel();
-      }
+      clearHeartbeatTimer();
+      reader?.cancel();
     };
   }, [url, enabled]);
 }
