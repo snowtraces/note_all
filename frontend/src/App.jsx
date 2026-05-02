@@ -18,7 +18,6 @@ import LabView from './components/LabView';
 import NavRail from './components/NavRail';
 import LoginOverlay from './components/LoginOverlay';
 import PublicSharePage from './components/PublicSharePage';
-import WeixinView from './components/WeixinView';
 import ImageGenView from './components/ImageGenView';
 import ToastContainer from './components/ToastContainer';
 import { checkAuth } from './api/authApi';
@@ -33,6 +32,7 @@ function AppContent() {
   const [showTrash, setShowTrash] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsTab, setSettingsTab] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const { mode } = useTheme();
@@ -337,7 +337,7 @@ function AppContent() {
       <div className="flex-1 flex flex-row relative overflow-hidden">
         {/* Sidebar */}
         <div className={`w-full md:w-[380px] xl:w-[420px] flex-shrink-0 flex-col border-r border-borderSubtle bg-modal relative z-50 transition-all ${
-          (selectedItem || viewMode === 'image_gen' || viewMode === 'graph' || viewMode === 'weixin' || viewMode === 'lab' || (viewMode === 'chats' && chatHistory.length > 0)) ? 'hidden md:flex' : 'flex'
+          (selectedItem || viewMode === 'image_gen' || viewMode === 'graph' || viewMode === 'lab' || (viewMode === 'chats' && chatHistory.length > 0)) ? 'hidden md:flex' : 'flex'
         }`}>
           <Sidebar
             viewMode={viewMode}
@@ -366,7 +366,7 @@ function AppContent() {
 
         {/* 右侧面板 */}
         <div className={`flex-1 flex-col bg-base relative overflow-hidden ${
-          (selectedItem || viewMode === 'image_gen' || viewMode === 'graph' || viewMode === 'weixin' || viewMode === 'lab' || (viewMode === 'chats' && chatHistory.length > 0)) ? 'flex w-full absolute inset-0 md:relative md:inset-auto z-50' : 'hidden md:flex'
+          (selectedItem || viewMode === 'image_gen' || viewMode === 'graph' || viewMode === 'lab' || (viewMode === 'chats' && chatHistory.length > 0)) ? 'flex w-full absolute inset-0 md:relative md:inset-auto z-50' : 'hidden md:flex'
         }`}>
           {selectedItem && (
             <div className="absolute inset-0 z-50 bg-base flex flex-col">
@@ -409,14 +409,6 @@ function AppContent() {
                   setViewMode('notes');
                   executeSearch(query);
                 }}
-             />
-          </div>
-
-          {/* Weixin View Layer */}
-          <div className={`absolute inset-0 transition-opacity duration-300 ${viewMode === 'weixin' && !selectedItem ? 'z-40 opacity-100 pointer-events-auto flex flex-col' : '-z-10 opacity-0 pointer-events-none'}`}>
-             <WeixinView 
-                active={viewMode === 'weixin' && !selectedItem}
-                onClose={() => setViewMode('notes')}
              />
           </div>
 
@@ -547,7 +539,7 @@ function AppContent() {
         </div>
       </div>
       <Lightbox src={previewImage} onClose={() => setPreviewImage(null)} />
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {showSettings && <SettingsModal initialTab={settingsTab} onClose={() => { setShowSettings(false); setSettingsTab(null); }} />}
       <ToastContainer />
     </div>
   );

@@ -1,14 +1,11 @@
 import {
   Beaker,
-  Bot,
   BrainCircuit,
   CheckCircle2,
   Files,
-  LogOut,
   MessageSquare,
   Network,
   PenLine,
-  Power,
   RefreshCcw,
   Search,
   Tag,
@@ -20,7 +17,6 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { deleteChatSession, getChatSessions, getTags } from '../api/noteApi';
-import { checkWeixinStatus, getWeixinBot, getWeixinQRCode, logoutWeixinBot, toggleWeixinBot } from '../api/weixinApi';
 import { generateImage } from '../api/imageGenApi';
 import { useTheme } from '../context/ThemeContext';
 
@@ -418,38 +414,6 @@ export default function Sidebar({
             </div>
 
           </div>
-        ) : viewMode === 'weixin' ? (
-           <div className="w-full h-full flex flex-col gap-6 animate-in fade-in slide-in-from-left-4 duration-500">
-              {/* Bot 概要信息 */}
-              <div className="p-1">
-                 <div className="text-[10px] uppercase tracking-[0.2em] text-silverText/20 mb-4 font-mono px-2">Bot Profile</div>
-                 <WeixinBotSidebarItem />
-              </div>
-
-              {/* 互动统计或快速说明 */}
-              <div className="mt-auto p-6 bg-sidebar border border-borderSubtle rounded-2xl mx-1">
-                 <div className="flex items-center gap-3 mb-4">
-                    <div className="w-8 h-8 rounded-lg bg-primeAccent/10 flex items-center justify-center text-primeAccent">
-                       <Zap size={16} />
-                    </div>
-                    <h4 className="text-xs font-medium text-textPrimary/80">核心能力</h4>
-                 </div>
-                 <ul className="space-y-3">
-                    <li className="flex items-start gap-3">
-                       <div className="w-1 h-1 rounded-full bg-primeAccent mt-1.5 shadow-[0_0_5px_rgba(255,215,0,0.5)]"></div>
-                       <p className="text-[11px] text-textSecondary/40 leading-relaxed">实时通过微信窗口录入文字或链接笔记。</p>
-                    </li>
-                    <li className="flex items-start gap-3">
-                       <div className="w-1 h-1 rounded-full bg-primeAccent mt-1.5 shadow-[0_0_5px_rgba(255,215,0,0.5)]"></div>
-                       <p className="text-[11px] text-textSecondary/40 leading-relaxed">支持 RAG 语义搜索，微信端即时调取知识库内容。</p>
-                    </li>
-                    <li className="flex items-start gap-3">
-                       <div className="w-1 h-1 rounded-full bg-primeAccent mt-1.5 shadow-[0_0_5px_rgba(255,215,0,0.5)]"></div>
-                       <p className="text-[11px] text-textSecondary/40 leading-relaxed">双向会话加密传输，保护个人笔记隐私安全。</p>
-                    </li>
-                 </ul>
-              </div>
-           </div>
         ) : viewMode === 'image_gen' ? (
            <ImageGenSidebarItem />
         ) : null}
@@ -528,207 +492,6 @@ export default function Sidebar({
       )}
     </div>
   );
-}
-
-function WeixinBotSidebarItem() {
-  const [botInfo, setBotInfo] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [qrData, setQrData] = useState(null);
-  const [status, setStatus] = useState('idle'); // idle, active, confirmed, expired
-  const [isToggling, setIsToggling] = useState(false);
-
-  const fetchBot = async () => {
-    try {
-      const bot = await getWeixinBot();
-      if (bot && bot.ilink_bot_id) {
-        setBotInfo(bot);
-        setStatus('confirmed');
-      } else {
-        setBotInfo(null);
-        setStatus('idle');
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchBot();
-    const timer = setInterval(fetchBot, 10000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const fetchQRCode = async () => {
-    try {
-      setLoading(true);
-      const data = await getWeixinQRCode();
-      setQrData(data);
-      setStatus('active');
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleToggle = async () => {
-    if (!botInfo || isToggling) return;
-    setIsToggling(true);
-    try {
-      const nextState = !botInfo.is_active;
-      await toggleWeixinBot(nextState);
-      setBotInfo({ ...botInfo, is_active: nextState });
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsToggling(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    if (!window.confirm("确定要解除微信 Bot 绑定吗？")) return;
-    try {
-      await logoutWeixinBot();
-      setBotInfo(null);
-      setQrData(null);
-      setStatus('idle');
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  useEffect(() => {
-    let timer;
-    if (status === 'active' && qrData?.qrcode) {
-      timer = setInterval(async () => {
-        try {
-          const res = await checkWeixinStatus(qrData.qrcode);
-          if (res && res.status === 'confirmed') {
-            await fetchBot();
-            clearInterval(timer);
-          } else if (res && res.status === 'expired') {
-            setStatus('expired');
-            clearInterval(timer);
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      }, 3000);
-    }
-    return () => clearInterval(timer);
-  }, [status, qrData]);
-
-  if (loading && status === 'idle') return <div className="p-6 bg-white/5 rounded-2xl animate-pulse h-32 mx-1"></div>;
-
-  // 未绑定状态
-  if (status === 'idle' || status === 'active' || status === 'expired') {
-    return (
-      <div className="p-6 bg-white/[0.03] border border-white/10 rounded-2xl mx-1 flex flex-col items-center">
-        {status === 'active' && qrData ? (
-          <div className="w-32 h-32 bg-white rounded-lg mb-4 p-1">
-            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=128x128&data=${encodeURIComponent(qrData.qrcode_img_content)}`} alt="Scan" className="w-full h-full" />
-          </div>
-        ) : (
-          <Bot size={32} className="mb-4 text-silverText/20" />
-        )}
-        
-        <p className="text-[11px] text-silverText/60 mb-4 text-center">
-          {status === 'active' ? '请使用微信扫码授权' : status === 'expired' ? '二维码已过期' : '微信机器人未配置'}
-        </p>
-
-        <button 
-          onClick={fetchQRCode}
-          className="w-full py-2 bg-primeAccent/10 border border-primeAccent/30 rounded-lg text-primeAccent text-[11px] font-bold hover:bg-primeAccent/20 transition-all flex items-center justify-center gap-2"
-        >
-          <RefreshCcw size={14} className={loading && status !== 'confirmed' ? 'animate-spin' : ''} />
-          {status === 'active' ? '重新获取' : '获取登录二维码'}
-        </button>
-
-        <button 
-          onClick={fetchBot}
-          disabled={loading}
-          className="mt-3 text-[10px] text-silverText/30 hover:text-silverText/60 transition-all flex items-center gap-1"
-        >
-          <RefreshCcw size={10} className={loading && status === 'confirmed' ? 'animate-spin' : ''} />
-          同步状态
-        </button>
-      </div>
-    );
-  }
-
-  // 已绑定管理状态
-  if (botInfo) {
-    return (
-      <div className={`p-5 rounded-[24px] border transition-all duration-500 mx-1 ${
-        botInfo.is_active 
-        ? 'bg-green-500/5 border-green-500/20 shadow-[0_0_20px_rgba(34,197,94,0.05)]' 
-        : 'bg-sidebar border-borderSubtle'
-      }`}>
-        <div className="flex items-center gap-4 mb-4 relative">
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
-            botInfo.is_active ? 'bg-green-500/10 text-green-500' : 'bg-white/5 text-silverText/20'
-          }`}>
-            <Bot size={24} className={botInfo.is_active ? 'animate-pulse' : ''} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between">
-              <h3 className="text-[13px] font-medium text-white/90 truncate">
-                {botInfo.ilink_user_id || '已授权用户'}
-              </h3>
-              <button 
-                onClick={fetchBot}
-                disabled={loading}
-                className="p-1 text-silverText/30 hover:text-white/80 hover:bg-white/5 rounded-md transition-all"
-                title="手动刷新状态"
-              >
-                <RefreshCcw size={12} className={loading ? 'animate-spin' : ''} />
-              </button>
-            </div>
-            <div className="flex items-center gap-1.5">
-               <div className={`w-1.5 h-1.5 rounded-full ${botInfo.is_active ? 'bg-green-500' : 'bg-silverText/20'}`}></div>
-               <span className="text-[10px] text-silverText/40 font-mono tracking-tight">
-                  {botInfo.is_active ? 'SERVICE ONLINE' : 'SERVICE PAUSED'}
-               </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 mb-4">
-           <button 
-              onClick={handleToggle}
-              disabled={isToggling}
-              className={`py-2 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-2 ${
-                botInfo.is_active ? 'bg-white/10 text-white/70 hover:bg-white/20' : 'bg-green-500 text-black hover:bg-green-400'
-              }`}
-           >
-              {isToggling ? <RefreshCcw size={12} className="animate-spin" /> : botInfo.is_active ? <Power size={12} /> : <CheckCircle2 size={12} />}
-              {botInfo.is_active ? '暂停' : '启动'}
-           </button>
-           <button 
-              onClick={handleLogout}
-              className="py-2 bg-red-500/10 text-red-500/50 hover:text-red-500 hover:bg-red-500/20 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-2"
-           >
-              <LogOut size={12} /> 移除
-           </button>
-        </div>
-
-        <div className="space-y-1.5 border-t border-white/5 pt-3">
-          <div className="flex justify-between items-center text-[9px] font-mono">
-            <span className="text-silverText/20">STATUS</span>
-            <span className={botInfo.is_active ? 'text-green-500/60' : 'text-red-500/40'}>{botInfo.is_active ? 'ACTIVE' : 'IDLE'}</span>
-          </div>
-          <div className="flex justify-between items-center text-[9px] font-mono">
-            <span className="text-silverText/20">POLL</span>
-            <span className="text-silverText/40">{new Date(botInfo.last_poll_time).toLocaleTimeString()}</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return null;
 }
 
 function ImageGenSidebarItem() {

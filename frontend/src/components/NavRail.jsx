@@ -5,7 +5,6 @@ import {
   FlaskConical,
   MessageSquare,
   MessageCircle,
-  Bot,
   Trash2,
   Settings,
   BrainCircuit,
@@ -97,18 +96,6 @@ export default function NavRail({
       onClick: () => {
         setViewMode('notes');
         setShowTrash(true);
-        setSelectedItem(null);
-      }
-    },
-    {
-      id: 'weixin',
-      icon: <Bot size={22} />,
-      label: '微信同步',
-      hiddenOnMobile: true,
-      active: viewMode === 'weixin' && !showTrash,
-      onClick: () => {
-        setViewMode('weixin');
-        setShowTrash(false);
         setSelectedItem(null);
       }
     },
