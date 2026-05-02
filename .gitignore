@@ -21,6 +21,9 @@ deploy_arm64.sh
 # Node
 node_modules/
 
+# Config backups (contain secrets)
+config copy.json
+
 # OS
 .DS_Store
 Thumbs.db
