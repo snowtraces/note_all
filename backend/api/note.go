@@ -545,7 +545,7 @@ func (a *NoteApi) RelatedNotes(c *gin.Context) {
 	var id uint
 	fmt.Sscanf(idStr, "%d", &id)
 
-	items, err := service.GetRelatedNotes(id)
+	items, err := service.GetRelatedUnified(id, 5)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取关联信息失败: " + err.Error()})
 		return

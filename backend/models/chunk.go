@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"math"
-
-	"note_all_backend/global"
 )
 
 // NoteChunk 存储文档分片，用于精细化向量检索
@@ -81,27 +79,14 @@ type ChunkConfig struct {
 // DefaultChunkConfig 返回默认分片配置
 func DefaultChunkConfig() ChunkConfig {
 	return ChunkConfig{
-		MaxChunkSize:    500,
-		MinChunkSize:    100,
+		MaxChunkSize:    1000,
+		MinChunkSize:    200,
 		OverlapSize:     50,
-		MaxChunksPerDoc: 100,
+		MaxChunksPerDoc: 20,
 	}
 }
 
-// GetChunkConfig 从全局配置获取分片配置，未设置时使用默认值
+// GetChunkConfig 返回写死的分片配置
 func GetChunkConfig() ChunkConfig {
-	config := DefaultChunkConfig()
-	if global.Config.ChunkMaxSize > 0 {
-		config.MaxChunkSize = global.Config.ChunkMaxSize
-	}
-	if global.Config.ChunkMinSize > 0 {
-		config.MinChunkSize = global.Config.ChunkMinSize
-	}
-	if global.Config.ChunkOverlap > 0 {
-		config.OverlapSize = global.Config.ChunkOverlap
-	}
-	if global.Config.ChunkMaxPerDoc > 0 {
-		config.MaxChunksPerDoc = global.Config.ChunkMaxPerDoc
-	}
-	return config
+	return DefaultChunkConfig()
 }

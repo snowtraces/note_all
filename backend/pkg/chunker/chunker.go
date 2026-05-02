@@ -19,7 +19,7 @@ type ChunkResult struct {
 
 // 章节标题识别正则模式
 var sectionPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(?m)^#{1,6}\s+.+$`),                            // Markdown标题 # ## ###
+	regexp.MustCompile(`(?m)^#{2}\s+.+$`),                              // Markdown H2 标题 ##，仅此级别作为章节隔离
 	regexp.MustCompile(`(?m)^第[一二三四五六七八九十\d]+[章节部篇].*$`),       // 中文章节
 	regexp.MustCompile(`(?m)^(\d+\.)+\d*\s+.+$`),                       // 数字编号 1. 1.1 1.1.1
 	regexp.MustCompile(`(?m)^第[一二三四五六七八九十]+[、.．]\s+.+$`),        // 中文编号 一、
@@ -63,13 +63,32 @@ func ChunkText(text string, config models.ChunkConfig) []ChunkResult {
 	// 4. 合并过短分片
 	chunks = mergeSmallChunks(chunks, config.MinChunkSize)
 
-	// 5. 限制分片数量（保留最后一片确保文档完整性）
+	// 5. 超出上限时，贪心合并相邻小片：每次选总长度最小的相邻对合并，优先合并小片
 	if len(chunks) > config.MaxChunksPerDoc {
-		lastChunk := chunks[len(chunks)-1]
-		chunks = chunks[:config.MaxChunksPerDoc-1]
-		chunks = append(chunks, lastChunk)
+		chunks = reduceChunks(chunks, config.MaxChunksPerDoc)
 	}
 
+	return chunks
+}
+
+// reduceChunks 贪心合并相邻分片：每次选总 rune 长度最小的相邻对合并，直到满足上限
+func reduceChunks(chunks []ChunkResult, max int) []ChunkResult {
+	for len(chunks) > max {
+		bestIdx := 0
+		bestLen := len([]rune(chunks[0].Content)) + len([]rune(chunks[1].Content))
+		for i := 1; i < len(chunks)-1; i++ {
+			pairLen := len([]rune(chunks[i].Content)) + len([]rune(chunks[i+1].Content))
+			if pairLen < bestLen {
+				bestLen = pairLen
+				bestIdx = i
+			}
+		}
+		// 合并 bestIdx 和 bestIdx+1
+		chunks[bestIdx].Content += "\n\n" + chunks[bestIdx+1].Content
+		chunks[bestIdx].EndPos = chunks[bestIdx+1].EndPos
+		chunks[bestIdx].ChunkType = "merged"
+		chunks = append(chunks[:bestIdx+1], chunks[bestIdx+2:]...)
+	}
 	return chunks
 }
 
@@ -145,32 +164,47 @@ func chunkSection(section sectionBoundary, config models.ChunkConfig) []ChunkRes
 	return chunkParagraphs(runes, section.StartPos, section.EndPos, section.Heading, config)
 }
 
-// chunkParagraphs 按段落切分，长段落按长度再切分
+// chunkParagraphs 按段落贪心打包：累积相邻段落直到接近 MaxChunkSize，减少碎片化
 func chunkParagraphs(runes []rune, offsetStart, offsetEnd int, heading string, config models.ChunkConfig) []ChunkResult {
 	chunks := make([]ChunkResult, 0)
-
-	// 按段落分割 (双换行或单换行)
 	paragraphs := splitByParagraph(runes)
+
+	// 贪心累加器：将短段落尽量打包到一个分片内
+	type accEntry struct {
+		content   string
+		startPos  int
+		endPos    int
+	}
+	var acc []accEntry
+	accLen := 0 // 已累积段落的纯文本长度之和
+
+	flush := func() {
+		if len(acc) == 0 {
+			return
+		}
+		parts := make([]string, len(acc))
+		for i, e := range acc {
+			parts[i] = e.content
+		}
+		chunks = append(chunks, ChunkResult{
+			Content:   strings.Join(parts, "\n\n"),
+			StartPos:  acc[0].startPos + offsetStart,
+			EndPos:    acc[len(acc)-1].endPos + offsetStart,
+			Heading:   heading,
+			ChunkType: "paragraph",
+		})
+		acc = nil
+		accLen = 0
+	}
 
 	for _, para := range paragraphs {
 		paraRunes := []rune(para.Content)
 		paraLen := len(paraRunes)
-
-		// 段落位置需要加上全局偏移
 		globalStart := para.StartPos + offsetStart
-		globalEnd := para.EndPos + offsetStart
 
-		if paraLen <= config.MaxChunkSize {
-			// 段落长度适中，直接成片
-			chunks = append(chunks, ChunkResult{
-				Content:   para.Content,
-				StartPos: globalStart,
-				EndPos:   globalEnd,
-				Heading:   heading,
-				ChunkType: "paragraph",
-			})
-		} else {
-			// 段落过长，按长度切分
+		if paraLen > config.MaxChunkSize {
+			// 长段落：先刷出累积的短段落，再单独按长度拆分
+			flush()
 			subChunks := splitByLength(paraRunes, globalStart, config)
 			for i, sc := range subChunks {
 				chunkType := "split"
@@ -183,8 +217,27 @@ func chunkParagraphs(runes []rune, offsetStart, offsetEnd int, heading string, c
 				sc.Heading = heading
 				chunks = append(chunks, sc)
 			}
+			continue
+		}
+
+		// 短段落：估算合并后长度（段落间用 \n\n 连接）
+		mergedLen := accLen + paraLen
+		if len(acc) > 0 {
+			mergedLen += 2 // "\n\n" 分隔符
+		}
+
+		if mergedLen > config.MaxChunkSize && len(acc) > 0 {
+			flush()
+			acc = append(acc, accEntry{para.Content, para.StartPos, para.EndPos})
+			accLen = paraLen
+		} else {
+			acc = append(acc, accEntry{para.Content, para.StartPos, para.EndPos})
+			accLen = mergedLen
 		}
 	}
+
+	// 刷出剩余段落
+	flush()
 
 	return chunks
 }

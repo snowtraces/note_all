@@ -179,6 +179,19 @@ export const saveSynthesizedNote = async (ids, title, content) => {
   return data.data;
 };
 
+export const generateDailyReview = async () => {
+  const res = await request('/api/review/daily', { method: 'POST' });
+  if (!res.ok) throw new Error('Generate review failed');
+  return res.json();
+};
+
+export const getLatestReview = async () => {
+  const res = await request('/api/review/latest');
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.data || null;
+};
+
 // uploadImage 上传图片到服务器存储，返回 storage_id 和 URL
 export const uploadImage = async (imageData, mimeType) => {
   const res = await request("/api/image/upload", {

@@ -161,9 +161,7 @@ func performFullAnalysis(nID uint, templateID uint) {
 	syncLinks(nID, markdownText)
 
 	// 新增：更新分片向量索引
-	if err := UpdateNoteChunks(nID); err != nil {
-		log.Printf("[AI 异常] 分片向量索引更新失败 (ID:%d): %v", nID, err)
-	}
+	go UpdateNoteChunks(nID)
 
 	// SSE 通知前端数据变化
 	global.SSEBus.Publish("refresh")
@@ -321,6 +319,10 @@ func CreateNoteFromText(text string, providedName string) (*models.NoteItem, err
 				"status":     "analyzed",
 			})
 			syncTags(nID, tags)
+			syncLinks(nID, rawText)
+
+			go UpdateNoteChunks(nID)
+
 			global.SSEBus.Publish("refresh")
 			return
 		}
@@ -352,6 +354,9 @@ func CreateNoteFromText(text string, providedName string) (*models.NoteItem, err
 
 		syncTags(nID, tags)
 		syncLinks(nID, rawText)
+
+		// 更新分片向量索引
+		go UpdateNoteChunks(nID)
 
 		global.SSEBus.Publish("refresh")
 
@@ -410,7 +415,7 @@ func UpdateNoteText(id string, text string) error {
 		if err := global.DB.Select("id").Where("id = ?", itemID).First(&noteItem).Error; err == nil {
 			syncTags(noteItem.ID, tags)
 			syncLinks(noteItem.ID, rawText)
-			UpdateNoteChunks(noteItem.ID)
+			go UpdateNoteChunks(noteItem.ID)
 			global.SSEBus.Publish("refresh")
 		}
 

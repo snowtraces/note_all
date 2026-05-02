@@ -17,6 +17,12 @@ const SSE_EVENT_MAP = {
     duration: 3000,
     action: 'image_gen_refresh',
   },
+  review_ready: {
+    message: '今日回顾已生成',
+    type: 'info',
+    duration: 4000,
+    action: 'review_ready',
+  },
 };
 
 /**

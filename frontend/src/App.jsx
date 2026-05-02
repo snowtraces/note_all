@@ -81,6 +81,8 @@ function AppContent() {
           executeSearch(query);
         } else if (eventConfig.action === 'image_gen_refresh') {
           window.dispatchEvent(new Event('IMAGE_GEN_REFRESH'));
+        } else if (eventConfig.action === 'review_ready') {
+          window.dispatchEvent(new Event('REVIEW_READY'));
         }
         showToast(eventConfig.message, {
           duration: eventConfig.duration,

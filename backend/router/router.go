@@ -68,6 +68,7 @@ func SetupRouter() *gin.Engine {
 
 		templateApi := new(api.TemplateApi)
 		agentApi := new(api.AgentApi)
+		reviewApi := new(api.ReviewApi)
 
 		// 1. 上传文件生成新解析工单
 		apiGroup.POST("/upload", noteApi.Upload)
@@ -111,6 +112,10 @@ func SetupRouter() *gin.Engine {
 
 		// 7. 灵感与拼图 (Phase 3)
 		apiGroup.GET("/serendipity", noteApi.Serendipity)
+
+		// 7.5 每日回顾 (Phase A2)
+		apiGroup.POST("/review/daily", reviewApi.GenerateReview)
+		apiGroup.GET("/review/latest", reviewApi.GetLatestReview)
 
 		// 9. 重新用 AI 处理 (使用当前激活模板)
 		apiGroup.POST("/note/:id/reprocess", noteApi.ReprocessNote)

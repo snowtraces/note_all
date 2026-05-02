@@ -66,7 +66,9 @@ export default function Detail({
     // 如果 item 不完整（比如来自图谱只有概要），则强制拉取一次详情
     if (item.id && !item.ocr_text) {
       getNote(item.id).then(fullItem => {
-        setSelectedItem(fullItem);
+        if (fullItem?.ocr_text) {
+          setSelectedItem(fullItem);
+        }
       }).catch(err => console.error("Fetch full note failed:", err));
     }
 
@@ -76,7 +78,8 @@ export default function Detail({
     if (item.id) {
        loadRelated();
     }
-  }, [item, setSelectedItem]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item]);
 
   useEffect(() => {
     loadTemplates();
@@ -522,15 +525,15 @@ export default function Detail({
                 </div>
               </div>
             </div>
-            {/* 相关灵感发现 (Phase 4) */}
+            {/* 相关笔记 (向量+标签合并) */}
             {relatedItems.length > 0 && (
               <div className="pt-2 animate-in fade-in slide-in-from-top-2 duration-700">
                 <div className="text-[10px] text-textSecondary/50 uppercase mb-3 font-mono flex items-center gap-2">
-                  <Link size={10} className="text-primeAccent" /> 相关灵感发现
+                  <Link size={10} className="text-primeAccent" /> 相关笔记
                 </div>
                 <div className="space-y-2">
                   {relatedItems.map(rel => (
-                    <div 
+                    <div
                       key={rel.id}
                       onClick={() => setSelectedItem(rel)}
                       className="p-3 bg-sidebar border border-borderSubtle rounded-xl hover:border-primeAccent/30 hover:bg-primeAccent/5 transition-all cursor-pointer group/rel"
