@@ -2,7 +2,7 @@ package models
 
 import (
 	"fmt"
-	// "strings"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -90,9 +90,18 @@ func SetupDBWithFTS(db *gorm.DB) error {
 		return fmt.Errorf("failed to init templates: %v", err)
 	}
 
-	// 2. 建立 FTS5 虚拟表 (仅在不存在时建立)。注意：SQLite FTS5 原生支持简单的词法分词器，
-	// 如果需要实现超严格中文切词，可能要挂载 simple/jieba 分词，但这有损于单体跨平台编译。
-	// KISS原则下：我们选用默认分词器搭配 unicode61 即可应对普通中文搜索。
+	// 2. 检测并迁移旧版 FTS 表（旧版缺少 ai_title 列时需重建）
+	var ftsSQL string
+	if err := db.Raw("SELECT sql FROM sqlite_master WHERE type='table' AND name='note_fts'").Scan(&ftsSQL).Error; err != nil {
+		return fmt.Errorf("failed to check fts5 schema: %v", err)
+	}
+	if ftsSQL != "" && !strings.Contains(ftsSQL, "ai_title") {
+		// 旧版 FTS 表缺少 ai_title 列，删除后重建并重新填充数据
+		if err := db.Exec("DROP TABLE IF EXISTS note_fts").Error; err != nil {
+			return fmt.Errorf("failed to drop old fts5 table: %v", err)
+		}
+	}
+
 	ftsSchema := `
 	CREATE VIRTUAL TABLE IF NOT EXISTS note_fts USING fts5(
 		storage_id,
@@ -106,6 +115,17 @@ func SetupDBWithFTS(db *gorm.DB) error {
 	`
 	if err := db.Exec(ftsSchema).Error; err != nil {
 		return fmt.Errorf("failed to create fts5 table: %v", err)
+	}
+
+	// 如果 FTS 表刚被重建，重新填充全量数据
+	if ftsSQL != "" && !strings.Contains(ftsSQL, "ai_title") {
+		if err := db.Exec(`
+			INSERT INTO note_fts(rowid, storage_id, original_name, ocr_text, ai_title, ai_summary, ai_tags)
+			SELECT id, storage_id, original_name, ocr_text, ai_title, ai_summary, ai_tags
+			FROM note_items WHERE deleted_at IS NULL
+		`).Error; err != nil {
+			return fmt.Errorf("failed to rebuild fts5 data: %v", err)
+		}
 	}
 
 	// 3. 建立触发器，使得 note_items 表的数据变化自动倒推同步进虚拟表中。(且支持逻辑删除，软删除记录不放入 FTS5)

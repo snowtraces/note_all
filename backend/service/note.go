@@ -153,13 +153,17 @@ func performFullAnalysis(nID uint, templateID uint) {
 		}
 	}
 
-	global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Updates(map[string]interface{}{
+	if err := global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Updates(map[string]interface{}{
 		"ocr_text":   markdownText,
 		"ai_title":   title,
 		"ai_summary": summary,
 		"ai_tags":    tags,
 		"status":     "analyzed",
-	})
+	}).Error; err != nil {
+		log.Printf("[AI 异常] 记录ID %d 分析结果写入失败: %v", nID, err)
+		global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Update("status", "error")
+		return
+	}
 
 	syncTags(nID, tags)
 	syncLinks(nID, markdownText)
@@ -316,13 +320,17 @@ func CreateNoteFromText(text string, providedName string) (*models.NoteItem, err
 			summary := "该网页提取到的核心正文过少，可能为图片/视频站点、单页应用或遭到了防火墙拦截。建议直接点击上方标题链接在浏览器中直达阅览。"
 			tags := fmt.Sprintf("URL地址,%s,%s", domain, businessKey)
 
-			global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Updates(map[string]interface{}{
+			if err := global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Updates(map[string]interface{}{
 				"ocr_text":   rawText,
 				"ai_title":   originalName,
 				"ai_summary": summary,
 				"ai_tags":    tags,
 				"status":     "analyzed",
-			})
+			}).Error; err != nil {
+				log.Printf("[URL剪藏异常] 记录ID %d 短内容写入失败: %v", nID, err)
+				global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Update("status", "error")
+				return
+			}
 			syncTags(nID, tags)
 			syncLinks(nID, rawText)
 
@@ -351,13 +359,17 @@ func CreateNoteFromText(text string, providedName string) (*models.NoteItem, err
 			tags = "ai-fail"
 		}
 
-		global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Updates(map[string]interface{}{
+		if err := global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Updates(map[string]interface{}{
 			"ai_title":   title,
 			"ocr_text":   rawText, // DB 存入必须是原封不动的完整抓取全本与图片占位，便于 RAG
 			"ai_summary": summary,
 			"ai_tags":    tags,
 			"status":     "analyzed",
-		})
+		}).Error; err != nil {
+			log.Printf("[URL剪藏异常] 记录ID %d 分析结果写入失败: %v", nID, err)
+			global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Update("status", "error")
+			return
+		}
 
 		syncTags(nID, tags)
 		syncLinks(nID, rawText)
@@ -412,12 +424,16 @@ func UpdateNoteText(id string, text string) error {
 			tags = "ai-fail"
 		}
 
-		global.DB.Model(&models.NoteItem{}).Where("id = ?", itemID).Updates(map[string]interface{}{
+		if err := global.DB.Model(&models.NoteItem{}).Where("id = ?", itemID).Updates(map[string]interface{}{
 			"ai_title":   title,
 			"ai_summary": summary,
 			"ai_tags":    tags,
 			"status":     "analyzed",
-		})
+		}).Error; err != nil {
+			log.Printf("[重新提炼异常] 记录ID %s 结果写入失败: %v", itemID, err)
+			global.DB.Model(&models.NoteItem{}).Where("id = ?", itemID).Update("status", "error")
+			return
+		}
 
 		// 需要先把 string 类型的 itemID 转换为 uint 用于 tag 同步
 		var noteItem models.NoteItem

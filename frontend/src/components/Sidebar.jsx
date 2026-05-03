@@ -167,7 +167,7 @@ export default function Sidebar({
   return (
     <div
       ref={sidebarRef}
-      className="w-full md:w-[380px] xl:w-[420px] h-full flex-shrink-0 flex flex-col bg-transparent relative z-50 transition-all"
+      className="w-full md:w-[380px] xl:w-[420px] h-full flex-shrink-0 flex flex-col bg-transparent border-r border-borderSubtle relative z-50 transition-all"
       onMouseLeave={() => setHoveredNote(null)}
     >
       {/* Header 区 */}

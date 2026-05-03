@@ -494,11 +494,11 @@ select {
 }
 
 .ai-summary-markdown p {
-  margin-bottom: 0.8em;
-}
-
-.ai-summary-markdown p:last-child {
-  margin-bottom: 0;
+  display: inline;
+  margin: 0;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 /* ============ 图片懒加载占位符与过渡效果 ============ */

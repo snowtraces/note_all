@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { List, ChevronRight } from 'lucide-react';
 
-export default function TableOfContents({ content, containerRef, onNavigate }) {
+export default function TableOfContents({ content, containerRef, onNavigate, contained }) {
   const [headings, setHeadings] = useState([]);
   const [activeId, setActiveId] = useState('');
   const observer = useRef(null);
@@ -129,8 +129,12 @@ export default function TableOfContents({ content, containerRef, onNavigate }) {
     );
   }
 
+  const navClassName = contained
+    ? "flex flex-col py-2 relative"
+    : "flex flex-col py-2 max-h-[60vh] overflow-y-auto custom-scrollbar relative";
+
   return (
-    <nav className="flex flex-col py-2 max-h-[60vh] overflow-y-auto custom-scrollbar relative">
+    <nav className={navClassName}>
       {/* 极简贯穿轴线 */}
       <div className="absolute left-[13px] top-4 bottom-4 w-px bg-borderSubtle/50 rounded-full" />
       

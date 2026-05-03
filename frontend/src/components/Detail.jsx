@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, FileText, Code, Save, ExternalLink, Link, Zap, Share2, RefreshCw, CheckCircle2, XCircle, ClipboardEdit, Eye, ImageDown, List, ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react';
+import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, Link, Zap, Share2, RefreshCw, CheckCircle2, ClipboardEdit, Eye, ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
-import TableOfContents from './TableOfContents';
+import ContentToolbar from './ContentToolbar';
 import { getRelatedNotes, reprocessNote, uploadImage, uploadImageFromUrl, getNote } from '../api/noteApi';
 import { getTemplates } from '../api/templateApi';
 import ShareModal from './ShareModal';
@@ -80,7 +80,7 @@ export default function Detail({
     setActiveConnectionTab('related');
     setIsAnnotationExpanded(!!item?.user_comment);
     if (item.id) {
-       loadRelated();
+      loadRelated();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item]);
@@ -284,21 +284,21 @@ export default function Detail({
           <button onClick={() => setSelectedItem(null)} className="md:hidden p-1 -ml-1 mr-1 text-silverText/60 hover:text-white transition-colors">
             <ChevronLeft size={24} />
           </button>
-          <BrainCircuit size={18} className="text-primeAccent hidden md:block" /> 
+          <BrainCircuit size={18} className="text-primeAccent hidden md:block" />
           <span className="truncate text-sm md:text-[15px]">碎片的完整映射</span>
         </div>
         <div className="flex gap-2 md:gap-3">
           {showTrash ? (
             <>
-              <button 
-                onClick={() => handleRestore(item.id)} 
+              <button
+                onClick={() => handleRestore(item.id)}
                 className="px-2 md:px-4 py-1.5 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/20"
                 title="撤销删除"
               >
                 <ArchiveRestore size={14} /> <span className="hidden md:inline">撤销删除</span>
               </button>
-              <button 
-                onClick={() => handleDelete(item.id, true)} 
+              <button
+                onClick={() => handleDelete(item.id, true)}
                 className="px-2 md:px-4 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.1)]"
                 title="彻底摧毁"
               >
@@ -306,8 +306,8 @@ export default function Detail({
               </button>
             </>
           ) : (
-            <button 
-              onClick={() => handleDelete(item.id)} 
+            <button
+              onClick={() => handleDelete(item.id)}
               className="px-2 md:px-4 py-1.5 bg-red-500/5 text-red-500/60 hover:bg-red-500/10 hover:text-red-500 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-red-500/10"
               title="移入垃圾篓"
             >
@@ -316,8 +316,8 @@ export default function Detail({
           )}
 
           {!showTrash && (
-            <button 
-              onClick={() => setShowShareModal(true)} 
+            <button
+              onClick={() => setShowShareModal(true)}
               className="px-2 md:px-4 py-1.5 bg-primeAccent/5 text-primeAccent/60 hover:bg-primeAccent/10 hover:text-primeAccent transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/10"
               title="分享碎片"
             >
@@ -336,131 +336,27 @@ export default function Detail({
 
       {/* 内容区 */}
       <div className="flex flex-1 overflow-y-auto lg:overflow-hidden flex-col lg:flex-row">
-        <div 
-          ref={contentScrollRef}
-          className="flex-none lg:flex-1 h-auto lg:h-full p-4 md:p-5 lg:p-6 overflow-visible lg:overflow-y-auto custom-scrollbar lg:border-r border-borderSubtle bg-main raw-textarea-scroll-container"
-        >
-          {/* AI 分析框架 */}
-          <div className="mb-5">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-[11px] text-textSecondary uppercase tracking-widest font-mono flex items-center gap-2 bg-sidebar inline-flex px-3 py-1 rounded-full border border-borderSubtle">
-                  <BrainCircuit size={12} /> AI 智能总结
-              </h3>
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                {reprocessStatus && (
-                  <span className={`text-[11px] font-mono flex items-center gap-1 ${
-                    reprocessStatus.type === 'success' ? 'text-green-400' : 'text-red-400'
-                  }`}>
-                    {reprocessStatus.type === 'success' ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
-                    <span className="hidden sm:inline">{reprocessStatus.msg}</span>
-                  </span>
-                )}
-                
-                <select 
-                  value={selectedTemplateId} 
-                  onChange={(e) => setSelectedTemplateId(e.target.value)}
-                  disabled={isReprocessing}
-                  className="bg-sidebar border border-borderSubtle text-textSecondary text-[10px] sm:text-[11px] rounded px-1 sm:px-2 py-1 outline-none focus:border-primeAccent/30 max-w-[80px] sm:max-w-[150px] truncate"
-                  title="选择模板"
-                >
-                  <option value="" className="bg-header text-textPrimary">默认模板</option>
-                  {templates.map(t => (
-                    <option key={t.id} value={t.id} className="bg-header text-textPrimary">{t.name} {t.is_active ? '(激活)' : ''}</option>
-                  ))}
-                </select>
-
-                <button
-                  onClick={handleReprocess}
-                  disabled={isReprocessing}
-                  className="flex items-center gap-1.5 p-1.5 sm:px-3 sm:py-1 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 transition-all rounded text-[10px] uppercase font-bold disabled:opacity-50"
-                  title="重新 AI 处理"
-                >
-                  <RefreshCw size={14} className={isReprocessing ? 'animate-spin' : ''} />
-                  <span className="hidden sm:inline">{isReprocessing ? '处理中...' : '重新处理'}</span>
-                </button>
-              </div>
-            </div>
-            <div className="text-textSecondary text-[14px] leading-relaxed font-normal bg-card px-4 py-3 rounded-xl border border-borderSubtle ai-summary-markdown">
-              <MarkdownRenderer content={item.ai_summary || "暂无相关摘要..."} />
-            </div>
-          </div>
-
-          {/* OCR 原文提取 */}
-          <div className="mb-4">
-            <div className="sticky top-0 lg:-top-6 z-40 bg-main flex items-center justify-between border-b border-primeAccent/20 pt-4 pb-3 -mx-4 px-4 md:-mx-5 md:px-5 lg:-mx-6 lg:px-6 mb-3 shadow-sm transition-all">
-              <h2 className="text-[11px] text-primeAccent uppercase tracking-[0.2em] font-bold flex items-center gap-2 whitespace-nowrap">
-                <span className="w-1.5 h-1.5 rounded-full bg-primeAccent animate-pulse shadow-[0_0_10px_color-mix(in_srgb,var(--prime-accent),transparent_20%)]"></span> 
-                {item.original_url ? <><span className="hidden sm:inline">源网页正文推断</span><span className="sm:hidden">网页正文</span></> : <><span className="hidden sm:inline">OCR 核心视觉提取文本</span><span className="sm:hidden">OCR 提取</span></>}
-              </h2>
-              
-              <div className="flex items-center gap-2 sm:gap-3">
-                {item.original_url && (
-                  <a
-                    href={item.original_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 p-1.5 sm:px-3 sm:py-1 bg-primeAccent/10 hover:bg-primeAccent/20 text-primeAccent transition-colors rounded-md text-[10px] font-mono border border-primeAccent/20 uppercase shadow-[0_0_10px_color-mix(in_srgb,var(--prime-accent),transparent_90%)]"
-                    title="直达原文"
-                  >
-                    <ExternalLink size={14} /> <span className="hidden sm:inline">直达源网址</span>
-                  </a>
-                )}
-                {/* 图片本地化按钮 - 有图片时显示 */}
-                {(externalImages.length > 0 || localImages.length > 0) && (
-                  <button
-                    onClick={handleLocalizeImages}
-                    disabled={isLocalizing || externalImages.length === 0}
-                    className={`flex items-center gap-1.5 p-1.5 sm:px-3 sm:py-1 transition-colors rounded-md text-[10px] font-mono justify-center ${
-                      externalImages.length === 0
-                        ? 'bg-green-500/10 text-green-400 border border-green-500/20'
-                        : 'bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/20'
-                    }`}
-                    title={externalImages.length === 0 ? "图片已全部本地化" : "将第三方图片下载并本地化存储"}
-                  >
-                    <ImageDown size={14} className={isLocalizing ? 'animate-pulse' : ''} />
-                    <span className="hidden sm:inline">
-                    {isLocalizing
-                      ? `本地化中 ${localizingProgress}/${totalImagesToLocalize}`
-                      : `图片本地化 ${localImages.length}/${externalImages.length + localImages.length}`}
-                    </span>
-                  </button>
-                )}
-                <div className="relative flex items-center gap-2">
-                  {!isRawMode && (
-                    <button
-                      onClick={() => setShowToC(!showToC)}
-                      className={`flex items-center justify-center gap-1.5 p-1.5 sm:px-3 sm:py-1 transition-colors rounded-md text-[10px] font-mono border uppercase ${showToC ? 'bg-primeAccent/20 text-primeAccent border-primeAccent/30' : 'bg-sidebar hover:bg-card text-textSecondary hover:text-textPrimary border-borderSubtle'}`}
-                      title="打开大纲导读"
-                    >
-                      <List size={14} /> <span className="hidden sm:inline">大纲导读</span>
-                    </button>
-                  )}
-                  {showToC && !isRawMode && (
-                    <div className="absolute top-full right-0 mt-2 w-64 glass-panel border border-borderSubtle shadow-2xl rounded-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 origin-top-right">
-                       <div className="px-3 py-2 bg-header border-b border-borderSubtle flex items-center justify-between">
-                         <span className="text-[11px] text-textSecondary font-bold tracking-widest font-mono uppercase">Document Index</span>
-                         <button onClick={() => setShowToC(false)} className="text-textSecondary hover:text-red-400 transition-colors bg-sidebar p-1 rounded-md border border-borderSubtle"><X size={12} /></button>
-                       </div>
-                       <div className="p-1 max-h-[300px] overflow-y-auto custom-scrollbar">
-                         <TableOfContents content={item.ocr_text} containerRef={contentScrollRef} />
-                       </div>
-                    </div>
-                  )}
-                  
-                  <button
-                    onClick={() => { setIsRawMode(!isRawMode); setShowToC(false); }}
-                    className="flex items-center justify-center gap-1.5 p-1.5 sm:px-3 sm:py-1 bg-sidebar hover:bg-card text-textSecondary hover:text-textPrimary transition-colors rounded-md text-[10px] font-mono border border-borderSubtle uppercase"
-                    title={isRawMode ? "切换为 Markdown 预览" : "查看原始提取文本"}
-                  >
-                    {isRawMode ? <><FileText size={14} /> <span className="hidden sm:inline">预览模式</span></> : <><Code size={14} /> <span className="hidden sm:inline">RAW 模式</span></>}
-                  </button>
+        <div className="flex-none lg:flex-1 h-auto lg:h-full flex flex-col lg:border-r border-borderSubtle bg-main">
+          <div
+            ref={contentScrollRef}
+            className="flex-1 p-4 md:p-5 lg:p-6 overflow-visible lg:overflow-y-auto custom-scrollbar raw-textarea-scroll-container"
+          >
+            {/* AiTitle 主标题 */}
+            <div className="mb-3">
+              <h1 className="text-2xl md:text-3xl font-bold text-textPrimary leading-snug tracking-wide">
+                {item.ai_title || item.original_name || '未命名笔记'}
+              </h1>
+              {item.ai_summary && (
+                <div className="mt-1.5 text-[15px] text-textSecondary/40 leading-relaxed ai-summary-markdown">
+                  <MarkdownRenderer content={item.ai_summary} />
                 </div>
-              </div>
+              )}
             </div>
-            
-            <div className="text-textPrimary text-[14px] leading-[1.7] tracking-wide bg-modal px-5 py-4 rounded-xl border border-borderSubtle selection:bg-primeAccent selection:text-black mt-1 shadow-inner">
-              {isRawMode ? (
-                <div className="relative group/edit">
+
+            {/* 正文 */}
+            <div className="mt-2 pt-3 border-t border-borderSubtle -mx-4 px-4 md:-mx-5 md:px-5 lg:-mx-6 lg:px-6">
+              <div className="text-textPrimary text-[14px] leading-[1.7] tracking-wide selection:bg-primeAccent selection:text-black">
+                {isRawMode ? (
                   <textarea
                     ref={textareaRef}
                     value={editValue}
@@ -468,26 +364,39 @@ export default function Detail({
                     className="w-full outline-none bg-transparent overflow-hidden whitespace-pre-wrap font-mono text-[13px] text-textSecondary break-words border-none"
                     placeholder="未能提取到或尚未进行 OCR 文本识别..."
                   />
-                  <div className="sticky bottom-6 right-0 flex justify-end pointer-events-none z-20 pr-4 pb-2">
-                    {editValue !== item.ocr_text && (
-                      <button
-                        onClick={onSaveWrap}
-                        disabled={isSaving}
-                        className={`pointer-events-auto px-4 py-2 rounded-lg flex items-center gap-2 text-xs font-mono border font-bold transition-all backdrop-blur shadow-lg ${isLight ? 'bg-primeAccent/20 hover:bg-primeAccent text-primeAccent hover:text-white border-primeAccent/30' : 'bg-primeAccent/20 hover:bg-primeAccent/80 hover:text-white text-primeAccent border-primeAccent/30'}`}
-                      >
-                        <Save size={14} />
-                        {isSaving ? "正在保存..." : "保存修改"}
-                      </button>
-                    )}
+                ) : (
+                  <div className="markdown-ocr">
+                    <MarkdownRenderer content={item.ocr_text || "未能提取到或尚未进行 OCR 文本识别。"} />
                   </div>
-                </div>
-              ) : (
-                <div className="markdown-ocr">
-                  <MarkdownRenderer content={item.ocr_text || "未能提取到或尚未进行 OCR 文本识别。"} />
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
+
+          {/* 底部工具条 */}
+          <ContentToolbar
+            item={item}
+            externalImages={externalImages}
+            localImages={localImages}
+            isLocalizing={isLocalizing}
+            localizingProgress={localizingProgress}
+            totalImagesToLocalize={totalImagesToLocalize}
+            isRawMode={isRawMode}
+            showToC={showToC}
+            reprocessStatus={reprocessStatus}
+            templates={templates}
+            selectedTemplateId={selectedTemplateId}
+            isReprocessing={isReprocessing}
+            contentScrollRef={contentScrollRef}
+            hasUnsavedChanges={isRawMode && editValue !== item.ocr_text}
+            isSaving={isSaving}
+            onLocalizeImages={handleLocalizeImages}
+            onToggleToC={(v) => setShowToC(v === false ? false : !showToC)}
+            onToggleRawMode={() => { setIsRawMode(!isRawMode); setShowToC(false); }}
+            onSelectTemplate={setSelectedTemplateId}
+            onReprocess={handleReprocess}
+            onSave={onSaveWrap}
+          />
         </div>
 
         {/* 源侧边区 */}
@@ -544,21 +453,19 @@ export default function Detail({
                   <div className="flex bg-sidebar rounded-lg p-0.5 mb-3 border border-borderSubtle">
                     <button
                       onClick={() => setActiveConnectionTab('related')}
-                      className={`flex-1 text-[10px] font-mono uppercase tracking-wider py-1.5 rounded-md transition-all flex items-center justify-center gap-1.5 ${
-                        activeConnectionTab === 'related'
-                          ? 'bg-card text-textPrimary shadow-sm'
-                          : 'text-textSecondary/50 hover:text-textSecondary'
-                      }`}
+                      className={`flex-1 text-[10px] font-mono uppercase tracking-wider py-1.5 rounded-md transition-all flex items-center justify-center gap-1.5 ${activeConnectionTab === 'related'
+                        ? 'bg-card text-textPrimary shadow-sm'
+                        : 'text-textSecondary/50 hover:text-textSecondary'
+                        }`}
                     >
                       <Link size={10} /> 相关笔记
                     </button>
                     <button
                       onClick={() => setActiveConnectionTab('lineage')}
-                      className={`flex-1 text-[10px] font-mono uppercase tracking-wider py-1.5 rounded-md transition-all flex items-center justify-center gap-1.5 ${
-                        activeConnectionTab === 'lineage'
-                          ? 'bg-card text-textPrimary shadow-sm'
-                          : 'text-textSecondary/50 hover:text-textSecondary'
-                      }`}
+                      className={`flex-1 text-[10px] font-mono uppercase tracking-wider py-1.5 rounded-md transition-all flex items-center justify-center gap-1.5 ${activeConnectionTab === 'lineage'
+                        ? 'bg-card text-textPrimary shadow-sm'
+                        : 'text-textSecondary/50 hover:text-textSecondary'
+                        }`}
                     >
                       <Zap size={10} /> 知识谱系
                     </button>
@@ -665,7 +572,7 @@ export default function Detail({
                     : isLight
                       ? 'bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 border border-primeAccent/30 shadow-[0_0_20px_color-mix(in_srgb,var(--prime-accent),transparent_90%)]'
                       : 'bg-primeAccent text-white-fixed hover:bg-primeAccent/90 shadow-[0_0_20px_color-mix(in_srgb,var(--prime-accent),transparent_70%)]'
-                  }`}
+                    }`}
                 >
                   {isSubmittingStatus ? (
                     <RefreshCw size={14} className="animate-spin" />
