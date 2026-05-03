@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BookOpen, Clock, Globe, ShieldCheck, ArrowLeft, AlertCircle, List, Sun, Moon } from 'lucide-react';
+import { BookOpen, Clock, Globe, ShieldCheck, ArrowLeft, AlertCircle, List, Sun, Moon, X } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
 import TableOfContents from './TableOfContents';
 import { getPublicShare } from '../api/shareApi';
@@ -11,6 +11,7 @@ export default function PublicSharePage({ shareId }) {
    const [loading, setLoading] = useState(true);
    const [item, setItem] = useState(null);
    const [error, setError] = useState(null);
+   const [showToC, setShowToC] = useState(true);
 
    useEffect(() => {
       loadContent();
@@ -79,19 +80,37 @@ export default function PublicSharePage({ shareId }) {
             {isLight ? <Moon size={18} /> : <Sun size={18} />}
          </button>
 
-         {/* 右侧标题导航栏 - fixed 定位不挤占空间 */}
+         {/* 右侧标题导航栏 */}
          {(item.ocr_text || item.ai_summary) && (
-            <aside className={`hidden lg:block fixed right-6 top-24 w-52 border rounded-2xl backdrop-blur-sm z-20 ${isLight ? 'bg-slate-50/80 border-slate-200 shadow-lg' : 'bg-card border-white/10 shadow-xl'}`}>
-               <div className={`px-4 py-3 border-b ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
-                  <div className="flex items-center gap-2 text-textSecondary/60">
-                     <List size={14} />
-                     <span className="text-[11px] uppercase tracking-widest font-medium">目录导航</span>
+            <>
+              {showToC ? (
+                <aside className={`hidden lg:block fixed right-6 top-24 w-52 border rounded-2xl backdrop-blur-sm z-20 animate-in slide-in-from-right duration-300 ${isLight ? 'bg-slate-50/80 border-slate-200 shadow-lg' : 'bg-card border-white/10 shadow-xl'}`}>
+                  <div className={`px-4 py-3 border-b flex items-center justify-between ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
+                    <div className="flex items-center gap-2 text-textSecondary/60">
+                      <List size={14} />
+                      <span className="text-[11px] uppercase tracking-widest font-medium">目录导航</span>
+                    </div>
+                    <button
+                      onClick={() => setShowToC(false)}
+                      className={`p-1 rounded-md transition-colors ${isLight ? 'text-slate-400 hover:text-red-400 bg-slate-100 hover:bg-slate-200 border border-slate-200' : 'text-textSecondary/40 hover:text-red-400 bg-sidebar/50 border border-borderSubtle/40'}`}
+                    >
+                      <X size={12} />
+                    </button>
                   </div>
-               </div>
-               <TableOfContents
-                  content={item.ocr_text || item.ai_summary}
-               />
-            </aside>
+                  <TableOfContents
+                    content={item.ocr_text || item.ai_summary}
+                  />
+                </aside>
+              ) : (
+                <button
+                  onClick={() => setShowToC(true)}
+                  className={`hidden lg:flex fixed right-6 top-24 z-20 items-center justify-center w-9 h-9 rounded-xl border transition-all ${isLight ? 'bg-slate-50/80 border-slate-200 text-slate-400 hover:text-primeAccent hover:bg-slate-100 shadow-md' : 'bg-card/80 border-white/10 text-textSecondary/40 hover:text-primeAccent hover:bg-card shadow-md'}`}
+                  title="展开目录导航"
+                >
+                  <List size={14} />
+                </button>
+              )}
+            </>
          )}
 
          <main className="relative z-10 max-w-5xl mx-auto px-6 mt-6 space-y-6">

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, Link, Zap, Share2, RefreshCw, CheckCircle2, ClipboardEdit, Eye, ChevronLeft, ChevronDown, ChevronUp } from 'lucide-react';
+import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, Link, Zap, Share2, RefreshCw, CheckCircle2, ClipboardEdit, Eye, ChevronLeft, ChevronDown, ChevronUp, List, PanelRightClose } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
 import ContentToolbar from './ContentToolbar';
+import TableOfContents from './TableOfContents';
 import { getRelatedNotes, reprocessNote, uploadImage, uploadImageFromUrl, getNote } from '../api/noteApi';
 import { getTemplates } from '../api/templateApi';
 import ShareModal from './ShareModal';
@@ -336,7 +337,24 @@ export default function Detail({
 
       {/* 内容区 */}
       <div className="flex flex-1 overflow-y-auto lg:overflow-hidden flex-col lg:flex-row">
-        <div className="flex-none lg:flex-1 h-auto lg:h-full flex flex-col lg:border-r border-borderSubtle bg-main">
+        {/* 正文区域 */}
+        <div className="flex-none lg:flex-1 h-auto lg:h-full flex flex-col lg:border-r border-borderSubtle bg-main relative">
+
+          {/* 大纲吸附按钮 — 吸附在右侧边框 */}
+          {!isRawMode && (
+            <button
+              onClick={() => setShowToC(!showToC)}
+              className={`absolute right-0 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center transition-all duration-300 ${
+                showToC
+                  ? 'w-7 h-24 bg-primeAccent/30 backdrop-blur-md border border-primeAccent/40 rounded-l-lg text-primeAccent shadow-lg'
+                  : 'w-5 h-14 bg-sidebar/80 backdrop-blur-sm border border-borderSubtle rounded-l-md text-textSecondary/60 hover:text-primeAccent hover:bg-primeAccent/10 hover:border-primeAccent/20 shadow-md hover:shadow-lg'
+              }`}
+              title={showToC ? '收起大纲' : '展开大纲'}
+            >
+              {showToC ? <PanelRightClose size={14} /> : <List size={12} />}
+            </button>
+          )}
+
           <div
             ref={contentScrollRef}
             className="flex-1 p-4 md:p-5 lg:p-6 overflow-visible lg:overflow-y-auto custom-scrollbar raw-textarea-scroll-container"
@@ -382,16 +400,13 @@ export default function Detail({
             localizingProgress={localizingProgress}
             totalImagesToLocalize={totalImagesToLocalize}
             isRawMode={isRawMode}
-            showToC={showToC}
             reprocessStatus={reprocessStatus}
             templates={templates}
             selectedTemplateId={selectedTemplateId}
             isReprocessing={isReprocessing}
-            contentScrollRef={contentScrollRef}
             hasUnsavedChanges={isRawMode && editValue !== item.ocr_text}
             isSaving={isSaving}
             onLocalizeImages={handleLocalizeImages}
-            onToggleToC={(v) => setShowToC(v === false ? false : !showToC)}
             onToggleRawMode={() => { setIsRawMode(!isRawMode); setShowToC(false); }}
             onSelectTemplate={setSelectedTemplateId}
             onReprocess={handleReprocess}
@@ -399,8 +414,25 @@ export default function Detail({
           />
         </div>
 
-        {/* 源侧边区 */}
+        {/* 源侧边区 + 大纲浮动覆盖 */}
         <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 bg-panel/80 flex flex-col flex-none h-auto lg:h-full relative border-t lg:border-t-0 lg:border-l border-borderSubtle">
+          {/* 大纲浮动覆盖层 */}
+          {showToC && !isRawMode && (
+            <div className="absolute inset-0 z-30 bg-main/80 backdrop-blur-xl flex flex-col animate-in slide-in-from-right duration-300">
+              <div className="px-3 py-2.5 border-b border-borderSubtle/40 flex items-center justify-between shrink-0">
+                <span className="text-[11px] text-textSecondary/70 font-bold tracking-widest font-mono uppercase">大纲导读</span>
+                <button
+                  onClick={() => setShowToC(false)}
+                  className="text-textSecondary/40 hover:text-red-400 transition-colors bg-sidebar/50 p-1 rounded-md border border-borderSubtle/40"
+                >
+                  <X size={11} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto custom-scrollbar py-1">
+                <TableOfContents content={item.ocr_text} containerRef={contentScrollRef} contained />
+              </div>
+            </div>
+          )}
           {/* 可滚动内容区 */}
           <div className="flex-none lg:flex-1 overflow-visible lg:overflow-y-auto p-5 custom-scrollbar scrollbar-hide flex flex-col gap-4">
             {/* 区块 1: 源视觉预览 */}

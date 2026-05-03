@@ -1,6 +1,5 @@
 import React from 'react';
-import { ExternalLink, ImageDown, List, X, Code, Eye, CheckCircle2, XCircle, RefreshCw, Save } from 'lucide-react';
-import TableOfContents from './TableOfContents';
+import { ExternalLink, ImageDown, Code, Eye, CheckCircle2, XCircle, RefreshCw, Save } from 'lucide-react';
 
 export default function ContentToolbar({
   item,
@@ -10,16 +9,13 @@ export default function ContentToolbar({
   localizingProgress,
   totalImagesToLocalize,
   isRawMode,
-  showToC,
   reprocessStatus,
   templates,
   selectedTemplateId,
   isReprocessing,
-  contentScrollRef,
   hasUnsavedChanges,
   isSaving,
   onLocalizeImages,
-  onToggleToC,
   onToggleRawMode,
   onSelectTemplate,
   onReprocess,
@@ -73,27 +69,6 @@ export default function ContentToolbar({
             {isLocalizing ? `本地化中 ${localizingProgress}/${totalImagesToLocalize}` : `图片 ${localImages.length}/${externalImages.length + localImages.length}`}
           </button>
         )}
-
-        <div className="relative">
-          {!isRawMode && (
-            <button onClick={onToggleToC}
-              className={`flex items-center gap-1.5 px-2 py-1 transition-colors rounded text-[10px] font-mono border ${showToC ? 'bg-primeAccent/20 text-primeAccent border-primeAccent/30' : 'bg-sidebar hover:bg-card text-textSecondary hover:text-textPrimary border-borderSubtle'}`}
-              title="大纲导读">
-              <List size={13} /> 大纲
-            </button>
-          )}
-          {showToC && !isRawMode && (
-            <div className="absolute bottom-full right-0 mb-2 w-72 glass-panel border border-borderSubtle shadow-2xl rounded-xl z-50 flex flex-col max-h-[300px] animate-in fade-in zoom-in-95 origin-bottom-right">
-              <div className="px-3 py-2 bg-header border-b border-borderSubtle flex items-center justify-between shrink-0">
-                <span className="text-[11px] text-textSecondary font-bold tracking-widest font-mono uppercase">Document Index</span>
-                <button onClick={() => onToggleToC(false)} className="text-textSecondary hover:text-red-400 transition-colors bg-sidebar p-1 rounded-md border border-borderSubtle"><X size={12} /></button>
-              </div>
-              <div className="p-1 flex-1 overflow-y-auto">
-                <TableOfContents content={item.ocr_text} containerRef={contentScrollRef} contained />
-              </div>
-            </div>
-          )}
-        </div>
 
         <button onClick={onToggleRawMode}
           className="flex items-center gap-1.5 px-2 py-1 bg-sidebar hover:bg-card text-textSecondary hover:text-textPrimary transition-colors rounded text-[10px] font-mono border border-borderSubtle"
