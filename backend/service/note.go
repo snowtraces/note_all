@@ -78,6 +78,7 @@ func performFullAnalysis(nID uint, templateID uint) {
 	}
 
 	markdownText := note.OcrText
+	title := ""
 	summary := ""
 	tags := ""
 
@@ -106,9 +107,10 @@ func performFullAnalysis(nID uint, templateID uint) {
 		} else {
 			// 1.2 OCR 无结果或报错，触发 VLM 兜底
 			log.Printf("[AI 作业] OCR 无文字或失败 (err: %v)，尝试 VLM 视觉兜底, 记录ID %d", err, nID)
-			desc, summaryStr, tagsStr, vlmErr := pkg.DescribeImageVlm(fileBlob, note.FileType)
+			desc, titleStr, summaryStr, tagsStr, vlmErr := pkg.DescribeImageVlm(fileBlob, note.FileType)
 			if vlmErr == nil && desc != "" {
 				markdownText = desc
+				title = titleStr
 				summary = summaryStr
 				tags = tagsStr
 				log.Printf("[AI 作业] VLM 视觉感知成功, 记录ID %d (Summary: %s)", nID, summary)
@@ -128,7 +130,7 @@ func performFullAnalysis(nID uint, templateID uint) {
 		}
 
 		if strings.TrimSpace(markdownText) != "" {
-			s, t, err := pkg.ExtractSummaryAndTags(markdownText, targetTpl.SystemPrompt)
+			llmTitle, s, t, err := pkg.ExtractSummaryAndTags(markdownText, targetTpl.SystemPrompt)
 			if err != nil {
 				log.Printf("[AI 作业] LLM 提炼失败: %v", err)
 				summary = markdownText // 原文兜底
@@ -137,6 +139,7 @@ func performFullAnalysis(nID uint, templateID uint) {
 				}
 				tags = "ai-fail"
 			} else {
+				title = llmTitle
 				summary = s
 				tags = t
 			}
@@ -152,6 +155,7 @@ func performFullAnalysis(nID uint, templateID uint) {
 
 	global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Updates(map[string]interface{}{
 		"ocr_text":   markdownText,
+		"ai_title":   title,
 		"ai_summary": summary,
 		"ai_tags":    tags,
 		"status":     "analyzed",
@@ -314,6 +318,7 @@ func CreateNoteFromText(text string, providedName string) (*models.NoteItem, err
 
 			global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Updates(map[string]interface{}{
 				"ocr_text":   rawText,
+				"ai_title":   originalName,
 				"ai_summary": summary,
 				"ai_tags":    tags,
 				"status":     "analyzed",
@@ -334,9 +339,10 @@ func CreateNoteFromText(text string, providedName string) (*models.NoteItem, err
 		}
 
 		activeTpl, _ := models.GetActiveTemplate(global.DB)
-		summary, tags, err := pkg.ExtractSummaryAndTags(llmInput, activeTpl.SystemPrompt)
+		title, summary, tags, err := pkg.ExtractSummaryAndTags(llmInput, activeTpl.SystemPrompt)
 		if err != nil {
 			log.Printf("[大模型提炼失败降级] 记录ID %d: %v", nID, err)
+			title = ""
 			summary = llmInput
 			// 降级截断，避免 UI 把大长篇内容塞到列表 item 卡片上
 			if len([]rune(summary)) > 60 {
@@ -346,6 +352,7 @@ func CreateNoteFromText(text string, providedName string) (*models.NoteItem, err
 		}
 
 		global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Updates(map[string]interface{}{
+			"ai_title":   title,
 			"ocr_text":   rawText, // DB 存入必须是原封不动的完整抓取全本与图片占位，便于 RAG
 			"ai_summary": summary,
 			"ai_tags":    tags,
@@ -397,14 +404,16 @@ func UpdateNoteText(id string, text string) error {
 		log.Printf("[重新提炼作业] 开始为数据包 (ID:%s) 唤起 LLM 更新提炼...\n", itemID)
 
 		activeTpl, _ := models.GetActiveTemplate(global.DB)
-		summary, tags, err := pkg.ExtractSummaryAndTags(rawText, activeTpl.SystemPrompt)
+		title, summary, tags, err := pkg.ExtractSummaryAndTags(rawText, activeTpl.SystemPrompt)
 		if err != nil {
 			log.Printf("[重新提炼大模型失败降级] 记录ID %s: %v", itemID, err)
+			title = ""
 			summary = rawText
 			tags = "ai-fail"
 		}
 
 		global.DB.Model(&models.NoteItem{}).Where("id = ?", itemID).Updates(map[string]interface{}{
+			"ai_title":   title,
 			"ai_summary": summary,
 			"ai_tags":    tags,
 			"status":     "analyzed",

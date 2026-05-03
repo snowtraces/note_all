@@ -24,6 +24,7 @@ type NoteItem struct {
 
 	// 内容解析
 	OcrText     string `gorm:"type:text" json:"ocr_text"`               // OCR原始大宗文本
+	AiTitle     string `gorm:"size:512" json:"ai_title"`                // LLM 生成的标题
 	AiSummary   string `gorm:"size:1024" json:"ai_summary"`             // AI 总结的精华摘要
 	AiTags      string `gorm:"size:255" json:"ai_tags"`                 // AI 打的标签
 	OriginalUrl string `gorm:"size:2048" json:"original_url"`           // [新增] 溯源网页URL
@@ -97,6 +98,7 @@ func SetupDBWithFTS(db *gorm.DB) error {
 		storage_id,
 		original_name,
 		ocr_text,
+		ai_title,
 		ai_summary,
 		ai_tags,
 		tokenize='trigram'
@@ -116,8 +118,8 @@ func SetupDBWithFTS(db *gorm.DB) error {
 		`CREATE TRIGGER trg_note_insert AFTER INSERT ON note_items
 		 WHEN new.deleted_at IS NULL
 		 BEGIN
-			 INSERT INTO note_fts(rowid, storage_id, original_name, ocr_text, ai_summary, ai_tags)
-			 VALUES (new.id, new.storage_id, new.original_name, new.ocr_text, new.ai_summary, new.ai_tags);
+			 INSERT INTO note_fts(rowid, storage_id, original_name, ocr_text, ai_title, ai_summary, ai_tags)
+			 VALUES (new.id, new.storage_id, new.original_name, new.ocr_text, new.ai_title, new.ai_summary, new.ai_tags);
 		 END;`,
 
 		// 删除时 (物理删除的情况)
@@ -130,8 +132,8 @@ func SetupDBWithFTS(db *gorm.DB) error {
 		`CREATE TRIGGER trg_note_update AFTER UPDATE ON note_items
 		 BEGIN
 			 DELETE FROM note_fts WHERE rowid = old.id;
-			 INSERT INTO note_fts(rowid, storage_id, original_name, ocr_text, ai_summary, ai_tags)
-			 SELECT new.id, new.storage_id, new.original_name, new.ocr_text, new.ai_summary, new.ai_tags
+			 INSERT INTO note_fts(rowid, storage_id, original_name, ocr_text, ai_title, ai_summary, ai_tags)
+			 SELECT new.id, new.storage_id, new.original_name, new.ocr_text, new.ai_title, new.ai_summary, new.ai_tags
 			 WHERE new.deleted_at IS NULL;
 		 END;`,
 	}
