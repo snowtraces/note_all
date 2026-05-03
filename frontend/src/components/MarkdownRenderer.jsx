@@ -52,7 +52,7 @@ const MarkdownRenderer = React.memo(function MarkdownRenderer({ content, classNa
                 <div className="bg-code-header px-4 py-2 flex items-center justify-between border-b border-borderSubtle">
                   <span className="text-[11px] text-textSecondary font-mono lowercase">{match ? match[1] : 'code'}</span>
                 </div>
-                <pre className="p-4 overflow-x-auto custom-scrollbar text-[13px] font-mono leading-relaxed" {...props}>
+                <pre className="p-4 overflow-x-auto custom-scrollbar text-[13px] font-mono leading-relaxed whitespace-pre-wrap break-words" {...props}>
                   <code className={className} style={{background: 'transparent', padding: 0}}>
                     {children}
                   </code>
