@@ -225,17 +225,24 @@
     turndownService.addRule('fencedCodeBlock', {
       filter: 'pre',
       replacement: function (content, node) {
+        // 去除 BR_MARKER 首尾标记，避免残留为多余空行
+        const stripMarker = (s) => {
+          s = s.trim();
+          while (s.startsWith(BR_MARKER)) s = s.slice(BR_MARKER.length);
+          while (s.endsWith(BR_MARKER)) s = s.slice(0, -BR_MARKER.length);
+          return s;
+        };
         // 检查是否有 pre 祖先（嵌套情况）
         let parent = node.parentNode;
         while (parent) {
           if (parent.nodeName === 'PRE') {
             // 嵌套的 pre，只返回内容，不包裹
-            return content.trim() + '\n';
+            return stripMarker(content) + '\n';
           }
           parent = parent.parentNode;
         }
         // 最外层 pre，处理语言标识并包裹成代码块
-        content = content.trim();
+        content = stripMarker(content);
         if (content.startsWith('```')) return '\n\n' + content + '\n\n';
 
         // 尝试提取第一行作为语言标识（常见语言名列表）
