@@ -7,12 +7,17 @@ import (
 	"note_all_backend/api"
 	"note_all_backend/middleware"
 
+	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 )
 
 // SetupRouter 组装与注册系统所有 API 路由
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
+	r.Use(gzip.Gzip(gzip.DefaultCompression,
+		gzip.WithExcludedExtensions([]string{".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".svg", ".woff2"}),
+		gzip.WithExcludedPaths([]string{"/api/stream"}),
+	))
 	// CORS 中间件
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
