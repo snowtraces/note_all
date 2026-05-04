@@ -150,6 +150,7 @@ export const CustomImage = Image.extend({
           } else {
             state.write(`![${alt || ''}](${src})`);
           }
+          state.closeBlock(node);
         }
       }
     }
