@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { Copy, Check } from 'lucide-react';
 import { useEditor, EditorContent, ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react';
 import { Extension, mergeAttributes } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
@@ -178,8 +179,25 @@ export const CodeBlockComponent = ({ node, updateAttributes, editor }) => {
   const [pickerPos, setPickerPos] = useState({ top: 0, left: 0 });
   const [previewContent, setPreviewContent] = useState('');
   const [previewError, setPreviewError] = useState('');
+  const [copied, setCopied] = useState(false);
   const btnRef = useRef(null);
   const pickerRef = useRef(null);
+  const copyTimerRef = useRef(null);
+
+  const handleCopy = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(node.textContent).then(() => {
+      setCopied(true);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 1500);
+    }).catch(() => {});
+  };
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
 
   const filteredLangs = LANGUAGES.filter(l =>
     l.toLowerCase().includes(langSearch.toLowerCase())
@@ -255,6 +273,23 @@ export const CodeBlockComponent = ({ node, updateAttributes, editor }) => {
           ) : (
             <span className="text-[11px] text-textSecondary font-mono lowercase">{language}</span>
           )}
+          <button
+            contentEditable={false}
+            onClick={handleCopy}
+            className="text-[12px] text-textSecondary/40 hover:text-primeAccent transition-colors flex items-center gap-1.5 px-1.5 py-0.5 rounded hover:bg-primeAccent/10"
+          >
+            {copied ? (
+              <>
+                <Check size={14} strokeWidth={2} />
+                <span>已复制</span>
+              </>
+            ) : (
+              <>
+                <Copy size={14} strokeWidth={1.2} />
+                <span>复制</span>
+              </>
+            )}
+          </button>
         </div>
         <pre className="p-4 overflow-x-auto custom-scrollbar text-[13px] font-mono leading-relaxed whitespace-pre-wrap break-words">
           <NodeViewContent as="code" />
