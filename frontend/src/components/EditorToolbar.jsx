@@ -8,6 +8,7 @@ import {
   Highlighter, Save,
 } from 'lucide-react';
 import { EDITOR_MODES } from '../constants/editorModes';
+import { triggerImageUpload } from './SlashCommandExtension';
 
 export default function EditorToolbar({
   editor,
@@ -40,6 +41,24 @@ export default function EditorToolbar({
     setLinkUrl('');
   };
 
+  const handleCodeBlock = () => {
+    const { state } = editor;
+    const { selection } = state;
+    
+    // 如果选区为空，或者是取消代码块状态，则直接使用原生的 toggle
+    if (selection.empty || editor.isActive('codeBlock')) {
+      editor.chain().focus().toggleCodeBlock().run();
+      return;
+    }
+    
+    // 如果有选区，将其文本内容提取出来放入一个单一的代码块中
+    const text = state.doc.textBetween(selection.from, selection.to, '\n');
+    editor.chain().focus().deleteSelection().insertContent({
+      type: 'codeBlock',
+      content: text ? [{ type: 'text', text }] : []
+    }).run();
+  };
+
   const groups = [
     // 文本格式
     {
@@ -62,16 +81,13 @@ export default function EditorToolbar({
         { icon: ListOrdered, action: () => editor.chain().focus().toggleOrderedList().run(), active: editor.isActive('orderedList'), title: '有序列表' },
         { icon: CheckSquare, action: () => editor.chain().focus().toggleTaskList().run(), active: editor.isActive('taskList'), title: '任务列表' },
         { icon: Quote, action: () => editor.chain().focus().toggleBlockquote().run(), active: editor.isActive('blockquote'), title: '引用块' },
-        { icon: CodeSquare, action: () => editor.chain().focus().toggleCodeBlock().run(), active: editor.isActive('codeBlock'), title: '代码块' },
+        { icon: CodeSquare, action: handleCodeBlock, active: editor.isActive('codeBlock'), title: '代码块' },
       ],
     },
     // 插入
     {
       items: [
-        { icon: ImageIcon, action: () => {
-          const url = window.prompt('图片 URL:');
-          if (url) editor.chain().focus().setImage({ src: url }).run();
-        }, active: false, title: '插入图片' },
+        { icon: ImageIcon, action: () => triggerImageUpload(editor), active: false, title: '上传图片' },
         { icon: Link, action: () => {
           if (editor.isActive('link')) {
             editor.chain().focus().unsetLink().run();
@@ -95,12 +111,16 @@ export default function EditorToolbar({
               <button
                 key={ii}
                 onClick={item.action}
-                className={`toolbar-btn p-1.5 rounded-md transition-all shrink-0 text-textSecondary/70 hover:text-textPrimary hover:bg-primeAccent/10 ${
-                  item.active ? 'bg-primeAccent/15 text-primeAccent shadow-sm' : ''
+                className={`toolbar-btn p-1.5 rounded-md transition-all shrink-0 ${
+                  item.danger
+                    ? 'text-red-400/70 hover:text-red-400 hover:bg-red-400/10'
+                    : 'text-textSecondary/70 hover:text-textPrimary hover:bg-primeAccent/10'
+                } ${
+                  item.active && !item.danger ? 'bg-primeAccent/15 text-primeAccent shadow-sm' : ''
                 }`}
                 title={item.title}
               >
-                <item.icon size={14} />
+                {item.icon ? <item.icon size={14} /> : <span className="text-[10px] font-bold px-1 whitespace-nowrap">{item.label}</span>}
               </button>
             ))}
           </React.Fragment>

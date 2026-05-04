@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useEditor, EditorContent, ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from '@tiptap/react';
+import { Extension } from '@tiptap/core';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+
 import { StarterKit } from '@tiptap/starter-kit';
 import { Image } from '@tiptap/extension-image';
 import { Link } from '@tiptap/extension-link';
@@ -17,17 +20,25 @@ import { Typography } from '@tiptap/extension-typography';
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight';
 import { common, createLowlight } from 'lowlight';
 import { Markdown } from 'tiptap-markdown';
+import GlobalDragHandle from 'tiptap-extension-global-drag-handle';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import mermaid from 'mermaid';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 import { uploadImage } from '../api/noteApi';
 import { getActiveServerUrl } from '../api/client';
+import SlashCommand, { setOnImageUpload } from './SlashCommandExtension';
 
 const lowlight = createLowlight(common);
 
 const LANGUAGES = [
-  'plain', 'bash', 'css', 'html', 'javascript', 'typescript', 'python',
+  'plain', 'mermaid', 'math', 'bash', 'css', 'html', 'javascript', 'typescript', 'python',
   'go', 'rust', 'java', 'c', 'cpp', 'ruby', 'php', 'sql', 'json',
   'yaml', 'xml', 'markdown', 'shell', 'dockerfile', 'graphql', 'tsx',
   'jsx', 'swift', 'kotlin', 'scala', 'lua', 'perl', 'r',
 ];
+
+mermaid.initialize({ startOnLoad: false, theme: 'default' });
 
 // 自定义 Image 组件，对齐 LazyImage 的 URL 拼接逻辑
 const TiptapImageComponent = ({ node }) => {
@@ -59,6 +70,8 @@ const CodeBlockComponent = ({ node, updateAttributes, extension }) => {
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [langSearch, setLangSearch] = useState('');
   const [pickerPos, setPickerPos] = useState({ top: 0, left: 0 });
+  const [previewContent, setPreviewContent] = useState('');
+  const [previewError, setPreviewError] = useState('');
   const btnRef = useRef(null);
   const pickerRef = useRef(null);
 
@@ -86,6 +99,37 @@ const CodeBlockComponent = ({ node, updateAttributes, extension }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showLangPicker]);
 
+  // Handle advanced rendering
+  useEffect(() => {
+    const code = node.textContent;
+    if (!code || !code.trim()) {
+      setPreviewContent('');
+      setPreviewError('');
+      return;
+    }
+
+    if (language === 'mermaid') {
+      const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+      mermaid.render(id, code)
+        .then(({ svg }) => {
+          setPreviewContent(svg);
+          setPreviewError('');
+        })
+        .catch(err => setPreviewError(err.message));
+    } else if (language === 'math' || language === 'latex') {
+      try {
+        const html = katex.renderToString(code, { displayMode: true, throwOnError: true });
+        setPreviewContent(html);
+        setPreviewError('');
+      } catch (err) {
+        setPreviewError(err.message);
+      }
+    } else {
+      setPreviewContent('');
+      setPreviewError('');
+    }
+  }, [node.textContent, language]);
+
   return (
     <NodeViewWrapper className="tiptap-codeblock-wrapper">
       <div className="bg-code rounded-lg border border-borderSubtle my-4 overflow-hidden shadow-lg">
@@ -105,6 +149,17 @@ const CodeBlockComponent = ({ node, updateAttributes, extension }) => {
         <pre className="p-4 overflow-x-auto custom-scrollbar text-[13px] font-mono leading-relaxed whitespace-pre-wrap break-words">
           <NodeViewContent as="code" />
         </pre>
+        {(language === 'mermaid' || language === 'math' || language === 'latex') && (
+          <div className="bg-sidebar border-t border-borderSubtle p-4 flex flex-col items-center justify-center overflow-x-auto min-h-[60px]" contentEditable={false}>
+            {previewError ? (
+              <div className="text-red-500 text-xs font-mono whitespace-pre-wrap">{previewError}</div>
+            ) : previewContent ? (
+              <div dangerouslySetInnerHTML={{ __html: previewContent }} className={language === 'mermaid' ? 'mermaid-preview' : 'math-preview'} />
+            ) : (
+              <div className="text-textSecondary text-xs">渲染中...</div>
+            )}
+          </div>
+        )}
       </div>
 
       {showLangPicker && createPortal(
@@ -159,6 +214,185 @@ const CustomCodeBlock = CodeBlockLowlight.extend({
   },
 });
 
+const AutoWrapSelection = Extension.create({
+  name: 'autoWrapSelection',
+  addProseMirrorPlugins() {
+    const editor = this.editor;
+    return [
+      new Plugin({
+        key: new PluginKey('autoWrapSelection'),
+        props: {
+          handleTextInput: (view, from, to, text) => {
+            const { state, dispatch } = view;
+            const { selection, tr } = state;
+
+            if (selection.empty) {
+              return false;
+            }
+
+            const markdownMarks = {
+              '`': 'code',
+              '*': 'italic',
+              '~': 'strike',
+              '_': 'underline',
+            };
+
+            const wrapPairs = {
+              "'": ["'", "'"],
+              '"': ['"', '"'],
+              '(': ['(', ')'],
+              '[': ['[', ']'],
+              '{': ['{', '}'],
+              '<': ['<', '>'],
+              '“': ['“', '”'],
+              '”': ['“', '”'],
+              '‘': ['‘', '’'],
+              '’': ['‘', '’'],
+              '【': ['【', '】'],
+              '（': ['（', '）'],
+              '《': ['《', '》'],
+            };
+
+            const mark = markdownMarks[text];
+            const pair = wrapPairs[text];
+
+            if (!mark && !pair) {
+              return false;
+            }
+
+            // 如果处于输入法组合状态 (IME Composition)，绝对不能 return true (preventDefault)，
+            // 否则会破坏浏览器 IME 状态导致卡死。我们需要等组合结束后再修正文档。
+            if (view.composing) {
+              const selectedText = state.doc.textBetween(from, to);
+              const onCompEnd = () => {
+                view.dom.removeEventListener('compositionend', onCompEnd);
+                setTimeout(() => {
+                  const { state: newState, dispatch: newDispatch } = view;
+                  const newTr = newState.tr;
+                  // IME 已经把选中文本替换为了 text，我们需要删掉它并包裹原文本
+                  newTr.delete(from, from + text.length);
+                  
+                  if (mark) {
+                    newTr.insertText(selectedText, from);
+                    const newSel = newState.selection.constructor.create(newTr.doc, from, from + selectedText.length);
+                    newTr.setSelection(newSel);
+                    newDispatch(newTr);
+                    editor.chain().focus().toggleMark(mark).run();
+                  } else if (pair) {
+                    newTr.insertText(pair[0] + selectedText + pair[1], from);
+                    const newSel = newState.selection.constructor.create(newTr.doc, from + pair[0].length, from + pair[0].length + selectedText.length);
+                    newTr.setSelection(newSel);
+                    newDispatch(newTr);
+                  }
+                }, 10);
+              };
+              view.dom.addEventListener('compositionend', onCompEnd);
+              return false;
+            }
+
+            if (mark) {
+              editor.chain().focus().toggleMark(mark).run();
+              return true;
+            }
+
+            if (pair) {
+              tr.insertText(pair[0], selection.from);
+              tr.insertText(pair[1], selection.to + pair[0].length);
+              
+              const newSelection = state.selection.constructor.create(
+                tr.doc,
+                selection.from + pair[0].length,
+                selection.to + pair[0].length
+              );
+              tr.setSelection(newSelection);
+              dispatch(tr);
+              return true;
+            }
+            
+            return false;
+          },
+        },
+      }),
+    ];
+  },
+});
+
+const InlineMathDecorations = Extension.create({
+  name: 'inlineMathDecorations',
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: new PluginKey('inlineMathDecorations'),
+        state: {
+          init(_, { doc }) {
+            return this.spec.buildDecorations(doc, null);
+          },
+          apply(tr, old, oldState, newState) {
+            if (!tr.docChanged && oldState.selection === newState.selection) {
+              return old;
+            }
+            return this.spec.buildDecorations(newState.doc, newState.selection);
+          }
+        },
+        props: {
+          decorations(state) {
+            return this.getState(state);
+          }
+        },
+        buildDecorations(doc, selection) {
+          const decorations = [];
+          
+          doc.descendants((node, pos) => {
+            if (node.isBlock && node.isTextblock) {
+              const text = node.textContent;
+              const mathRegex = /\$([^\$\n]+)\$/g;
+              let match;
+              
+              while ((match = mathRegex.exec(text)) !== null) {
+                // Ignore if it is part of $$...$$
+                if (text[match.index - 1] === '$' || text[match.index + match[0].length] === '$') {
+                  continue;
+                }
+                
+                const start = pos + 1 + match.index;
+                const end = start + match[0].length;
+                
+                const isCursorInside = selection && 
+                                      ((selection.from >= start && selection.from <= end) || 
+                                       (selection.to >= start && selection.to <= end));
+                
+                if (!isCursorInside) {
+                  const mathText = match[1];
+                  let html = '';
+                  try {
+                    html = katex.renderToString(mathText, { throwOnError: false });
+                  } catch(e) {
+                    html = `<span class="text-red-500">${mathText}</span>`;
+                  }
+                  
+                  const widget = document.createElement('span');
+                  widget.innerHTML = html;
+                  widget.className = 'inline-math-preview mx-1 cursor-pointer';
+                  // Mousedown toggles cursor position
+                  widget.onmousedown = (e) => {
+                    // Let ProseMirror handle the click and move cursor near it
+                  };
+                  
+                  decorations.push(Decoration.widget(start, widget));
+                  decorations.push(Decoration.inline(start, end, {
+                    style: 'display: none;',
+                  }));
+                }
+              }
+            }
+          });
+          return DecorationSet.create(doc, decorations);
+        }
+      })
+    ];
+  }
+});
+
 export default function MarkdownEditor({
   initialContent,
   onUpdate,
@@ -166,64 +400,98 @@ export default function MarkdownEditor({
   onImageUpload,
   className = '',
 }) {
-  const handleDrop = useCallback(async (view, event, _slice, _moved) => {
+  const lastMarkdownRef = useRef(initialContent || '');
+  const [isTableActive, setIsTableActive] = useState(false);
+  const [activeTableWrapper, setActiveTableWrapper] = useState(null);
+
+  const updateTableMenuPos = useCallback((editor) => {
+    setIsTableActive(editor.isActive('table'));
+    if (!editor.isActive('table')) {
+      setActiveTableWrapper(null);
+      return;
+    }
+    try {
+      const domAtPos = editor.view.domAtPos(editor.state.selection.anchor);
+      let el = domAtPos.node;
+      if (el && el.nodeType !== 1) el = el.parentElement;
+      const tableWrapper = el?.closest('.tableWrapper') || el?.closest('table')?.parentElement;
+      if (tableWrapper) {
+        tableWrapper.style.position = 'relative';
+        setActiveTableWrapper(tableWrapper);
+      }
+    } catch (err) { }
+  }, []);
+
+  const handleDrop = useCallback((view, event, _slice, _moved) => {
     const files = event.dataTransfer?.files;
     if (!files || files.length === 0) return false;
 
+    let handled = false;
     for (const file of files) {
       if (!file.type.startsWith('image/')) continue;
       event.preventDefault();
+      handled = true;
 
-      try {
-        const reader = new FileReader();
-        reader.onload = async () => {
-          const base64 = reader.result.split(',')[1];
-          const result = await (onImageUpload || uploadImage)(base64, file.type);
-          const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
-          if (pos) {
-            view.dispatch(
-              view.state.tr.insert(
-                pos.pos,
-                view.state.schema.nodes.image.create({ src: result.url })
-              )
-            );
-          }
-        };
-        reader.readAsDataURL(file);
-      } catch (err) {
-        console.error('Image drop upload failed:', err);
-      }
+      const processUpload = async () => {
+        try {
+          const reader = new FileReader();
+          reader.onload = async () => {
+            const base64 = reader.result.split(',')[1];
+            const result = await (onImageUpload || uploadImage)(base64, file.type);
+            const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
+            if (pos) {
+              view.dispatch(
+                view.state.tr.insert(
+                  pos.pos,
+                  view.state.schema.nodes.image.create({ src: result.url })
+                )
+              );
+            }
+          };
+          reader.readAsDataURL(file);
+        } catch (err) {
+          console.error('Image drop upload failed:', err);
+        }
+      };
+      processUpload();
     }
-    return true;
+    return handled;
   }, [onImageUpload]);
 
-  const handlePaste = useCallback(async (view, event) => {
+  const handlePaste = useCallback((view, event) => {
     const items = event.clipboardData?.items;
     if (!items) return false;
 
+    let handled = false;
     for (const item of items) {
       if (!item.type.startsWith('image/')) continue;
-      event.preventDefault();
-
+      
       const file = item.getAsFile();
-      try {
-        const reader = new FileReader();
-        reader.onload = async () => {
-          const base64 = reader.result.split(',')[1];
-          const result = await (onImageUpload || uploadImage)(base64, file.type);
-          view.dispatch(
-            view.state.tr.insert(
-              view.state.selection.from,
-              view.state.schema.nodes.image.create({ src: result.url })
-            )
-          );
-        };
-        reader.readAsDataURL(file);
-      } catch (err) {
-        console.error('Image paste upload failed:', err);
-      }
+      if (!file) continue;
+
+      event.preventDefault();
+      handled = true;
+      
+      const processUpload = async () => {
+        try {
+          const reader = new FileReader();
+          reader.onload = async () => {
+            const base64 = reader.result.split(',')[1];
+            const result = await (onImageUpload || uploadImage)(base64, file.type);
+            view.dispatch(
+              view.state.tr.replaceSelectionWith(
+                view.state.schema.nodes.image.create({ src: result.url })
+              )
+            );
+          };
+          reader.readAsDataURL(file);
+        } catch (err) {
+          console.error('Image paste upload failed:', err);
+        }
+      };
+      processUpload();
     }
-    return true;
+    return handled;
   }, [onImageUpload]);
 
   const editor = useEditor({
@@ -261,10 +529,22 @@ export default function MarkdownEditor({
       Underline,
       Typography,
       CustomCodeBlock.configure({ lowlight }),
+      AutoWrapSelection,
+      InlineMathDecorations,
+      GlobalDragHandle.configure({
+        dragHandleWidth: 24,
+        scrollTreshold: 100,
+      }),
+      SlashCommand,
     ],
     content: initialContent || '',
+    onSelectionUpdate: ({ editor }) => {
+      updateTableMenuPos(editor);
+    },
     onUpdate: ({ editor }) => {
       const md = editor.storage.markdown.getMarkdown();
+      lastMarkdownRef.current = md;
+      updateTableMenuPos(editor);
       if (onUpdate) onUpdate(md);
     },
     editorProps: {
@@ -286,21 +566,44 @@ export default function MarkdownEditor({
   // 外部内容变更时同步（比如从 RAW 模式切回来）
   useEffect(() => {
     if (editor && initialContent !== undefined) {
-      const currentMd = editor.storage.markdown.getMarkdown();
-      if (initialContent !== currentMd) {
-        queueMicrotask(() => {
-          editor.commands.setContent(initialContent || '', false, {
-            parseOptions: { preserveWhitespace: 'full' },
+      if (initialContent !== lastMarkdownRef.current) {
+        const currentMd = editor.storage.markdown.getMarkdown();
+        if (initialContent !== currentMd) {
+          queueMicrotask(() => {
+            editor.commands.setContent(initialContent || '', false, {
+              parseOptions: { preserveWhitespace: 'full' },
+            });
+            lastMarkdownRef.current = initialContent;
           });
-        });
+        }
       }
     }
   }, [initialContent, editor]);
 
+  // 同步 onImageUpload 回调给 SlashCommand
+  useEffect(() => {
+    setOnImageUpload(onImageUpload || null);
+  }, [onImageUpload]);
+
   if (!editor) return null;
 
   return (
-    <div className={`markdown-editor-wrapper ${className}`}>
+    <div className={`markdown-editor-wrapper relative ${className}`}>
+      {isTableActive && activeTableWrapper && createPortal(
+        <div 
+          className="absolute -bottom-10 right-0 flex items-center gap-1 bg-modal/95 border border-borderSubtle rounded-lg shadow-xl p-1.5 animate-in fade-in zoom-in-95 backdrop-blur-md z-50"
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          <button onClick={() => editor.chain().focus().addColumnAfter().run()} className="px-2.5 py-1 text-[11px] font-medium text-textPrimary hover:text-primeAccent hover:bg-primeAccent/10 rounded transition-colors" title="在右侧插入列">+列</button>
+          <button onClick={() => editor.chain().focus().deleteColumn().run()} className="px-2.5 py-1 text-[11px] font-medium text-textSecondary hover:text-red-400 hover:bg-red-400/10 rounded transition-colors" title="删除当前列">-列</button>
+          <div className="w-px h-3.5 bg-borderSubtle mx-0.5" />
+          <button onClick={() => editor.chain().focus().addRowAfter().run()} className="px-2.5 py-1 text-[11px] font-medium text-textPrimary hover:text-primeAccent hover:bg-primeAccent/10 rounded transition-colors" title="在下方插入行">+行</button>
+          <button onClick={() => editor.chain().focus().deleteRow().run()} className="px-2.5 py-1 text-[11px] font-medium text-textSecondary hover:text-red-400 hover:bg-red-400/10 rounded transition-colors" title="删除当前行">-行</button>
+          <div className="w-px h-3.5 bg-borderSubtle mx-0.5" />
+          <button onClick={() => editor.chain().focus().deleteTable().run()} className="px-2.5 py-1 text-[11px] font-medium text-red-500/80 hover:text-red-500 hover:bg-red-500/10 rounded transition-colors" title="删除整个表格">删表</button>
+        </div>,
+        activeTableWrapper
+      )}
       <EditorContent editor={editor} />
     </div>
   );

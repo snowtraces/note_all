@@ -423,6 +423,17 @@ select {
   padding: 10px 14px;
   text-align: left;
   border-bottom: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
+}
+
+.markdown-content th:last-child,
+.markdown-content td:last-child {
+  border-right: none;
+}
+
+.markdown-content th::after,
+.markdown-content td::after {
+  content: '\200b';
 }
 
 .markdown-content tr:last-child td {

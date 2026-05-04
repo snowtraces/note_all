@@ -1,6 +1,14 @@
 # Changelog
 
 ## [Unreleased]
+- **Markdown 编辑器 UX 与可视化深度强化 (Markdown Editor UX & Advanced Syntax)**:
+  - **高级语法自动包裹 (IME-Safe Auto-Wrap)**: 构建 `AutoWrapSelection` 机制。针对选中文字后输入标点符号，不仅能进行原生双向包裹，还彻底解决了拦截中文输入法组合态导致的卡死死锁。同时，按下 `*` 或 `` ` `` 时会自动应用底层样式 Mark，确保导出的 RAW 代码**纯净且无转义符**。
+  - **原生行内公式预览 (Inline Math Live Preview)**: 构建基于 ProseMirror `Decoration` 的纯视觉层渲染机制。在输入 `$x$` 时保持底层数据的纯文本性（免遭反向序列化污染），只在光标离开时视觉转化为 KaTeX 优美公式；点击即可原地编辑，实现 Obsidian 同等手感的无损体验。
+  - **多模态预览拓展 (Mermaid & Block Math)**: 改造 `CustomCodeBlock` 引擎。当代码块语言被设为 `mermaid` 或 `math`/`latex` 时，自动在其底部挂载实时的可视化渲染层（支持错位提示），并集成了相应的 `/mermaid` 快捷命令。
+  - **智能悬浮操作条 (Contextual Table Menu)**: 放弃了破坏焦点的传统气泡栏，改用 React Portal 将表格增删行列的操作条固定吸附在表格自身右下角。
+  - **动态维度斜杠命令 (Dynamic Slash Commands)**: 增加了正则模式的动态生成支持，允许用户敲出 `/table5*5` 之类的指令直接一键绘制多维表格。
+  - **块级拖拽重排 (Block Drag & Drop)**: 引入了全局句柄扩展 (`GlobalDragHandle`)，用户悬停任意段落时左侧出现抓手 `⋮⋮` 标志，可随意拖拽重整文档结构。
+  - **粘贴核心修复 (Drop & Paste Fix)**: 彻底重构了图文拖放拦截器，移除了 `async` 带来的 Promise 误判。修正了 Tiptap 把任何事件视为已被处理的严重 Bug，全面恢复了正常的多文本、富文本原样粘贴能力。
 - **Remote Agent 单文件分发优化 (Embed Static Assets)**:
   - 将前端静态资源（Web UI）打包嵌入 `remote_agent.exe` 内部，实现单文件分发。
   - 使用 Go 1.16+ `embed.FS` 功能，无需外部 `web/` 目录依赖。
