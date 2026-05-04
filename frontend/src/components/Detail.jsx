@@ -366,7 +366,7 @@ export default function Detail({
       {/* 内容区 */}
       <div className="flex flex-1 overflow-y-auto lg:overflow-hidden flex-col lg:flex-row">
         {/* 正文区域 */}
-        <div className="flex-none lg:flex-1 h-auto lg:h-full flex flex-col lg:border-r border-borderSubtle bg-main relative">
+        <div className="flex-none lg:flex-1 lg:min-w-0 h-auto lg:h-full flex flex-col lg:border-r border-borderSubtle bg-main relative">
 
           {/* 大纲吸附按钮 — 吸附在右侧边框 */}
           {editorMode === 'view' && (

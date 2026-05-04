@@ -49,11 +49,11 @@ export default function ContentToolbar({
         )}
       </div>
 
-      {/* 右侧：其余按钮 */}
-      <div className="flex items-center gap-1.5 flex-wrap ml-auto">
+      {/* 右侧：其余按钮 — 可滚动 */}
+      <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar min-w-0 ml-auto">
         {item.original_url && (
           <a href={item.original_url} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-2 py-1 bg-primeAccent/10 hover:bg-primeAccent/20 text-primeAccent transition-colors rounded text-[10px] font-mono border border-primeAccent/20"
+            className="flex items-center gap-1.5 px-2 py-1 bg-primeAccent/10 hover:bg-primeAccent/20 text-primeAccent transition-colors rounded text-[10px] font-mono border border-primeAccent/20 shrink-0"
             title="直达原文">
             <ExternalLink size={13} /> 源网址
           </a>
@@ -61,7 +61,7 @@ export default function ContentToolbar({
 
         {(externalImages.length > 0 || localImages.length > 0) && (
           <button onClick={onLocalizeImages} disabled={isLocalizing || externalImages.length === 0}
-            className={`flex items-center gap-1.5 px-2 py-1 transition-colors rounded text-[10px] font-mono ${externalImages.length === 0
+            className={`flex items-center gap-1.5 px-2 py-1 transition-colors rounded text-[10px] font-mono shrink-0 ${externalImages.length === 0
               ? 'bg-green-500/10 text-green-400 border border-green-500/20'
               : 'bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/20'
               }`}
@@ -70,8 +70,10 @@ export default function ContentToolbar({
             {isLocalizing ? `本地化中 ${localizingProgress}/${totalImagesToLocalize}` : `图片 ${localImages.length}/${externalImages.length + localImages.length}`}
           </button>
         )}
+      </div>
 
-        {/* 三态模式切换器 */}
+      {/* 三态模式切换器 — 始终可见 */}
+      <div className="flex items-center gap-1.5 shrink-0">
         <div className="flex items-center gap-0.5 bg-sidebar rounded-md p-0.5 border border-borderSubtle">
           {EDITOR_MODES.map(m => (
             <button

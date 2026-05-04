@@ -85,28 +85,31 @@ export default function EditorToolbar({
   ];
 
   return (
-    <div className="editor-toolbar shrink-0 sticky bottom-0 lg:static border-t border-borderSubtle bg-main px-4 md:px-5 py-2 flex items-center gap-2 overflow-x-auto custom-scrollbar z-30">
-      {editorMode === 'edit' && groups.map((group, gi) => (
-        <React.Fragment key={gi}>
-          {gi > 0 && <div className="w-px h-5 bg-borderSubtle shrink-0" />}
-          {group.items.map((item, ii) => (
-            <button
-              key={ii}
-              onClick={item.action}
-              className={`toolbar-btn p-1.5 rounded-md transition-all text-textSecondary/70 hover:text-textPrimary hover:bg-primeAccent/10 ${
-                item.active ? 'bg-primeAccent/15 text-primeAccent shadow-sm' : ''
-              }`}
-              title={item.title}
-            >
-              <item.icon size={14} />
-            </button>
-          ))}
-        </React.Fragment>
-      ))}
+    <div className="editor-toolbar shrink-0 sticky bottom-0 lg:static border-t border-borderSubtle bg-main px-4 md:px-5 py-2 flex items-center gap-2 z-30">
+      {/* 格式按钮区 — 横向滚动 */}
+      <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar min-w-0">
+        {editorMode === 'edit' && groups.map((group, gi) => (
+          <React.Fragment key={gi}>
+            {gi > 0 && <div className="w-px h-5 bg-borderSubtle shrink-0" />}
+            {group.items.map((item, ii) => (
+              <button
+                key={ii}
+                onClick={item.action}
+                className={`toolbar-btn p-1.5 rounded-md transition-all shrink-0 text-textSecondary/70 hover:text-textPrimary hover:bg-primeAccent/10 ${
+                  item.active ? 'bg-primeAccent/15 text-primeAccent shadow-sm' : ''
+                }`}
+                title={item.title}
+              >
+                <item.icon size={14} />
+              </button>
+            ))}
+          </React.Fragment>
+        ))}
+      </div>
 
       {/* 链接输入框 */}
       {showLinkInput && (
-        <div className="flex items-center gap-1 ml-1 animate-in fade-in duration-200">
+        <div className="flex items-center gap-1 shrink-0 animate-in fade-in duration-200">
           <input
             type="url"
             value={linkUrl}
@@ -121,33 +124,34 @@ export default function EditorToolbar({
         </div>
       )}
 
-      {/* 模式切换器 */}
-      <div className="flex items-center ml-auto gap-0.5 bg-sidebar rounded-md p-0.5 border border-borderSubtle">
-        {EDITOR_MODES.map(m => (
-          <button
-            key={m.key}
-            onClick={() => onModeChange(m.key)}
-            className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono transition-all ${
-              editorMode === m.key
-                ? 'bg-primeAccent/15 text-primeAccent shadow-sm'
-                : 'text-textSecondary/50 hover:text-textSecondary hover:bg-card'
-            }`}
-            title={m.label}
-          >
-            <m.icon size={12} />
-            <span className="hidden sm:inline">{m.label}</span>
-          </button>
-        ))}
-      </div>
+      {/* 模式切换 + 保存 — 始终可见 */}
+      <div className="flex items-center gap-2 ml-auto shrink-0">
+        <div className="flex items-center gap-0.5 bg-sidebar rounded-md p-0.5 border border-borderSubtle">
+          {EDITOR_MODES.map(m => (
+            <button
+              key={m.key}
+              onClick={() => onModeChange(m.key)}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono transition-all ${
+                editorMode === m.key
+                  ? 'bg-primeAccent/15 text-primeAccent shadow-sm'
+                  : 'text-textSecondary/50 hover:text-textSecondary hover:bg-card'
+              }`}
+              title={m.label}
+            >
+              <m.icon size={12} />
+              <span className="hidden sm:inline">{m.label}</span>
+            </button>
+          ))}
+        </div>
 
-      {/* 保存按钮 */}
-      {hasUnsavedChanges && (
-        <button onClick={onSave} disabled={isSaving}
-          className="flex items-center gap-1.5 px-3 py-1 bg-primeAccent/20 text-primeAccent hover:bg-primeAccent hover:text-white transition-all rounded text-[10px] font-bold border border-primeAccent/30 backdrop-blur shadow-lg disabled:opacity-50">
-          <Save size={13} />
-          {isSaving ? '保存中...' : '保存'}
-        </button>
-      )}
+        {hasUnsavedChanges && (
+          <button onClick={onSave} disabled={isSaving}
+            className="flex items-center gap-1.5 px-3 py-1 bg-primeAccent/20 text-primeAccent hover:bg-primeAccent hover:text-white transition-all rounded text-[10px] font-bold border border-primeAccent/30 backdrop-blur shadow-lg disabled:opacity-50">
+            <Save size={13} />
+            {isSaving ? '保存中...' : '保存'}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

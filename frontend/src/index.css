@@ -477,6 +477,10 @@ select {
   list-style-type: disc;
 }
 
+.markdown-content pre {
+  overflow-wrap: break-word;
+}
+
 .markdown-content :not(pre)>code {
   font-size: 11px;
   background: var(--bg-code);
