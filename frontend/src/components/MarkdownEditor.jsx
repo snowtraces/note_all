@@ -79,7 +79,7 @@ export const TiptapImageComponent = ({ node, updateAttributes, editor }) => {
           style={{ width: width === 'auto' ? 'auto' : width, maxHeight: '80vh' }}
           loading="lazy"
         />
-        
+
         {isEditable && (
           <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10" contentEditable={false}>
             <button
@@ -88,12 +88,12 @@ export const TiptapImageComponent = ({ node, updateAttributes, editor }) => {
             >
               <span>{width === 'auto' ? '自适应' : width}</span>
               <svg width="10" height="10" viewBox="0 0 12 12" fill="none" className={`transition-transform duration-200 ${showSizePicker ? 'rotate-180' : ''}`}>
-                <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
 
             {showSizePicker && (
-              <div 
+              <div
                 ref={pickerRef}
                 className="absolute bottom-full right-0 mb-2 bg-modal border border-borderSubtle rounded-lg shadow-2xl py-1 min-w-[100px] overflow-hidden animate-in fade-in slide-in-from-bottom-1 duration-200"
               >
@@ -104,16 +104,15 @@ export const TiptapImageComponent = ({ node, updateAttributes, editor }) => {
                       updateAttributes({ width: s.value });
                       setShowSizePicker(false);
                     }}
-                    className={`w-full px-3 py-1.5 text-left text-[11px] flex items-center justify-between transition-colors ${
-                      width === s.value 
-                        ? 'bg-primeAccent/15 text-primeAccent font-bold' 
-                        : 'text-textSecondary hover:bg-primeAccent/5 hover:text-textPrimary'
-                    }`}
+                    className={`w-full px-3 py-1.5 text-left text-[11px] flex items-center justify-between transition-colors ${width === s.value
+                      ? 'bg-primeAccent/15 text-primeAccent font-bold'
+                      : 'text-textSecondary hover:bg-primeAccent/5 hover:text-textPrimary'
+                      }`}
                   >
                     {s.label}
                     {width === s.value && (
                       <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                        <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     )}
                   </button>
@@ -243,7 +242,7 @@ export const CodeBlockComponent = ({ node, updateAttributes, editor }) => {
             >
               {language}
               <svg width="8" height="8" viewBox="0 0 8 8" fill="none" className="opacity-40">
-                <path d="M2 3L4 5L6 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M2 3L4 5L6 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
           ) : (
@@ -295,11 +294,10 @@ export const CodeBlockComponent = ({ node, updateAttributes, editor }) => {
                   setShowLangPicker(false);
                   setLangSearch('');
                 }}
-                className={`w-full px-3 py-1.5 text-[11px] font-mono lowercase text-left transition-colors ${
-                  lang === language
-                    ? 'bg-primeAccent/15 text-primeAccent'
-                    : 'text-textSecondary/70 hover:text-textPrimary hover:bg-primeAccent/5'
-                }`}
+                className={`w-full px-3 py-1.5 text-[11px] font-mono lowercase text-left transition-colors ${lang === language
+                  ? 'bg-primeAccent/15 text-primeAccent'
+                  : 'text-textSecondary/70 hover:text-textPrimary hover:bg-primeAccent/5'
+                  }`}
               >
                 {lang}
               </button>
@@ -375,7 +373,7 @@ export const AutoWrapSelection = Extension.create({
                   const newTr = newState.tr;
                   // IME 已经把选中文本替换为了 text，我们需要删掉它并包裹原文本
                   newTr.delete(from, from + text.length);
-                  
+
                   if (mark) {
                     newTr.insertText(selectedText, from);
                     const newSel = newState.selection.constructor.create(newTr.doc, from, from + selectedText.length);
@@ -402,7 +400,7 @@ export const AutoWrapSelection = Extension.create({
             if (pair) {
               tr.insertText(pair[0], selection.from);
               tr.insertText(pair[1], selection.to + pair[0].length);
-              
+
               const newSelection = state.selection.constructor.create(
                 tr.doc,
                 selection.from + pair[0].length,
@@ -412,7 +410,7 @@ export const AutoWrapSelection = Extension.create({
               dispatch(tr);
               return true;
             }
-            
+
             return false;
           },
         },
@@ -445,35 +443,35 @@ export const InlineMathDecorations = Extension.create({
         },
         buildDecorations(doc, selection) {
           const decorations = [];
-          
+
           doc.descendants((node, pos) => {
             if (node.isBlock && node.isTextblock) {
               const text = node.textContent;
               const mathRegex = /\$([^\$\n]+)\$/g;
               let match;
-              
+
               while ((match = mathRegex.exec(text)) !== null) {
                 // Ignore if it is part of $$...$$
                 if (text[match.index - 1] === '$' || text[match.index + match[0].length] === '$') {
                   continue;
                 }
-                
+
                 const start = pos + 1 + match.index;
                 const end = start + match[0].length;
-                
-                const isCursorInside = selection && 
-                                      ((selection.from >= start && selection.from <= end) || 
-                                       (selection.to >= start && selection.to <= end));
-                
+
+                const isCursorInside = selection &&
+                  ((selection.from >= start && selection.from <= end) ||
+                    (selection.to >= start && selection.to <= end));
+
                 if (!isCursorInside) {
                   const mathText = match[1];
                   let html = '';
                   try {
                     html = katex.renderToString(mathText, { throwOnError: false });
-                  } catch(e) {
+                  } catch (e) {
                     html = `<span class="text-red-500">${mathText}</span>`;
                   }
-                  
+
                   const widget = document.createElement('span');
                   widget.innerHTML = html;
                   widget.className = 'inline-math-preview mx-1 cursor-pointer';
@@ -481,7 +479,7 @@ export const InlineMathDecorations = Extension.create({
                   widget.onmousedown = (e) => {
                     // Let ProseMirror handle the click and move cursor near it
                   };
-                  
+
                   decorations.push(Decoration.widget(start, widget));
                   decorations.push(Decoration.inline(start, end, {
                     style: 'display: none;',
@@ -548,6 +546,7 @@ export default function MarkdownEditor({
   onUpdate,
   editorRef,
   onImageUpload,
+  onSave,
   className = '',
 }) {
   const lastMarkdownRef = useRef(initialContent || '');
@@ -615,13 +614,13 @@ export default function MarkdownEditor({
     let handled = false;
     for (const item of items) {
       if (!item.type.startsWith('image/')) continue;
-      
+
       const file = item.getAsFile();
       if (!file) continue;
 
       event.preventDefault();
       handled = true;
-      
+
       const processUpload = async () => {
         try {
           const reader = new FileReader();
@@ -674,8 +673,8 @@ export default function MarkdownEditor({
       InlineMathDecorations,
       HeadingIdPatch,
       GlobalDragHandle.configure({
-        dragHandleWidth: 24,
-        scrollTreshold: 100,
+        dragHandleWidth: 28,
+        scrollTreshold: 0,
       }),
       SlashCommand,
     ],
@@ -695,6 +694,14 @@ export default function MarkdownEditor({
       },
       handleDrop: handleDrop,
       handlePaste: handlePaste,
+      handleKeyDown: (view, event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+          event.preventDefault();
+          onSave?.();
+          return true;
+        }
+        return false;
+      },
     },
   });
 
@@ -732,7 +739,7 @@ export default function MarkdownEditor({
   return (
     <div className={`markdown-editor-wrapper relative ${className}`}>
       {isTableActive && activeTableWrapper && createPortal(
-        <div 
+        <div
           className="absolute -bottom-10 right-0 flex items-center gap-1 bg-modal/95 border border-borderSubtle rounded-lg shadow-xl p-1.5 animate-in fade-in zoom-in-95 backdrop-blur-md z-50"
           onMouseDown={(e) => e.preventDefault()}
         >
@@ -746,7 +753,9 @@ export default function MarkdownEditor({
         </div>,
         activeTableWrapper
       )}
-      <EditorContent editor={editor} />
+      <div className="tiptap-editor-container relative">
+        <EditorContent editor={editor} className="tiptap-content-area" />
+      </div>
     </div>
   );
 }

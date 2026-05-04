@@ -408,6 +408,7 @@ export default function Detail({
                     initialContent={tiptapContent}
                     onUpdate={(md) => { if (editorMode === 'edit') { setEditValue(md); setTiptapContent(md); }}}
                     editorRef={tiptapEditorRef}
+                    onSave={onSaveWrap}
                   />
                 </div>
                 {editorMode === 'raw' && (
