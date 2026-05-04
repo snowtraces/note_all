@@ -44,7 +44,7 @@ mermaid.initialize({ startOnLoad: false, theme: 'default' });
 export const TiptapImageComponent = ({ node, updateAttributes, editor }) => {
   const isEditable = editor?.isEditable;
   const src = node.attrs.src;
-  const width = node.attrs.width || '100%';
+  const width = node.attrs.width || 'auto';
   const activeUrl = getActiveServerUrl();
   const fullSrc = activeUrl && src?.startsWith('/') ? `${activeUrl}${src}` : src;
   const [showSizePicker, setShowSizePicker] = useState(false);
@@ -75,7 +75,7 @@ export const TiptapImageComponent = ({ node, updateAttributes, editor }) => {
   return (
     <NodeViewWrapper className="tiptap-image-wrapper flex justify-start my-4 group">
       <div
-        className="relative inline-block max-w-full"
+        className={`relative max-w-full ${width === 'auto' ? 'w-fit' : ''}`}
         style={width !== 'auto' ? { width } : undefined}
       >
         <img
@@ -137,12 +137,12 @@ export const CustomImage = Image.extend({
     return {
       ...this.parent?.(),
       width: {
-        default: '100%',
+        default: 'auto',
         renderHTML: attributes => ({
-          width: attributes.width,
-          style: `width: ${attributes.width}; height: auto;`,
+          width: attributes.width !== 'auto' ? attributes.width : undefined,
+          style: attributes.width !== 'auto' ? `width: ${attributes.width}; height: auto;` : undefined,
         }),
-        parseHTML: element => element.getAttribute('width') || element.style.width || '100%',
+        parseHTML: element => element.getAttribute('width') || element.style.width || 'auto',
       },
     };
   },
@@ -151,7 +151,7 @@ export const CustomImage = Image.extend({
       markdown: {
         serialize: (state, node) => {
           const { src, alt, width } = node.attrs;
-          if (width && width !== '100%' && width !== 'auto') {
+          if (width && width !== 'auto') {
             state.write(`<img src="${src}" alt="${alt || ''}" width="${width}" />`);
           } else {
             state.write(`![${alt || ''}](${src})`);
