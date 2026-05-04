@@ -7,11 +7,14 @@
 
 /* 编辑区域 */
 .tiptap-content {
-  min-height: 200px;
   padding: 0;
   caret-color: var(--prime-accent);
   font-size: 16px;
   line-height: 1.8;
+}
+
+.markdown-editor-wrapper .tiptap-content {
+  min-height: 200px;
 }
 
 .tiptap-content:focus {
@@ -35,6 +38,10 @@
   margin: 0.8em 0;
   line-height: 1.8;
   color: var(--text-primary);
+}
+
+.summary-preview .tiptap-content p {
+  margin: 0.2em 0;
 }
 
 .tiptap-content strong {
@@ -251,20 +258,22 @@
 }
 
 /* ============ 图片（对齐 LazyImage 样式） ============ */
+.tiptap-image-wrapper {
+  transition: all 0.2s ease-in-out;
+}
 
 .tiptap-content img.tiptap-image,
 .tiptap-content img {
   max-width: 100%;
   height: auto;
   border-radius: 8px;
-  margin: 0.8em 0;
   display: block;
+  margin: 0; /* 容器已处理 margin */
 }
 
-.tiptap-content img.ProseMirror-selectednode {
+.tiptap-image-wrapper.ProseMirror-selectednode .tiptap-image {
   outline: 2px solid var(--prime-accent);
   outline-offset: 2px;
-  border-radius: 8px;
 }
 
 /* ============ 表格 ============ */

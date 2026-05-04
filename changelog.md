@@ -1,6 +1,11 @@
 # Changelog
 
 ## [Unreleased]
+- **编辑器与预览统一 (Unified Editor & Preview Rendering)**:
+  - **Tiptap 引擎全量覆盖**: 彻底移除了 `react-markdown`，实现了编辑与预览模式的 100% 渲染一致性。通过共享 Tiptap 扩展（如 Mermaid, KaTeX, 代码高亮），确保了真正的“所见即所得”。
+  - **可见性感知导航 (Visibility-Aware Navigation)**: 针对编辑器在后台隐藏导致锚点冲突的问题，重构了 `TableOfContents.jsx`。现在目录跳转和滚动高亮会自动过滤隐藏元素，精准定位至当前可见的正文标题。
+  - **健壮的 ID 管理体系**: 引入 `HeadingIdPatch` 扩展结合 `MutationObserver` 实时 DOM 监控，确保所有标题即使在异步渲染下也能获得稳定的 ID 锚点，解决了复杂 Markdown 文档导航失效的顽疾。
+  - **React 18 性能优化**: 修复了由于 `flushSync` 引起的控制台警告，通过 `queueMicrotask` 优化了编辑器内容同步的调度逻辑。
 - **Markdown 编辑器 UX 与可视化深度强化 (Markdown Editor UX & Advanced Syntax)**:
   - **高级语法自动包裹 (IME-Safe Auto-Wrap)**: 构建 `AutoWrapSelection` 机制。针对选中文字后输入标点符号，不仅能进行原生双向包裹，还彻底解决了拦截中文输入法组合态导致的卡死死锁。同时，按下 `*` 或 `` ` `` 时会自动应用底层样式 Mark，确保导出的 RAW 代码**纯净且无转义符**。
   - **原生行内公式预览 (Inline Math Live Preview)**: 构建基于 ProseMirror `Decoration` 的纯视觉层渲染机制。在输入 `$x$` 时保持底层数据的纯文本性（免遭反向序列化污染），只在光标离开时视觉转化为 KaTeX 优美公式；点击即可原地编辑，实现 Obsidian 同等手感的无损体验。

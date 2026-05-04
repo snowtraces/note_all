@@ -431,10 +431,6 @@ select {
   border-right: none;
 }
 
-.markdown-content th::after,
-.markdown-content td::after {
-  content: '\200b';
-}
 
 .markdown-content tr:last-child td {
   border-bottom: none;
@@ -451,7 +447,7 @@ select {
   color: var(--text-primary);
 }
 
-.markdown-content tr:nth-child(even) td {
+.markdown-content tr:nth-child(odd) td {
   background: var(--bg-table-header);
 }
 

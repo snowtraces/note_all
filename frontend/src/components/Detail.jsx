@@ -388,19 +388,19 @@ export default function Detail({
             className="flex-1 p-4 md:p-5 lg:p-6 overflow-visible lg:overflow-y-auto custom-scrollbar raw-textarea-scroll-container"
           >
             {/* AiTitle 主标题 */}
-            <div className="mb-3">
+            <div className="mb-2">
               <h1 className="text-2xl md:text-3xl font-bold text-textPrimary leading-snug tracking-wide">
                 {item.ai_title || item.original_name || '未命名笔记'}
               </h1>
               {item.ai_summary && (
-                <div className="mt-1.5 text-[15px] text-textSecondary/40 leading-relaxed ai-summary-markdown">
-                  <MarkdownRenderer content={item.ai_summary} />
+                <div className="mt-1 text-[15px] text-textSecondary/40 leading-relaxed ai-summary-markdown">
+                  <MarkdownRenderer content={item.ai_summary} className="summary-preview" />
                 </div>
               )}
             </div>
 
             {/* 正文 */}
-            <div className="mt-2 pt-3 border-t border-borderSubtle -mx-4 px-4 md:-mx-5 md:px-5 lg:-mx-6 lg:px-6">
+            <div className="mt-1 pt-2 border-t border-borderSubtle -mx-4 px-4 md:-mx-5 md:px-5 lg:-mx-6 lg:px-6">
               <div className="text-textPrimary text-[14px] leading-[1.7] tracking-wide selection:bg-primeAccent selection:text-black">
                 {/* 编辑器始终挂载，用 display 控制可见性，避免模式切换丢失 undo/redo 历史 */}
                 <div style={{ display: editorMode === 'edit' ? 'block' : 'none' }}>

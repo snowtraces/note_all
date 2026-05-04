@@ -67,9 +67,11 @@ export default function TableOfContents({ content, containerRef, onNavigate, con
 
     observer.current = new IntersectionObserver(handleObserver, observerOptions);
 
-    // Query elements from container or entire document
+    // Query elements from container or entire document, but only observe visible ones
     const queryRoot = container || document;
-    const elements = queryRoot.querySelectorAll('.markdown-ocr h1, .markdown-ocr h2, .markdown-ocr h3');
+    const elements = Array.from(queryRoot.querySelectorAll('.markdown-ocr h1, .markdown-ocr h2, .markdown-ocr h3, .tiptap-content h1, .tiptap-content h2, .tiptap-content h3'))
+      .filter(el => el.offsetParent !== null);
+    
     elements.forEach((el) => observer.current.observe(el));
 
     return () => {
@@ -78,7 +80,10 @@ export default function TableOfContents({ content, containerRef, onNavigate, con
   }, [headings, containerRef]);
 
   const scrollToId = (id) => {
-    const element = document.getElementById(id);
+    // Find all elements with the matching ID and pick the visible one (to avoid hidden editors)
+    const elements = Array.from(document.querySelectorAll(`[id="${id}"]`));
+    const element = elements.find(el => el.offsetParent !== null) || elements[0];
+    
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
       
