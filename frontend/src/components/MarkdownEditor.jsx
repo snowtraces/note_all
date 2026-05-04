@@ -658,14 +658,6 @@ export default function MarkdownEditor({
         inline: false,
         allowBase64: true,
       }),
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: {
-          class: 'tiptap-link',
-          target: '_blank',
-          rel: 'noopener noreferrer',
-        },
-      }),
       Table.configure({ resizable: true, HTMLAttributes: { class: 'tiptap-table' } }),
       TableRow,
       TableCell,
@@ -676,7 +668,6 @@ export default function MarkdownEditor({
         placeholder: '开始书写，Markdown 语法即时渲染...',
       }),
       Highlight.configure({ multicolor: false }),
-      Underline,
       Typography,
       CustomCodeBlock.configure({ lowlight }),
       AutoWrapSelection,

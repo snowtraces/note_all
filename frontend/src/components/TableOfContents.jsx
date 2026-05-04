@@ -45,36 +45,56 @@ export default function TableOfContents({ content, containerRef, onNavigate, con
   useEffect(() => {
     if (headings.length === 0) return;
 
-    // Setup Intersection Observer to highlight active heading
-    const handleObserver = (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          setActiveId(entry.target.id);
+    let timeoutId;
+
+    const setupObserver = () => {
+      if (observer.current) observer.current.disconnect();
+
+      // Setup Intersection Observer to highlight active heading
+      const handleObserver = (entries) => {
+        // Find all intersecting entries
+        const visibleEntries = entries.filter(entry => entry.isIntersecting);
+        
+        if (visibleEntries.length > 0) {
+          // If multiple headings are visible, pick the one highest in the viewport (but within rootMargin)
+          const sorted = visibleEntries.sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+          setActiveId(sorted[0].target.id);
+        }
+      };
+
+      // Use viewport as root when no containerRef provided (page-level scrolling)
+      const container = containerRef?.current;
+      const observerOptions = {
+        // rootMargin captures the "active" zone near the top of the container
+        rootMargin: '-80px 0px -70% 0px',
+        threshold: 0
+      };
+
+      if (container) {
+        observerOptions.root = container;
+      }
+
+      observer.current = new IntersectionObserver(handleObserver, observerOptions);
+
+      // Query elements from container, focusing on the main content area
+      const queryRoot = container || document;
+      
+      // Specifically target headings within .tiptap-content to avoid sidebar/summary headings
+      const elements = Array.from(queryRoot.querySelectorAll('.tiptap-content h1, .tiptap-content h2, .tiptap-content h3'))
+        .filter(el => el.offsetParent !== null);
+      
+      elements.forEach((el) => {
+        if (el.id) {
+          observer.current.observe(el);
         }
       });
     };
 
-    // Use viewport as root when no containerRef provided (page-level scrolling)
-    const container = containerRef?.current;
-    const observerOptions = {
-      rootMargin: '-10% 0% -80% 0%',
-      threshold: 0
-    };
-
-    if (container) {
-      observerOptions.root = container;
-    }
-
-    observer.current = new IntersectionObserver(handleObserver, observerOptions);
-
-    // Query elements from container or entire document, but only observe visible ones
-    const queryRoot = container || document;
-    const elements = Array.from(queryRoot.querySelectorAll('.markdown-ocr h1, .markdown-ocr h2, .markdown-ocr h3, .tiptap-content h1, .tiptap-content h2, .tiptap-content h3'))
-      .filter(el => el.offsetParent !== null);
-    
-    elements.forEach((el) => observer.current.observe(el));
+    // Small delay to ensure Tiptap renderer has finished updating the DOM IDs
+    timeoutId = setTimeout(setupObserver, 300);
 
     return () => {
+      clearTimeout(timeoutId);
       if (observer.current) observer.current.disconnect();
     };
   }, [headings, containerRef]);

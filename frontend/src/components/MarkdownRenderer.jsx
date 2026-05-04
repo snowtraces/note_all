@@ -37,14 +37,6 @@ const MarkdownRenderer = React.memo(({ content, className = '' }) => {
         inline: false,
         allowBase64: true,
       }),
-      Link.configure({
-        openOnClick: true,
-        HTMLAttributes: {
-          class: 'tiptap-link',
-          target: '_blank',
-          rel: 'noopener noreferrer',
-        },
-      }),
       Table.configure({ resizable: true, HTMLAttributes: { class: 'tiptap-table' } }),
       TableRow,
       TableCell,
@@ -52,7 +44,6 @@ const MarkdownRenderer = React.memo(({ content, className = '' }) => {
       TaskList,
       TaskItem.configure({ nested: true }),
       Highlight.configure({ multicolor: false }),
-      Underline,
       Typography,
       CustomCodeBlock.configure({ lowlight }),
       InlineMathDecorations,
