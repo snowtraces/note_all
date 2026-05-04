@@ -51,6 +51,9 @@ export const TiptapImageComponent = ({ node, updateAttributes, editor }) => {
   const pickerRef = useRef(null);
 
   const sizes = [
+    { label: '600px', value: '600px' },
+    { label: '900px', value: '900px' },
+    { label: '1200px', value: '1200px' },
     { label: '25%', value: '25%' },
     { label: '50%', value: '50%' },
     { label: '75%', value: '75%' },
@@ -71,12 +74,15 @@ export const TiptapImageComponent = ({ node, updateAttributes, editor }) => {
 
   return (
     <NodeViewWrapper className="tiptap-image-wrapper flex justify-start my-4 group">
-      <div className="relative inline-block max-w-full">
+      <div
+        className="relative inline-block max-w-full"
+        style={width !== 'auto' ? { width } : undefined}
+      >
         <img
           src={fullSrc}
           alt={node.attrs.alt || ''}
           className="tiptap-image rounded-lg shadow-sm group-hover:shadow-md transition-shadow duration-300 block"
-          style={{ width: width === 'auto' ? 'auto' : width, maxHeight: '80vh' }}
+          style={{ width: width === 'auto' ? 'auto' : '100%', maxHeight: '80vh' }}
           loading="lazy"
         />
 
