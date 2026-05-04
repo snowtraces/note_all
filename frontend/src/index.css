@@ -503,7 +503,7 @@ select {
 
 /* ============ 图片懒加载占位符与过渡效果 ============ */
 .lazy-image-wrapper {
-  display: inline-block;
+  display: block;
   position: relative;
   max-width: 100%;
 }
@@ -520,6 +520,7 @@ select {
   max-width: 100%;
   height: auto;
   border-radius: 8px;
+  margin: 0.8em 0;
   opacity: 0;
   transition: opacity 0.4s ease-out;
 }

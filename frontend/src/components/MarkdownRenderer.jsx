@@ -107,7 +107,12 @@ const MarkdownRenderer = React.memo(function MarkdownRenderer({ content, classNa
             return <h3 id={id} className="scroll-mt-24 text-lg font-medium text-textPrimary mt-5 mb-2" {...props}>{children}</h3>;
           },
           a: ({node, ...props}) => <a className="text-primeAccent hover:text-primeAccentDim transition-colors underline underline-offset-4 decoration-primeAccent/30" target="_blank" rel="noopener noreferrer" {...props} />,
-          p: ({node, ...props}) => <p className="my-3 leading-[1.8] text-textPrimary" {...props} />
+          p: ({node, children, ...props}) => {
+            // 如果 p 只包含图片（LazyImage span），不包裹 <p>，避免 div-in-p 警告
+            const hasOnlyImages = node.children?.every(c => c.tagName === 'img');
+            if (hasOnlyImages) return <>{children}</>;
+            return <p className="my-3 leading-[1.8] text-textPrimary" {...props}>{children}</p>;
+          }
         }}
       >
         {content}

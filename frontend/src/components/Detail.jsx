@@ -1,7 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, Link, Zap, Share2, RefreshCw, CheckCircle2, ClipboardEdit, Eye, ChevronLeft, ChevronDown, ChevronUp, List, PanelRightClose } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
 import ContentToolbar from './ContentToolbar';
+import EditorToolbar from './EditorToolbar';
+import MarkdownEditor from './MarkdownEditor';
+import './MarkdownEditor.css';
 import TableOfContents from './TableOfContents';
 import { getRelatedNotes, reprocessNote, uploadImage, uploadImageFromUrl, getNote } from '../api/noteApi';
 import { getTemplates } from '../api/templateApi';
@@ -16,51 +19,52 @@ export default function Detail({
   setSelectedItem,
   setPreviewImage,
   handleUpdateText,
-  handleUpdateStatus
+  handleUpdateStatus,
+  onUnsavedChange,
+  onSaveRef,
 }) {
   const { mode } = useTheme();
   const isLight = mode === 'light';
-  const [isRawMode, setIsRawMode] = useState(false);
+  const editBaseline = useRef(item?.ocr_text || ''); // 进入编辑时的基准值
+  const textareaRef = useRef(null);
+  const contentScrollRef = useRef(null);
+  const tiptapEditorRef = useRef(null);
+  const [editorMode, setEditorMode] = useState('view'); // 'edit' | 'raw' | 'view'
   const [editValue, setEditValue] = useState(item?.ocr_text || '');
+  const [tiptapContent, setTiptapContent] = useState(item?.ocr_text || '');
   const [isSaving, setIsSaving] = useState(false);
   const [isReprocessing, setIsReprocessing] = useState(false);
   const [relatedItems, setRelatedItems] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
-  const [reprocessStatus, setReprocessStatus] = useState(null); // { type: 'success' | 'error', msg: string }
+  const [reprocessStatus, setReprocessStatus] = useState(null);
   const [annotation, setAnnotation] = useState(item?.user_comment || '');
   const [isSubmittingStatus, setIsSubmittingStatus] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [externalImages, setExternalImages] = useState([]); // 第三方图片URL列表
-  const [localImages, setLocalImages] = useState([]); // 已本地化的图片URL列表
-  const [localizingProgress, setLocalizingProgress] = useState(0); // 已处理数量
-  const [totalImagesToLocalize, setTotalImagesToLocalize] = useState(0); // 本次本地化任务的总数
+  const [externalImages, setExternalImages] = useState([]);
+  const [localImages, setLocalImages] = useState([]);
+  const [localizingProgress, setLocalizingProgress] = useState(0);
+  const [totalImagesToLocalize, setTotalImagesToLocalize] = useState(0);
   const [isLocalizing, setIsLocalizing] = useState(false);
   const [showToC, setShowToC] = useState(false);
   const [activeConnectionTab, setActiveConnectionTab] = useState('related');
+  // normalized 比较：忽略空行差异和尾部换行，避免 Tiptap 序列化格式误判
+  const normalizeText = (text) => (text || '').replace(/\n{3,}/g, '\n\n').replace(/\s+$/, '');
+  const hasUnsaved = editorMode !== 'view' && normalizeText(editValue) !== normalizeText(editBaseline.current);
   const [isAnnotationExpanded, setIsAnnotationExpanded] = useState(false);
-  const textareaRef = useRef(null);
-  const contentScrollRef = useRef(null);
   const fileUrl = item?.storage_id ? `/api/file/${item.storage_id}` : '';
 
-  // 自动调整文本框高度（保持滚动位置）
+  // 自动调整 RAW 文本框高度
   useEffect(() => {
-    if (isRawMode && textareaRef.current) {
+    if (editorMode === 'raw' && textareaRef.current) {
       const textarea = textareaRef.current;
-      // 找到可滚动的父容器
       const scrollableParent = textarea.closest('.raw-textarea-scroll-container');
       const savedScrollTop = scrollableParent?.scrollTop || 0;
-
-      // 调整高度
       textarea.style.height = 'auto';
       textarea.style.height = textarea.scrollHeight + 'px';
-
-      // 恢复父容器滚动位置，防止跳动
-      if (scrollableParent) {
-        scrollableParent.scrollTop = savedScrollTop;
-      }
+      if (scrollableParent) scrollableParent.scrollTop = savedScrollTop;
     }
-  }, [editValue, isRawMode]);
+  }, [editValue, editorMode]);
 
   // 当外部 item 变化时，重新绑定 editValue 和加载关联内容
   useEffect(() => {
@@ -76,6 +80,8 @@ export default function Detail({
     }
 
     setEditValue(item?.ocr_text || '');
+    setTiptapContent(item?.ocr_text || '');
+    editBaseline.current = item?.ocr_text || '';
     setReprocessStatus(null);
     setAnnotation(item?.user_comment || '');
     setActiveConnectionTab('related');
@@ -259,6 +265,7 @@ export default function Detail({
     setIsSaving(true);
     await handleUpdateText(item.id, editValue);
     setIsSaving(false);
+    editBaseline.current = editValue;
   };
 
   const handleReprocess = async () => {
@@ -277,12 +284,33 @@ export default function Detail({
     setIsReprocessing(false);
   };
 
+  // 汇报未保存状态给父组件
+  useEffect(() => {
+    if (onUnsavedChange) onUnsavedChange(hasUnsaved);
+  }, [hasUnsaved, onUnsavedChange]);
+
+  // 暴露保存函数给父组件（弹窗保存按钮调用）
+  useEffect(() => {
+    if (onSaveRef) {
+      onSaveRef.current = async () => {
+        setIsSaving(true);
+        await handleUpdateText(item.id, editValue);
+        setIsSaving(false);
+      };
+    }
+  }, [onSaveRef, item, editValue, handleUpdateText]);
+
+  // 关闭/切换直接交给父组件的 guardedSetSelectedItem（已含弹窗拦截）
+  const handleClose = (nextItem) => {
+    setSelectedItem(nextItem);
+  };
+
   return (
     <div className="w-full h-full flex flex-col animate-in fade-in zoom-in-95 duration-300">
       {/* 顶栏控制 */}
       <div className="flex items-center justify-between px-4 md:px-5 py-2.5 border-b border-borderSubtle bg-main shrink-0">
         <div className="font-medium text-textPrimary tracking-wide flex items-center gap-1 md:gap-2 text-[15px]">
-          <button onClick={() => setSelectedItem(null)} className="md:hidden p-1 -ml-1 mr-1 text-silverText/60 hover:text-white transition-colors">
+          <button onClick={() => handleClose(null)} className="md:hidden p-1 -ml-1 mr-1 text-silverText/60 hover:text-white transition-colors">
             <ChevronLeft size={24} />
           </button>
           <BrainCircuit size={18} className="text-primeAccent hidden md:block" />
@@ -326,7 +354,7 @@ export default function Detail({
             </button>
           )}
           <button
-            onClick={() => setSelectedItem(null)}
+            onClick={() => handleClose(null)}
             className={`hidden md:block p-1.5 rounded-full transition-colors ml-2 ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700' : 'bg-white/5 hover:bg-white/10 text-white/60 hover:text-white'}`}
             title="关闭详情视图 (Esc)"
           >
@@ -341,7 +369,7 @@ export default function Detail({
         <div className="flex-none lg:flex-1 h-auto lg:h-full flex flex-col lg:border-r border-borderSubtle bg-main relative">
 
           {/* 大纲吸附按钮 — 吸附在右侧边框 */}
-          {!isRawMode && (
+          {editorMode === 'view' && (
             <button
               onClick={() => setShowToC(!showToC)}
               className={`absolute right-0 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center transition-all duration-300 ${
@@ -374,50 +402,102 @@ export default function Detail({
             {/* 正文 */}
             <div className="mt-2 pt-3 border-t border-borderSubtle -mx-4 px-4 md:-mx-5 md:px-5 lg:-mx-6 lg:px-6">
               <div className="text-textPrimary text-[14px] leading-[1.7] tracking-wide selection:bg-primeAccent selection:text-black">
-                {isRawMode ? (
+                {/* 编辑器始终挂载，用 display 控制可见性，避免模式切换丢失 undo/redo 历史 */}
+                <div style={{ display: editorMode === 'edit' ? 'block' : 'none' }}>
+                  <MarkdownEditor
+                    initialContent={tiptapContent}
+                    onUpdate={(md) => { if (editorMode === 'edit') { setEditValue(md); setTiptapContent(md); }}}
+                    editorRef={tiptapEditorRef}
+                  />
+                </div>
+                {editorMode === 'raw' && (
                   <textarea
                     ref={textareaRef}
                     value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
+                    onChange={(e) => { setEditValue(e.target.value); }}
                     className="w-full outline-none bg-transparent overflow-hidden whitespace-pre-wrap font-mono text-[13px] text-textSecondary break-words border-none"
                     placeholder="未能提取到或尚未进行 OCR 文本识别..."
                   />
-                ) : (
+                )}
+                {editorMode === 'view' && (
                   <div className="markdown-ocr">
-                    <MarkdownRenderer content={item.ocr_text || "未能提取到或尚未进行 OCR 文本识别。"} />
+                    <MarkdownRenderer content={editValue || "未能提取到或尚未进行 OCR 文本识别。"} />
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* 底部工具条 */}
-          <ContentToolbar
-            item={item}
-            externalImages={externalImages}
-            localImages={localImages}
-            isLocalizing={isLocalizing}
-            localizingProgress={localizingProgress}
-            totalImagesToLocalize={totalImagesToLocalize}
-            isRawMode={isRawMode}
-            reprocessStatus={reprocessStatus}
-            templates={templates}
-            selectedTemplateId={selectedTemplateId}
-            isReprocessing={isReprocessing}
-            hasUnsavedChanges={isRawMode && editValue !== item.ocr_text}
-            isSaving={isSaving}
-            onLocalizeImages={handleLocalizeImages}
-            onToggleRawMode={() => { setIsRawMode(!isRawMode); setShowToC(false); }}
-            onSelectTemplate={setSelectedTemplateId}
-            onReprocess={handleReprocess}
-            onSave={onSaveWrap}
-          />
+          {/* 编辑器格式化工具条（编辑模式时显示） */}
+          {editorMode === 'edit' && (
+            <EditorToolbar
+              editor={tiptapEditorRef.current}
+              editorMode={editorMode}
+              onModeChange={(newMode) => {
+                if (newMode === 'raw' && tiptapEditorRef.current) {
+                  const md = tiptapEditorRef.current.storage.markdown.getMarkdown();
+                  setEditValue(md);
+                  editBaseline.current = md;
+                }
+                if (newMode === 'edit') {
+                  const base = item?.ocr_text || '';
+                  setEditValue(base);
+                  setTiptapContent(base);
+                  editBaseline.current = base;
+                }
+                setEditorMode(newMode);
+                // 离开预览模式时关闭大纲，切到预览时不自动打开
+                if (newMode !== 'view') setShowToC(false);
+              }}
+              hasUnsavedChanges={hasUnsaved}
+              isSaving={isSaving}
+              onSave={onSaveWrap}
+            />
+          )}
+
+          {/* 底部内容工具条（非编辑模式时显示） */}
+          {editorMode !== 'edit' && (
+            <ContentToolbar
+              item={item}
+              externalImages={externalImages}
+              localImages={localImages}
+              isLocalizing={isLocalizing}
+              localizingProgress={localizingProgress}
+              totalImagesToLocalize={totalImagesToLocalize}
+              editorMode={editorMode}
+              reprocessStatus={reprocessStatus}
+              templates={templates}
+              selectedTemplateId={selectedTemplateId}
+              isReprocessing={isReprocessing}
+              hasUnsavedChanges={hasUnsaved}
+              isSaving={isSaving}
+              onLocalizeImages={handleLocalizeImages}
+              onModeChange={(newMode) => {
+                if (newMode === 'edit') {
+                  const base = item?.ocr_text || '';
+                  setEditValue(base);
+                  setTiptapContent(base);
+                  editBaseline.current = base;
+                }
+                if (newMode === 'raw' && tiptapEditorRef.current) {
+                  const md = tiptapEditorRef.current.storage.markdown.getMarkdown();
+                  setEditValue(md);
+                  editBaseline.current = md;
+                }
+                setEditorMode(newMode);
+                if (newMode !== 'view') setShowToC(false);
+              }}
+              onSelectTemplate={setSelectedTemplateId}
+              onReprocess={handleReprocess}
+              onSave={onSaveWrap}
+            />
+          )}
         </div>
 
         {/* 源侧边区 + 大纲浮动覆盖 */}
         <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 bg-panel/80 flex flex-col flex-none h-auto lg:h-full relative border-t lg:border-t-0 lg:border-l border-borderSubtle">
           {/* 大纲浮动覆盖层 */}
-          {showToC && !isRawMode && (
+          {showToC && editorMode === 'view' && (
             <div className="absolute inset-0 z-30 bg-main/80 backdrop-blur-xl flex flex-col animate-in slide-in-from-right duration-300">
               <div className="px-3 py-2.5 border-b border-borderSubtle/40 flex items-center justify-between shrink-0">
                 <span className="text-[11px] text-textSecondary/70 font-bold tracking-widest font-mono uppercase">大纲导读</span>
@@ -516,7 +596,7 @@ export default function Detail({
                         {relatedItems.map(rel => (
                           <div
                             key={rel.id}
-                            onClick={() => setSelectedItem(rel)}
+                            onClick={() => handleClose(rel)}
                             className="p-3 hover:bg-primeAccent/5 transition-colors cursor-pointer group/rel"
                           >
                             <div className="text-[11px] text-textSecondary/70 group-hover/rel:text-textPrimary transition-colors line-clamp-2 leading-snug">
@@ -542,7 +622,7 @@ export default function Detail({
                         {item.parents.map(p => (
                           <div
                             key={p.id}
-                            onClick={() => setSelectedItem(p)}
+                            onClick={() => handleClose(p)}
                             className="p-3 hover:bg-primeAccent/10 transition-colors cursor-pointer group/node"
                           >
                             <div className={`text-[11px] line-clamp-2 leading-relaxed ${isLight ? 'text-slate-600 group-hover/node:text-slate-800' : 'text-silverText/70 group-hover/node:text-white'} transition-colors`}>

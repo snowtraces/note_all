@@ -1,5 +1,6 @@
 import React from 'react';
-import { ExternalLink, ImageDown, Code, Eye, CheckCircle2, XCircle, RefreshCw, Save } from 'lucide-react';
+import { ExternalLink, ImageDown, RefreshCw, CheckCircle2, XCircle, Save, PenLine, Code2, Eye } from 'lucide-react';
+import { EDITOR_MODES } from '../constants/editorModes';
 
 export default function ContentToolbar({
   item,
@@ -8,7 +9,7 @@ export default function ContentToolbar({
   isLocalizing,
   localizingProgress,
   totalImagesToLocalize,
-  isRawMode,
+  editorMode,
   reprocessStatus,
   templates,
   selectedTemplateId,
@@ -16,13 +17,13 @@ export default function ContentToolbar({
   hasUnsavedChanges,
   isSaving,
   onLocalizeImages,
-  onToggleRawMode,
+  onModeChange,
   onSelectTemplate,
   onReprocess,
   onSave
 }) {
   return (
-    <div className="shrink-0 sticky bottom-0 lg:static border-t border-borderSubtle bg-white px-4 md:px-5 py-2 flex items-center gap-2 z-30">
+    <div className="shrink-0 sticky bottom-0 lg:static border-t border-borderSubtle bg-main px-4 md:px-5 py-2 flex items-center gap-2 z-30">
       {/* 左侧：重处理 */}
       <div className="flex items-center gap-1.5">
         <select value={selectedTemplateId} onChange={(e) => onSelectTemplate(e.target.value)}
@@ -70,11 +71,24 @@ export default function ContentToolbar({
           </button>
         )}
 
-        <button onClick={onToggleRawMode}
-          className="flex items-center gap-1.5 px-2 py-1 bg-sidebar hover:bg-card text-textSecondary hover:text-textPrimary transition-colors rounded text-[10px] font-mono border border-borderSubtle"
-          title={isRawMode ? "Markdown 预览" : "原始文本"}>
-          {isRawMode ? <><Eye size={13} /> 预览</> : <><Code size={13} /> RAW</>}
-        </button>
+        {/* 三态模式切换器 */}
+        <div className="flex items-center gap-0.5 bg-sidebar rounded-md p-0.5 border border-borderSubtle">
+          {EDITOR_MODES.map(m => (
+            <button
+              key={m.key}
+              onClick={() => onModeChange(m.key)}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono transition-all ${
+                editorMode === m.key
+                  ? 'bg-primeAccent/15 text-primeAccent shadow-sm'
+                  : 'text-textSecondary/50 hover:text-textSecondary hover:bg-card'
+              }`}
+              title={m.label}
+            >
+              <m.icon size={12} />
+              <span className="hidden sm:inline">{m.label}</span>
+            </button>
+          ))}
+        </div>
 
         {hasUnsavedChanges && (
           <button onClick={onSave} disabled={isSaving}

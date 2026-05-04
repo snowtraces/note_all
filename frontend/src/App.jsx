@@ -20,6 +20,7 @@ import LoginOverlay from './components/LoginOverlay';
 import PublicSharePage from './components/PublicSharePage';
 import ImageGenView from './components/ImageGenView';
 import ToastContainer from './components/ToastContainer';
+import SaveConfirmModal from './components/SaveConfirmModal';
 import { checkAuth } from './api/authApi';
 
 // 内层组件，在 ToastProvider 内部使用 useToast
@@ -51,6 +52,11 @@ function AppContent() {
   const [viewMode, setViewMode] = useState('notes'); // App level viewMode to show Graph full screen
   const [labBasket, setLabBasket] = useState([]); // 暂存待聚合的碎片 IDs
   const chatEndRef = useRef(null);
+  const detailSaveRef = useRef(null);
+  const [hasUnsavedDetail, setHasUnsavedDetail] = useState(false);
+  const [pendingSelectItem, setPendingSelectItem] = useState(null);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [isConfirmSaving, setIsConfirmSaving] = useState(false);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -124,13 +130,23 @@ function AppContent() {
         if (previewImage) {
           setPreviewImage(null);
         } else if (selectedItem) {
-          setSelectedItem(null);
+          guardedSetSelectedItem(null);
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [previewImage, selectedItem]);
+  }, [previewImage, selectedItem, hasUnsavedDetail]);
+
+  // 拦截切换：有未保存修改时弹窗确认
+  const guardedSetSelectedItem = (nextItem) => {
+    if (hasUnsavedDetail && selectedItem) {
+      setPendingSelectItem(nextItem);
+      setShowSaveConfirm(true);
+      return;
+    }
+    setSelectedItem(nextItem);
+  };
 
   const loadTrashData = async () => {
     setLoading(true);
@@ -256,17 +272,70 @@ function AppContent() {
     }
   };
 
-  const handleUpdateText = async (id, text) => {
+  // 计算内容变更比例，超过 50% 时触发重新摘要
+  const calcChangeRatio = (original, edited) => {
+    if (!original && !edited) return 0;
+    if (!original) return 1;
+    if (!edited) return 1;
+    const maxLen = Math.max(original.length, edited.length);
+    if (maxLen === 0) return 0;
+
+    // 整体长度差异
+    const lengthRatio = Math.abs(original.length - edited.length) / maxLen;
+
+    // 多段采样：开头、中间、结尾各取一段，避免插入/删除导致全局错位
+    const sampleSize = 100;
+    const sections = [
+      { start: 0, label: 'head' },
+      { start: Math.floor(original.length * 0.4), label: 'mid' },
+      { start: Math.max(0, original.length - sampleSize), label: 'tail' },
+    ];
+
+    let totalMatches = 0;
+    let totalChecked = 0;
+
+    for (const sec of sections) {
+      const origSlice = original.slice(sec.start, sec.start + sampleSize);
+      // 在编辑文本的对应区域搜索最佳匹配窗口（允许偏移）
+      const searchStart = Math.max(0, sec.start - 50);
+      const searchEnd = Math.min(edited.length, sec.start + sampleSize + 50);
+      const searchWindow = edited.slice(searchStart, searchEnd);
+
+      let bestMatch = 0;
+      for (let offset = 0; offset <= searchWindow.length - origSlice.length; offset++) {
+        if (offset < 0) continue;
+        let matches = 0;
+        for (let i = 0; i < origSlice.length; i++) {
+          if (origSlice[i] === searchWindow[offset + i]) matches++;
+        }
+        if (matches > bestMatch) bestMatch = matches;
+      }
+      totalMatches += bestMatch;
+      totalChecked += origSlice.length;
+    }
+
+    const similarity = totalMatches / totalChecked;
+    // 变更比例 = 1 - 相似度，与长度差异取最大值
+    return Math.max(lengthRatio, 1 - similarity);
+  };
+
+  const handleUpdateText = async (id, text, forceReanalyze = false) => {
     try {
-      await updateNoteText(id, text);
-      // 更新成功后刷新右侧当前被选中的项目的缓存，并刷新列表
+      let reanalyze = forceReanalyze;
+      if (!reanalyze) {
+        const originalText = selectedItem?.ocr_text || '';
+        reanalyze = calcChangeRatio(originalText, text) > 0.5;
+      }
+      await updateNoteText(id, text, reanalyze);
       setSelectedItem(prev => prev ? { ...prev, ocr_text: text } : null);
       if (showTrash) {
         loadTrashData();
       } else {
         executeSearch(query);
-        setTimeout(() => executeSearch(query), 3000);
-        setTimeout(() => executeSearch(query), 12000);
+        if (reanalyze) {
+          setTimeout(() => executeSearch(query), 3000);
+          setTimeout(() => executeSearch(query), 12000);
+        }
       }
     } catch (e) {
       alert('文本更新失败...');
@@ -329,7 +398,7 @@ function AppContent() {
           showTrash={showTrash}
           setShowTrash={setShowTrash}
           setShowSettings={setShowSettings}
-          setSelectedItem={setSelectedItem}
+          setSelectedItem={guardedSetSelectedItem}
           labBasket={labBasket}
         />
       </div>
@@ -350,7 +419,7 @@ function AppContent() {
             loading={loading}
             results={results}
             selectedItem={selectedItem}
-            setSelectedItem={setSelectedItem}
+            setSelectedItem={guardedSetSelectedItem}
             uploading={uploading}
             handleUpload={handleUpload}
             handleTextSubmit={handleTextSubmit}
@@ -375,10 +444,12 @@ function AppContent() {
                 showTrash={showTrash}
                 handleRestore={handleRestore}
                 handleDelete={handleDelete}
-                setSelectedItem={setSelectedItem}
+                setSelectedItem={guardedSetSelectedItem}
                 setPreviewImage={setPreviewImage}
                 handleUpdateText={handleUpdateText}
                 handleUpdateStatus={handleUpdateStatus}
+                onUnsavedChange={setHasUnsavedDetail}
+                onSaveRef={detailSaveRef}
               />
             </div>
           )}
@@ -387,7 +458,7 @@ function AppContent() {
           <div className={`absolute inset-0 transition-opacity duration-300 ${viewMode === 'graph' && !selectedItem ? 'z-40 opacity-100 pointer-events-auto flex flex-col' : '-z-10 opacity-0 pointer-events-none'}`}>
              <GraphView 
                 active={viewMode === 'graph' && !selectedItem}
-                onNodeClick={setSelectedItem} 
+                onNodeClick={guardedSetSelectedItem} 
                 onClose={() => setViewMode('notes')} 
                 data={cachedGraphData}
                 onDataLoad={setCachedGraphData}
@@ -467,7 +538,7 @@ function AppContent() {
                                 {chat.references.map(ref => (
                                   <div
                                       key={ref.id}
-                                      onClick={() => setSelectedItem(ref)}
+                                      onClick={() => guardedSetSelectedItem(ref)}
                                       className={`flex items-center gap-3 p-2 rounded-lg border transition-all cursor-pointer ${isLight ? 'bg-slate-50 border-slate-200 hover:bg-slate-100 hover:border-primeAccent/30' : 'bg-white/[0.02] border-white/5 hover:bg-white/5 hover:border-primeAccent/20'}`}
                                     >
                                       <div className="min-w-0 flex-1">
@@ -528,7 +599,7 @@ function AppContent() {
             ) : (
               <EmptyState
                 onAsk={executeAskAI}
-                onItemClick={setSelectedItem}
+                onItemClick={guardedSetSelectedItem}
                 serendipityData={serendipityData}
                 setSerendipityData={setSerendipityData}
                 labBasket={labBasket}
@@ -540,6 +611,39 @@ function AppContent() {
       </div>
       <Lightbox src={previewImage} onClose={() => setPreviewImage(null)} />
       {showSettings && <SettingsModal initialTab={settingsTab} onClose={() => { setShowSettings(false); setSettingsTab(null); }} />}
+      {showSaveConfirm && (
+        <SaveConfirmModal
+          isSaving={isConfirmSaving}
+          onSave={() => {
+            setIsConfirmSaving(true);
+            // Detail 内部维护了 editValue，通过 ref 调用保存
+            if (detailSaveRef.current) {
+              detailSaveRef.current().then(() => {
+                setIsConfirmSaving(false);
+                setShowSaveConfirm(false);
+                setHasUnsavedDetail(false);
+                setSelectedItem(pendingSelectItem);
+              }).catch(() => {
+                setIsConfirmSaving(false);
+              });
+            } else {
+              setIsConfirmSaving(false);
+              setShowSaveConfirm(false);
+              setHasUnsavedDetail(false);
+              setSelectedItem(pendingSelectItem);
+            }
+          }}
+          onDiscard={() => {
+            setShowSaveConfirm(false);
+            setHasUnsavedDetail(false);
+            setSelectedItem(pendingSelectItem);
+          }}
+          onCancel={() => {
+            setShowSaveConfirm(false);
+            setPendingSelectItem(null);
+          }}
+        />
+      )}
       <ToastContainer />
     </div>
   );

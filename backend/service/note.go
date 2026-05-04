@@ -386,19 +386,27 @@ func CreateNoteFromText(text string, providedName string) (*models.NoteItem, err
 }
 
 // UpdateNoteText 更新已有碎片的 OCR 文本，并触发后台重新提炼 LLM 摘要和标签任务
-func UpdateNoteText(id string, text string) error {
+func UpdateNoteText(id string, text string, reanalyze bool) error {
 	// 1. 先查询原笔记信息
 	var note models.NoteItem
 	if err := global.DB.First(&note, id).Error; err != nil {
 		return fmt.Errorf("笔记不存在: %v", err)
 	}
 
-	// 2. 先更新原文，避免页面刷新还能看到老数据，标记为状态分析中
-	if err := global.DB.Model(&models.NoteItem{}).Where("id = ?", id).Updates(map[string]interface{}{
+	// 2. 更新原文
+	updates := map[string]interface{}{
 		"ocr_text": text,
-		"status":   "pending",
-	}).Error; err != nil {
+	}
+	if reanalyze {
+		updates["status"] = "pending"
+	}
+	if err := global.DB.Model(&models.NoteItem{}).Where("id = ?", id).Updates(updates).Error; err != nil {
 		return fmt.Errorf("原文写入失败: %v", err)
+	}
+
+	// 不重新分析时直接返回
+	if !reanalyze {
+		return nil
 	}
 
 	// 3. 异步分析

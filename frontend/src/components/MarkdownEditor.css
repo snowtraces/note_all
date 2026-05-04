@@ -1,0 +1,345 @@
+/* ============ Tiptap 编辑器样式（对齐 MarkdownRenderer 预览样式） ============ */
+
+/* 编辑器容器 */
+.markdown-editor-wrapper {
+  position: relative;
+}
+
+/* 编辑区域 */
+.tiptap-content {
+  min-height: 200px;
+  padding: 0;
+  caret-color: var(--prime-accent);
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+.tiptap-content:focus {
+  outline: none;
+}
+
+/* 占位文本 */
+.tiptap-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--text-secondary);
+  opacity: 0.4;
+  pointer-events: none;
+  height: 0;
+  font-style: italic;
+}
+
+/* ============ 文本样式 ============ */
+
+.tiptap-content p {
+  margin: 0.8em 0;
+  line-height: 1.8;
+  color: var(--text-primary);
+}
+
+.tiptap-content strong {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.tiptap-content em {
+  font-style: italic;
+}
+
+.tiptap-content u {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--prime-accent), transparent 70%);
+  text-underline-offset: 4px;
+}
+
+.tiptap-content s {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.tiptap-content mark {
+  background: var(--prime-accent);
+  color: #000;
+  padding: 0.1em 0.3em;
+  border-radius: 2px;
+  box-decoration-break: clone;
+}
+
+/* ============ 标题 ============ */
+
+.tiptap-content h1 {
+  scroll-margin-top: 6rem;
+  font-size: 1.5em;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 1.2em 0 0.6em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border-subtle);
+  letter-spacing: 0.05em;
+}
+
+.tiptap-content h2 {
+  scroll-margin-top: 6rem;
+  font-size: 1.25em;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 1em 0 0.4em;
+  letter-spacing: 0.03em;
+}
+
+.tiptap-content h3 {
+  scroll-margin-top: 6rem;
+  font-size: 1.125em;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0.8em 0 0.3em;
+}
+
+/* ============ 列表 ============ */
+
+.tiptap-content ul::marker,
+.tiptap-content ol::marker,
+.tiptap-content li::marker {
+  color: var(--text-secondary);
+}
+
+.tiptap-content ul {
+  list-style: disc;
+  margin: 0.8em 0;
+  padding-left: 1.5em;
+  opacity: 0.9;
+}
+
+.tiptap-content ol {
+  list-style: decimal;
+  margin: 0.8em 0;
+  padding-left: 1.5em;
+  opacity: 0.9;
+}
+
+.tiptap-content li {
+  margin: 0.2em 0;
+  padding-left: 0.3em;
+  margin-left: 1rem;
+}
+
+.tiptap-content ul > li {
+  list-style-type: disc;
+}
+
+.tiptap-content ol > li {
+  list-style-type: decimal;
+}
+
+.tiptap-content li p {
+  margin: 0;
+}
+
+/* ============ 任务列表 ============ */
+
+.tiptap-content ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.tiptap-content ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+  margin: 0.3em 0;
+  padding-left: 0;
+  margin-left: 0;
+  list-style-type: none;
+}
+
+.tiptap-content ul[data-type="taskList"] li > label {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  user-select: none;
+}
+
+.tiptap-content ul[data-type="taskList"] li > label input[type="checkbox"] {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--border-subtle);
+  border-radius: 4px;
+  background: var(--bg-sidebar);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.tiptap-content ul[data-type="taskList"] li > label input[type="checkbox"]:checked {
+  background: var(--prime-accent);
+  border-color: var(--prime-accent);
+}
+
+.tiptap-content ul[data-type="taskList"] li > label input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid #000;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.tiptap-content ul[data-type="taskList"] li > div {
+  flex: 1;
+}
+
+.tiptap-content ul[data-type="taskList"] li[data-checked="true"] > div p {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+/* ============ 引用块 ============ */
+
+.tiptap-content blockquote {
+  border-left: 4px solid var(--prime-accent);
+  background: linear-gradient(to right, color-mix(in srgb, var(--prime-accent), transparent 90%), transparent);
+  padding: 0.5em 1em;
+  margin: 0.8em 0;
+  border-radius: 0 0.5em 0.5em 0;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* ============ 行内代码 ============ */
+
+.tiptap-content :not(pre) > code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  background: var(--bg-code);
+  color: var(--text-primary);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--border-subtle);
+  margin: 0 0.125rem;
+}
+
+/* ============ 代码块 ============ */
+
+/* 代码块由 React NodeView 渲染（CodeBlockComponent），无需额外 CSS */
+
+.tiptap-codeblock-wrapper {
+  margin: 0;
+}
+
+.tiptap-codeblock-wrapper [data-node-view-content] {
+  outline: none;
+}
+
+/* ============ 链接 ============ */
+
+.tiptap-content a.tiptap-link,
+.tiptap-content a {
+  color: var(--prime-accent);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--prime-accent), transparent 70%);
+  text-underline-offset: 4px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.tiptap-content a:hover {
+  color: var(--prime-accent);
+}
+
+/* ============ 图片（对齐 LazyImage 样式） ============ */
+
+.tiptap-content img.tiptap-image,
+.tiptap-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 0.8em 0;
+  display: block;
+}
+
+.tiptap-content img.ProseMirror-selectednode {
+  outline: 2px solid var(--prime-accent);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* ============ 表格 ============ */
+
+.tiptap-content table.tiptap-table,
+.tiptap-content table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  margin: 1.2rem 0;
+  overflow: hidden;
+  background: var(--bg-header);
+  font-size: 13px;
+}
+
+.tiptap-content th {
+  background: var(--bg-table-header);
+  color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.tiptap-content td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.tiptap-content tr:last-child td {
+  border-bottom: none;
+}
+
+.tiptap-content tr:nth-child(even) td {
+  background: var(--bg-table-header);
+}
+
+.tiptap-content tr:hover td {
+  background: var(--bg-table-row-hover);
+}
+
+/* 选中单元格 */
+.tiptap-content .selectedCell {
+  background: color-mix(in srgb, var(--prime-accent), transparent 85%);
+}
+
+/* ============ 分割线 ============ */
+
+.tiptap-content hr {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  margin: 1.5em 0;
+}
+
+/* ============ 工具栏 ============ */
+
+.editor-toolbar {
+  font-size: 13px;
+}
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+}
+
+/* ============ 滚动容器 ============ */
+
+.markdown-editor-wrapper .tiptap-content {
+  overflow-y: auto;
+}

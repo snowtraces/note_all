@@ -103,19 +103,24 @@ func (a *NoteApi) CreateFromText(c *gin.Context) {
 func (a *NoteApi) UpdateText(c *gin.Context) {
 	id := c.Param("id")
 	var body struct {
-		Text string `json:"text"`
+		Text      string `json:"text"`
+		Reanalyze bool   `json:"reanalyze"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数解析失败"})
 		return
 	}
 
-	if err := service.UpdateNoteText(id, body.Text); err != nil {
+	if err := service.UpdateNoteText(id, body.Text, body.Reanalyze); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新文本失败: " + err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "修改文本成功，正在后台重新提炼分析..."})
+	msg := "修改文本成功"
+	if body.Reanalyze {
+		msg = "修改文本成功，正在后台重新提炼分析..."
+	}
+	c.JSON(http.StatusOK, gin.H{"message": msg})
 }
 
 // GetFile 接受存储 ID 还原图片或文件留以供网页/应用直读

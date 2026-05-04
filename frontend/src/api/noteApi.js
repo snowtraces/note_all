@@ -29,11 +29,11 @@ export const restoreNote = async (id) => {
   if (!res.ok) throw new Error("Restore failed");
 };
 
-export const updateNoteText = async (id, text) => {
+export const updateNoteText = async (id, text, reanalyze = false) => {
   const res = await request(`/api/note/${id}/text`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text })
+    body: JSON.stringify({ text, reanalyze })
   });
   if (!res.ok) throw new Error("Update text failed");
 };
