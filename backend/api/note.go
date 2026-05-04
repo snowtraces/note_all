@@ -393,8 +393,10 @@ func (a *NoteApi) GetTags(c *gin.Context) {
 		Count int    `json:"count"`
 	}
 	var tags []tagCount
-	err := global.DB.Model(&models.NoteTag{}).
+	err := global.DB.Table("note_tags").
 		Select("tag, COUNT(*) as count").
+		Joins("JOIN note_items ON note_items.id = note_tags.note_id").
+		Where("note_items.deleted_at IS NULL AND note_items.is_archived = ?", false).
 		Group("tag").
 		Order("count DESC").
 		Scan(&tags).Error

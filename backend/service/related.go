@@ -96,7 +96,7 @@ func getRelatedByVector(noteID uint, limit int) ([]models.NoteItem, error) {
 		JOIN note_chunk_embeddings AS ce ON ce.id = v.rowid
 		JOIN note_chunks AS nc ON nc.id = ce.chunk_id
 		JOIN note_items AS n ON n.id = nc.note_id
-		WHERE n.deleted_at IS NULL AND n.status IN ('analyzed', 'done')
+		WHERE n.deleted_at IS NULL AND n.status IN ('analyzed', 'done') AND n.is_archived = 0
 		ORDER BY v.distance ASC
 	`, firstEmbedding.Embedding).Scan(&vecResults)
 

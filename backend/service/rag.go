@@ -163,7 +163,7 @@ func BatchHybridSearch(queries []string, limit int) ([]SearchResult, error) {
 					JOIN note_chunk_embeddings AS ce ON ce.id = v.rowid
 					JOIN note_chunks AS nc ON nc.id = ce.chunk_id
 					JOIN note_items AS n ON n.id = nc.note_id
-					WHERE n.deleted_at IS NULL AND n.status IN ('analyzed', 'done')
+					WHERE n.deleted_at IS NULL AND n.status IN ('analyzed', 'done') AND n.is_archived = 0
 					ORDER BY v.distance ASC
 				`, queryBlob).Scan(&vecResults)
 				// 聚合分片分数到文档级（取最高分）
@@ -254,7 +254,7 @@ func BatchHybridSearch(queries []string, limit int) ([]SearchResult, error) {
 
 	// 5. 获取笔记详情
 	var notes []models.NoteItem
-	global.DB.Where("id IN ? AND deleted_at IS NULL", ids).Find(&notes)
+	global.DB.Where("id IN ? AND deleted_at IS NULL AND is_archived = ?", ids, false).Find(&notes)
 
 	// 6. 计算评分
 	results := make([]SearchResult, 0)
@@ -665,7 +665,7 @@ func BatchHybridSearchWithChunks(queries []string, limit int) ([]SearchResult, m
 					JOIN note_chunk_embeddings AS ce ON ce.id = v.rowid
 					JOIN note_chunks AS nc ON nc.id = ce.chunk_id
 					JOIN note_items AS n ON n.id = nc.note_id
-					WHERE n.deleted_at IS NULL AND n.status IN ('analyzed', 'done')
+					WHERE n.deleted_at IS NULL AND n.status IN ('analyzed', 'done') AND n.is_archived = 0
 					ORDER BY v.distance ASC
 				`, queryBlob).Scan(&vecResults)
 				for _, r := range vecResults {
@@ -762,7 +762,7 @@ func BatchHybridSearchWithChunks(queries []string, limit int) ([]SearchResult, m
 
 	// 5. 获取笔记详情
 	var notes []models.NoteItem
-	global.DB.Where("id IN ? AND deleted_at IS NULL", ids).Find(&notes)
+	global.DB.Where("id IN ? AND deleted_at IS NULL AND is_archived = ?", ids, false).Find(&notes)
 
 	// 6. 计算评分
 	results := make([]SearchResult, 0)
