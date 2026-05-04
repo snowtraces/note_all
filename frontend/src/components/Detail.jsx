@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, Link, Zap, Share2, RefreshCw, CheckCircle2, ClipboardEdit, Eye, ChevronLeft, ChevronDown, ChevronUp, List, PanelRightClose } from 'lucide-react';
+import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, Link, Zap, Share2, RefreshCw, CheckCircle2, ClipboardEdit, Eye, ChevronLeft, ChevronDown, ChevronUp, List, PanelRightClose, Download } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
 import ContentToolbar from './ContentToolbar';
 import EditorToolbar from './EditorToolbar';
@@ -305,6 +305,33 @@ export default function Detail({
     setSelectedItem(nextItem);
   };
 
+  const handleDownloadMarkdown = () => {
+    const md = editorMode === 'raw' ? editValue : tiptapContent;
+    const title = item?.ai_title || item?.original_name || 'untitled';
+    const summary = item?.ai_summary || '';
+    const sourceUrl = item?.source_url || '';
+
+    const frontmatter = [
+      '---',
+      `title: "${title}"`,
+      summary && `summary: "${summary}"`,
+      sourceUrl && `source_url: "${sourceUrl}"`,
+      `date: "${new Date().toISOString().split('T')[0]}"`,
+      '---',
+    ].filter(Boolean).join('\n') + '\n\n';
+
+    const fullMd = frontmatter + md;
+    const blob = new Blob([fullMd], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="w-full h-full flex flex-col animate-in fade-in zoom-in-95 duration-300">
       {/* 顶栏控制 */}
@@ -345,13 +372,22 @@ export default function Detail({
           )}
 
           {!showTrash && (
-            <button
-              onClick={() => setShowShareModal(true)}
-              className="px-2 md:px-4 py-1.5 bg-primeAccent/5 text-primeAccent/60 hover:bg-primeAccent/10 hover:text-primeAccent transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/10"
-              title="分享碎片"
-            >
-              <Share2 size={14} /> <span className="hidden md:inline">分享碎片</span>
-            </button>
+            <>
+              <button
+                onClick={handleDownloadMarkdown}
+                className="px-2 md:px-4 py-1.5 bg-primeAccent/5 text-primeAccent/60 hover:bg-primeAccent/10 hover:text-primeAccent transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/10"
+                title="下载为Markdown"
+              >
+                <Download size={14} /> <span className="hidden md:inline">下载为.md</span>
+              </button>
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="px-2 md:px-4 py-1.5 bg-primeAccent/5 text-primeAccent/60 hover:bg-primeAccent/10 hover:text-primeAccent transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/10"
+                title="分享碎片"
+              >
+                <Share2 size={14} /> <span className="hidden md:inline">分享碎片</span>
+              </button>
+            </>
           )}
           <button
             onClick={() => handleClose(null)}
