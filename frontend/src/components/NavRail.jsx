@@ -123,7 +123,7 @@ export default function NavRail({
               w-12 h-12 shrink-0 md:w-full md:aspect-square md:rounded-2xl rounded-xl
               ${item.active
                 ? 'bg-primeAccent/10 text-primeAccent'
-                : 'text-silverText/40 hover:bg-white/5 hover:text-textPrimary'
+                : 'text-textTertiary hover:bg-bgHover hover:text-textPrimary'
               }
             `}
           >
@@ -158,7 +158,7 @@ export default function NavRail({
         <button
           onClick={() => setShowSettings(true)}
           title="设置"
-          className={`w-12 h-12 shrink-0 md:w-full md:aspect-square flex items-center justify-center md:rounded-2xl rounded-xl transition-all group text-silverText/40 hover:bg-white/5 hover:text-textPrimary`}
+          className={`w-12 h-12 shrink-0 md:w-full md:aspect-square flex items-center justify-center md:rounded-2xl rounded-xl transition-all group text-textTertiary hover:bg-bgHover hover:text-textPrimary`}
         >
           <Settings size={22} className="group-hover:rotate-45 transition-transform duration-500" />
         </button>

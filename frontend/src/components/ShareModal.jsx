@@ -107,7 +107,7 @@ export default function ShareModal({ item, onClose }) {
             </div>
 
             {loading ? (
-              <div className="h-20 flex items-center justify-center text-silverText/20 italic text-xs animate-pulse">
+              <div className="h-20 flex items-center justify-center text-textMuted/20 italic text-xs animate-pulse">
                 探寻链路中...
               </div>
             ) : shares.length === 0 ? (

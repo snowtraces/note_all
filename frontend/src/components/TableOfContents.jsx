@@ -172,7 +172,7 @@ export default function TableOfContents({ content, containerRef, onNavigate, con
             className={`relative flex items-center text-left py-[7px] pr-4 transition-colors duration-200 z-10 w-full hover:bg-white/5 dark:hover:bg-white/5 ${
               isActive 
                 ? 'text-primeAccent' 
-                : 'text-textSecondary/60 hover:text-textPrimary'
+                : 'text-textTertiary hover:text-textPrimary'
             }`}
             style={{ paddingLeft: `${(heading.level - 1) * 0.8 + 1.6}rem` }}
           >
@@ -183,10 +183,10 @@ export default function TableOfContents({ content, containerRef, onNavigate, con
             
             <div className="flex items-center gap-1.5 overflow-hidden w-full">
               {/* 微型标题级别徽章 */}
-              <span className={`font-mono text-[9px] font-bold tracking-tighter shrink-0 pt-0.5 transition-colors ${isActive ? 'text-primeAccent/70' : 'text-textSecondary/30 group-hover:text-textSecondary/50'}`}>
+              <span className={`font-mono text-[9px] font-bold tracking-tighter shrink-0 pt-0.5 transition-colors ${isActive ? 'text-primeAccent/70' : 'text-textMuted group-hover:text-textTertiary'}`}>
                 H{heading.level}
               </span>
-              <span className={`text-[12px] leading-snug truncate tracking-wide transition-all ${isActive ? 'font-semibold text-primeAccent' : 'font-normal text-textSecondary/70 group-hover:text-textPrimary'}`}>
+              <span className={`text-[12px] leading-snug truncate tracking-wide transition-all ${isActive ? 'font-semibold text-primeAccent' : 'font-normal text-textTertiary group-hover:text-textPrimary'}`}>
                 {heading.text}
               </span>
             </div>

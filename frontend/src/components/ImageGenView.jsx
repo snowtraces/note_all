@@ -65,21 +65,21 @@ export default function ImageGenView({ active, onClose }) {
 
   return (
     <div className="flex w-full h-full">
-      <div className={`flex-1 flex flex-col relative z-0 ${isLight ? 'bg-slate-50' : 'bg-base'}`}>
+      <div className="flex-1 flex flex-col relative z-0 bg-base">
         {generating && (
-           <div className={`absolute left-1/2 bottom-8 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 z-50 animate-in slide-in-from-bottom-8 ${isLight ? 'bg-white border text-slate-800' : 'bg-modal border border-white/10 text-white'}`}>
+           <div className="absolute left-1/2 bottom-8 -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 z-50 animate-in slide-in-from-bottom-8 bg-modal border border-borderSubtle text-textPrimary">
              <Loader2 size={16} className="animate-spin text-primeAccent" />
              <span className="text-xs font-bold tracking-widest uppercase">创意引擎渲染中...</span>
            </div>
         )}
 
         {/* Top bar */}
-        <div className={`p-4 md:p-6 shrink-0 flex items-center justify-between z-10 backdrop-blur-xl border-b ${isLight ? 'bg-white/80 border-slate-200' : 'bg-black/20 border-white/5'}`}>
+        <div className="p-4 md:p-6 shrink-0 flex items-center justify-between z-10 backdrop-blur-xl border-b bg-bgSubtle border-borderSubtle">
           <div className="flex items-center gap-4">
             <h3 className="font-mono text-sm tracking-widest uppercase opacity-60 hidden md:block">Generation Studio</h3>
             <button 
               onClick={() => fetchHistory(query, showArchived)}
-              className={`p-1.5 rounded-lg border transition-all ${isLight ? 'hover:bg-slate-100 border-slate-200' : 'hover:bg-white/10 border-white/10'}`}
+              className="p-1.5 rounded-lg border transition-all hover:bg-bgHover border-borderSubtle"
               title="刷新历史"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
@@ -96,7 +96,7 @@ export default function ImageGenView({ active, onClose }) {
                <span className="text-[10px] uppercase font-bold tracking-widest hidden sm:inline">{showArchived ? 'Archived' : 'Archive'}</span>
             </button>
 
-            <div className={`flex items-center gap-2 px-4 py-2 border w-full md:w-80 transition-all ${isLight ? 'bg-white border-slate-200 focus-within:border-primeAccent shadow-sm' : 'bg-black/40 border-white/10 focus-within:border-primeAccent/40'}`}>
+            <div className="flex items-center gap-2 px-4 py-2 border w-full md:w-80 transition-all bg-bgSubtle border-borderSubtle focus-within:border-primeAccent/40">
                <Search size={16} className="opacity-40 shrink-0" />
                <input
                  type="text"
@@ -126,14 +126,14 @@ export default function ImageGenView({ active, onClose }) {
                   <div 
                     key={item.id} 
                     onClick={() => setSelectedItem(item)}
-                    className={`group relative flex flex-col border transition-all hover:shadow-2xl shadow-sm cursor-pointer ${isLight ? 'bg-white border-slate-200' : 'bg-[#0c0c0c] border-white/5'}`}
+                    className="group relative flex flex-col border transition-all hover:shadow-2xl shadow-sm cursor-pointer bg-card border-borderSubtle"
                   >
                     
                     {/* Hover Actions */}
                     <div className="absolute top-4 right-4 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                        <button 
                          onClick={(e) => handleToggleArchive(e, item.id)}
-                         className={`p-2 backdrop-blur-md border ${isLight ? 'bg-white/80 border-slate-200 hover:bg-primeAccent/10' : 'bg-black/40 border-white/10 hover:bg-white/10'}`}
+                         className="p-2 backdrop-blur-md border bg-bgOverlay border-borderSubtle hover:bg-bgHover"
                          title={item.is_archived ? "取消归档" : "归档任务"}
                        >
                          {item.is_archived ? <Inbox size={14} /> : <Archive size={14} />}
@@ -169,17 +169,17 @@ export default function ImageGenView({ active, onClose }) {
                     </div>
 
                     {/* 2. 信息区域 */}
-                    <div className={`p-3 flex flex-col gap-3 ${isLight ? 'bg-white' : 'bg-[#0c0c0c]'}`}>
+                    <div className="p-3 flex flex-col gap-3 bg-card">
                       <p className="text-[10px] leading-relaxed line-clamp-3 opacity-70 font-medium whitespace-pre-wrap">
                         {item.prompt}
                       </p>
 
                       <div className="pt-2 border-t border-white/5 flex justify-between items-center">
                         <div className="flex gap-1 overflow-hidden">
-                          <span className={`text-[8px] px-1.5 py-0.5 font-mono uppercase font-bold shrink-0 ${isLight ? 'bg-slate-100 text-slate-600 border border-slate-200' : 'bg-white/5 text-white/50 border border-white/10'}`}>
+                          <span className="text-[8px] px-1.5 py-0.5 font-mono uppercase font-bold shrink-0 bg-bgHover text-textSecondary border border-borderSubtle">
                             {item.model?.replace('gpt-', '')}
                           </span>
-                          <span className={`text-[8px] px-1.5 py-0.5 font-mono whitespace-nowrap ${isLight ? 'bg-slate-50 text-slate-400' : 'bg-white/5 text-white/30'}`}>
+                          <span className="text-[8px] px-1.5 py-0.5 font-mono whitespace-nowrap bg-bgSubtle text-textTertiary">
                             {item.ratio}
                           </span>
                         </div>
@@ -199,10 +199,10 @@ export default function ImageGenView({ active, onClose }) {
       {selectedItem && (
         <div className="absolute inset-0 z-[100] flex animate-in fade-in duration-300">
            <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setSelectedItem(null)} />
-           <div className={`relative flex-1 flex flex-col border-l shadow-2xl ${isLight ? 'bg-white border-slate-200' : 'bg-[#0a0a0a] border-white/10'}`}>
+           <div className="relative flex-1 flex flex-col border-l shadow-2xl bg-card border-borderSubtle">
               <button 
                 onClick={() => setSelectedItem(null)}
-                className={`absolute top-6 right-[400px] p-2 z-20 rounded-full transition-colors ${isLight ? 'bg-slate-100 text-slate-800 hover:bg-slate-200' : 'bg-white/10 text-white hover:bg-white/20'}`}
+                className="absolute top-6 right-[400px] p-2 z-20 rounded-full transition-colors bg-bgHover text-textPrimary hover:bg-bgHover"
               >
                 <X size={20} />
               </button>
@@ -231,20 +231,20 @@ export default function ImageGenView({ active, onClose }) {
                  </div>
 
                  {/* Right: Info Sidebar (Fixed width) */}
-                 <div className={`w-96 shrink-0 p-8 flex flex-col gap-8 border-l overflow-y-auto custom-scrollbar ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/10 bg-[#0c0c0c]'}`}>
+                 <div className="w-96 shrink-0 p-8 flex flex-col gap-8 border-l overflow-y-auto custom-scrollbar border-borderSubtle bg-bgSubtle">
                     <div className="space-y-4">
                        <h4 className="font-mono text-xs tracking-widest uppercase opacity-40">System Metadata</h4>
                        <div className="flex flex-wrap gap-2">
                           <span className="px-3 py-1 bg-primeAccent/20 text-primeAccent text-xs font-mono font-bold border border-primeAccent/40">{selectedItem.model}</span>
-                          <span className={`px-3 py-1 text-xs font-mono border ${isLight ? 'bg-white border-slate-200 text-slate-500' : 'bg-white/5 border-white/10 text-silverText'}`}>{selectedItem.ratio}</span>
-                          <span className={`px-3 py-1 text-xs font-mono border ${isLight ? 'bg-white border-slate-200 text-slate-500' : 'bg-white/5 border-white/10 text-silverText'}`}>{selectedItem.resolution}</span>
+                          <span className="px-3 py-1 text-xs font-mono border bg-bgSubtle border-borderSubtle text-textTertiary">{selectedItem.ratio}</span>
+                          <span className="px-3 py-1 text-xs font-mono border bg-bgSubtle border-borderSubtle text-textTertiary">{selectedItem.resolution}</span>
                        </div>
                        <p className="text-[10px] font-mono opacity-30 italic">{new Date(selectedItem.created_at).toLocaleString()}</p>
                     </div>
 
                     <div className="space-y-4 flex-1">
                        <h4 className="font-mono text-xs tracking-widest uppercase opacity-40">Prompt Description</h4>
-                       <p className={`text-sm leading-relaxed whitespace-pre-wrap font-serif border-l-2 border-primeAccent/30 pl-4 py-2 ${isLight ? 'text-slate-700' : 'text-white/80'}`}>
+                       <p className="text-sm leading-relaxed whitespace-pre-wrap font-serif border-l-2 border-primeAccent/30 pl-4 py-2 text-textSecondary">
                          {selectedItem.prompt}
                        </p>
                     </div>
@@ -255,7 +255,7 @@ export default function ImageGenView({ active, onClose }) {
                            handleToggleArchive(e, selectedItem.id);
                            setSelectedItem(null);
                          }}
-                         className={`w-full py-4 border flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest transition-all ${isLight ? 'bg-slate-100 border-slate-200 hover:bg-slate-200' : 'bg-white/5 border-white/20 hover:bg-white/10 text-white'}`}
+                         className="w-full py-4 border flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest transition-all bg-bgSubtle border-borderSubtle hover:bg-bgHover text-textSecondary"
                        >
                          {selectedItem.is_archived ? <Inbox size={16} /> : <Archive size={16} />}
                          {selectedItem.is_archived ? "移出归档" : "归档此项目"}

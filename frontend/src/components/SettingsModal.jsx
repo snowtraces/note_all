@@ -88,9 +88,9 @@ function TemplatesTab() {
     <div className="flex flex-1 overflow-hidden min-h-[400px]">
       {/* List Sidebar */}
       <div
-        style={{ backgroundColor: isLight ? '#f8fafc' : 'var(--bg-sidebar)' }}
-        className={`w-1/3 border-r flex flex-col p-4 gap-3 overflow-y-auto custom-scrollbar backdrop-blur ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
-        <div className={`text-[11px] font-mono uppercase tracking-widest pl-2 mb-1 flex justify-between items-center ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>
+        style={{ backgroundColor: 'var(--bg-sidebar)' }}
+        className={`w-1/3 border-r flex flex-col p-4 gap-3 overflow-y-auto custom-scrollbar backdrop-blur border-borderSubtle`}>
+        <div className={`text-[11px] font-mono uppercase tracking-widest pl-2 mb-1 flex justify-between items-center text-textTertiary`}>
           <span>可用模板</span>
           <button
             onClick={() => {
@@ -106,13 +106,13 @@ function TemplatesTab() {
         </div>
 
         {loading ? (
-          <div className={`text-center text-sm py-10 animate-pulse ${isLight ? 'text-slate-400' : 'text-silverText/40'}`}>加载中...</div>
+          <div className="text-center text-sm py-10 animate-pulse text-textTertiary">加载中...</div>
         ) : templates.map(t => (
           <div
             key={t.id}
             className={`group p-3 rounded-xl border cursor-pointer transition-all flex flex-col gap-2 relative ${editingTemplate?.id === t.id
-              ? isLight ? 'bg-slate-100 border-slate-300' : 'bg-white/10 border-white/20'
-              : isLight ? 'bg-white border-slate-200 hover:bg-slate-50' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05]'
+              ? 'bg-bgHover border-borderSubtle'
+              : 'bg-bgSubtle border-borderSubtle hover:bg-bgHover'
               }`}
             onClick={() => {
               setEditingTemplate(t);
@@ -120,9 +120,9 @@ function TemplatesTab() {
             }}
           >
             <div className="flex items-center justify-between pr-8 overflow-hidden">
-              <div className={`font-medium text-[14px] flex items-center gap-2 flex-1 min-w-0 ${isLight ? 'text-slate-800' : 'text-white/90'}`}>
+              <div className="font-medium text-[14px] flex items-center gap-2 flex-1 min-w-0 text-textPrimary">
                 <span className="truncate">{t.name}</span>
-                {t.is_builtin && <span className={`shrink-0 text-[9px] px-1.5 py-0.5 rounded ${isLight ? 'bg-slate-200 text-slate-500' : 'bg-white/10 text-silverText/60'}`}>内置</span>}
+                {t.is_builtin && <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded bg-bgHover text-textTertiary">内置</span>}
               </div>
             </div>
 
@@ -134,14 +134,14 @@ function TemplatesTab() {
               ) : (
                 <button
                   onClick={(e) => { e.stopPropagation(); handleSetActive(t.id); }}
-                  className={`text-[10px] opacity-0 group-hover:opacity-100 px-2 py-0.5 rounded-full transition-all ${isLight ? 'bg-slate-200 hover:bg-slate-300 text-slate-600' : 'bg-white/10 hover:bg-white/20 text-white/80'}`}
+                  className="text-[10px] opacity-0 group-hover:opacity-100 px-2 py-0.5 rounded-full transition-all bg-bgHover hover:bg-bgHover text-textSecondary"
                 >
                   使用
                 </button>
               )}
             </div>
 
-            <div className={`text-[12px] line-clamp-2 pr-2 ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>
+            <div className="text-[12px] line-clamp-2 pr-2 text-textTertiary">
               {t.system_prompt}
             </div>
           </div>
@@ -155,7 +155,7 @@ function TemplatesTab() {
         {editingTemplate !== null ? (
           <div className="flex flex-col h-full gap-5">
             <div className="flex items-center justify-between">
-              <h3 className={`text-lg font-semibold ${isLight ? 'text-slate-800' : 'text-white/90'}`}>
+              <h3 className="text-lg font-semibold text-textPrimary">
                 {editingTemplate.id ? '编辑模板' : '创建新模板'}
               </h3>
               {editingTemplate.id && !editingTemplate.is_builtin && (
@@ -176,19 +176,19 @@ function TemplatesTab() {
             )}
 
             <div className="flex flex-col gap-2">
-              <label className={`text-[13px] font-medium ${isLight ? 'text-slate-600' : 'text-silverText/60'}`}>模板名称</label>
+              <label className="text-[13px] font-medium text-textTertiary">模板名称</label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                 disabled={editingTemplate.is_builtin}
-                className={`rounded-xl px-4 py-3 text-sm focus:border-primeAccent/50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${isLight ? 'bg-slate-50 border border-slate-200 text-slate-800' : 'bg-[var(--input-bg)] border border-[var(--glass-border)] text-white'}`}
+                className="rounded-xl px-4 py-3 text-sm focus:border-primeAccent/50 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed bg-[var(--input-bg)] border border-[var(--glass-border)] text-textPrimary"
                 placeholder="例如：论文阅读理解"
               />
             </div>
 
             <div className="flex flex-col gap-2 flex-1 min-h-0">
-              <label className={`text-[13px] font-medium flex justify-between ${isLight ? 'text-slate-600' : 'text-silverText/60'}`}>
+              <label className="text-[13px] font-medium flex justify-between text-textTertiary">
                 <span>提示词内容 (System Prompt)</span>
                 <span className="text-[11px] text-primeAccent/70 font-mono hidden md:inline">建议必须保留 JSON 输出约束，以确保数据格式化</span>
               </label>
@@ -196,13 +196,13 @@ function TemplatesTab() {
                 value={formData.system_prompt}
                 onChange={(e) => setFormData(prev => ({ ...prev, system_prompt: e.target.value }))}
                 disabled={editingTemplate.is_builtin}
-                className={`rounded-xl px-4 py-3 text-[13px] font-mono leading-relaxed focus:border-primeAccent/50 focus:outline-none flex-1 resize-none disabled:opacity-50 disabled:cursor-not-allowed custom-scrollbar ${isLight ? 'bg-slate-50 border border-slate-200 text-slate-800' : 'bg-[var(--input-bg)] border border-[var(--glass-border)] text-white'}`}
+                className="rounded-xl px-4 py-3 text-[13px] font-mono leading-relaxed focus:border-primeAccent/50 focus:outline-none flex-1 resize-none disabled:opacity-50 disabled:cursor-not-allowed custom-scrollbar bg-[var(--input-bg)] border border-[var(--glass-border)] text-textPrimary"
                 placeholder="请输入大模型的 System Prompt 定义..."
               />
             </div>
 
             {!editingTemplate.is_builtin && (
-              <div className={`flex justify-end pt-2 border-t ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
+              <div className="flex justify-end pt-2 border-t border-borderSubtle">
                 <button
                   onClick={handleCreateOrUpdate}
                   disabled={isSubmitting}
@@ -214,7 +214,7 @@ function TemplatesTab() {
             )}
           </div>
         ) : (
-          <div className={`flex-1 flex flex-col items-center justify-center gap-4 opacity-50 ${isLight ? 'text-slate-400' : 'text-silverText/30'}`}>
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 opacity-50 text-textMuted">
             <Edit2 size={48} strokeWidth={1} />
             <p className="text-sm">在左侧选择一个模板进行查看或编辑，或点击新建</p>
           </div>
@@ -262,7 +262,7 @@ function VectorTab() {
 
   if (loading) {
     return (
-      <div className={`flex-1 flex items-center justify-center animate-pulse ${isLight ? 'text-slate-400' : 'text-silverText/40'}`}>
+      <div className="flex-1 flex items-center justify-center animate-pulse text-textTertiary">
         加载中...
       </div>
     );
@@ -278,8 +278,8 @@ function VectorTab() {
 
         {/* Status Cards */}
         <div className="grid grid-cols-2 gap-4">
-          <div className={`rounded-xl p-5 ${isLight ? 'bg-slate-50 border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
-            <div className={`text-[11px] uppercase tracking-wider mb-3 font-mono ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>向量扩展</div>
+          <div className="rounded-xl p-5 bg-bgSubtle border border-borderSubtle">
+            <div className="text-[11px] uppercase tracking-wider mb-3 font-mono text-textTertiary">向量扩展</div>
             <div className="flex items-center gap-3">
               {status?.vector_ext ? (
                 <>
@@ -295,34 +295,34 @@ function VectorTab() {
             </div>
           </div>
 
-          <div className={`rounded-xl p-5 ${isLight ? 'bg-slate-50 border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
-            <div className={`text-[11px] uppercase tracking-wider mb-3 font-mono ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>Embedding 模型</div>
+          <div className="rounded-xl p-5 bg-bgSubtle border border-borderSubtle">
+            <div className="text-[11px] uppercase tracking-wider mb-3 font-mono text-textTertiary">Embedding 模型</div>
             <div className="flex items-center gap-2">
               <Zap size={14} className="text-primeAccent" />
-              <span className={`text-sm font-mono ${isLight ? 'text-slate-700' : 'text-white/80'}`}>{status?.model_id || '-'}</span>
+              <span className="text-sm font-mono text-textSecondary">{status?.model_id || '-'}</span>
             </div>
           </div>
         </div>
 
         {/* Chunk Progress Card */}
-        <div className={`rounded-xl p-5 space-y-4 ${isLight ? 'bg-slate-50 border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
+        <div className="rounded-xl p-5 space-y-4 bg-bgSubtle border border-borderSubtle">
           <div className="flex items-center justify-between">
-            <div className={`text-[11px] uppercase tracking-wider font-mono ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>分片向量索引</div>
-            <span className={`text-sm font-mono ${isLight ? 'text-slate-600' : 'text-white/60'}`}>
+            <div className="text-[11px] uppercase tracking-wider font-mono text-textTertiary">分片向量索引</div>
+            <span className="text-sm font-mono text-textTertiary">
               {status?.chunk_count ?? 0} 个分片 / {status?.note_count ?? 0} 篇笔记
             </span>
           </div>
-          <div className={`text-[13px] ${isLight ? 'text-slate-500' : 'text-silverText/60'}`}>
+          <div className="text-[13px] text-textTertiary">
             平均每篇 {chunkPerNote} 个分片 · 粒度 {status?.chunk_max_size || 500} 字 · 上下文限制 {status?.rag_context_limit || 12000} 字
           </div>
         </div>
 
         {/* Rebuild Action */}
-        <div className={`rounded-xl p-5 space-y-4 ${isLight ? 'bg-slate-50 border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
+        <div className="rounded-xl p-5 space-y-4 bg-bgSubtle border border-borderSubtle">
           <div className="flex items-start justify-between">
             <div>
-              <h4 className={`font-medium text-[15px] mb-1.5 ${isLight ? 'text-slate-800' : 'text-white/90'}`}>全量重建向量索引</h4>
-              <p className={`text-[13px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>
+              <h4 className="font-medium text-[15px] mb-1.5 text-textPrimary">全量重建向量索引</h4>
+              <p className="text-[13px] leading-relaxed text-textTertiary">
                 清空并重建文档向量 + 分片向量索引。<br />
                 适用于切换模型、修复数据不一致等场景。
               </p>
@@ -333,7 +333,7 @@ function VectorTab() {
             onClick={handleRebuild}
             disabled={rebuilding}
             className={`w-full flex items-center justify-center gap-2.5 py-3 rounded-xl font-semibold text-sm transition-all ${rebuilding
-              ? isLight ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/5 text-silverText/40 cursor-not-allowed'
+              ? 'bg-bgSubtle text-textTertiary cursor-not-allowed'
               : 'bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 border border-primeAccent/20'
               }`}
           >
@@ -385,7 +385,7 @@ function ServerTab() {
   const renderResults = (testResults, currentUrl, recommendedUrl = null) => {
     if (!testResults || testResults.length === 0) {
       return (
-        <div className={`text-center py-6 ${isLight ? 'text-slate-400' : 'text-silverText/40'}`}>
+        <div className="text-center py-6 text-textTertiary">
           暂无测速数据，点击下方按钮开始测速
         </div>
       );
@@ -409,35 +409,27 @@ function ServerTab() {
                 }
               }}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all cursor-pointer overflow-hidden ${isActive
-                ? isLight
-                  ? 'bg-primeAccent/10 border-primeAccent/30 ring-2 ring-primeAccent/20'
-                  : 'bg-primeAccent/10 border-primeAccent/30 ring-2 ring-primeAccent/20'
+                ? 'bg-primeAccent/10 border-primeAccent/30 ring-2 ring-primeAccent/20'
                 : isRecommended
-                  ? isLight
-                    ? 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
-                    : 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20'
+                  ? 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20'
                   : isSuccess
-                    ? isLight
-                      ? 'bg-slate-50 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
-                      : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10'
-                    : isLight
-                      ? 'bg-red-50 border-red-200 opacity-60'
-                      : 'bg-red-500/10 border-red-500/20 opacity-60'
+                    ? 'bg-bgSubtle border-borderSubtle hover:bg-bgHover'
+                    : 'bg-red-500/10 border-red-500/20 opacity-60'
                 }`}
             >
               {isSuccess ? (
-                <Wifi size={14} className={`shrink-0 ${isActive ? 'text-primeAccent' : isLight ? 'text-slate-400' : 'text-silverText/50'}`} />
+                <Wifi size={14} className={`shrink-0 ${isActive ? 'text-primeAccent' : 'text-textTertiary'}`} />
               ) : (
                 <WifiOff size={14} className="shrink-0 text-red-400" />
               )}
-              <div className={`flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-mono ${isActive ? 'text-primeAccent font-semibold' : isLight ? 'text-slate-700' : 'text-white/80'}`}>
+              <div className={`flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-mono ${isActive ? 'text-primeAccent font-semibold' : 'text-textSecondary'}`}>
                 {r.url}
               </div>
               <div className="shrink-0 flex items-center gap-1 text-[12px] font-mono whitespace-nowrap">
                 {isSuccess ? (
                   <>
-                    <Clock size={12} className={isActive ? 'text-primeAccent' : isLight ? 'text-slate-500' : 'text-silverText/50'} />
-                    <span className={isActive ? 'text-primeAccent' : isLight ? 'text-slate-500' : 'text-silverText/50'}>{r.latency}ms</span>
+                    <Clock size={12} className={isActive ? 'text-primeAccent' : 'text-textTertiary'} />
+                    <span className={isActive ? 'text-primeAccent' : 'text-textTertiary'}>{r.latency}ms</span>
                   </>
                 ) : (
                   <span className="text-red-400">失败</span>
@@ -499,24 +491,21 @@ function ServerTab() {
     <div className="flex flex-1 overflow-hidden min-h-[400px]">
       {/* 左侧：设置项 */}
       <div
-        style={{ backgroundColor: isLight ? '#f8fafc' : 'var(--bg-sidebar)' }}
-        className={`w-[420px] shrink-0 border-r flex flex-col p-6 gap-5 overflow-y-auto custom-scrollbar backdrop-blur ${isLight ? 'border-slate-200' : 'border-white/5'}`}
+        style={{ backgroundColor: 'var(--bg-sidebar)' }}
+        className="w-[420px] shrink-0 border-r flex flex-col p-6 gap-5 overflow-y-auto custom-scrollbar backdrop-blur border-borderSubtle"
       >
         {/* 当前激活地址 */}
-        <div className={`rounded-xl p-4 ${isLight ? 'bg-white border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
-          <div className={`text-[11px] uppercase tracking-wider mb-2 font-mono ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>当前服务器</div>
+        <div className="rounded-xl p-4 bg-bgSubtle border border-borderSubtle">
+          <div className="text-[11px] uppercase tracking-wider mb-2 font-mono text-textTertiary">当前服务器</div>
           <div className="flex items-center gap-2">
-            <Server size={14} className={`shrink-0 ${activeUrl ? 'text-primeAccent' : isLight ? 'text-slate-400' : 'text-silverText/50'}`} />
-            <span className={`text-[13px] font-mono truncate flex-1 min-w-0 ${activeUrl ? 'text-primeAccent' : isLight ? 'text-slate-600' : 'text-white/70'}`}>
+            <Server size={14} className={`shrink-0 ${activeUrl ? 'text-primeAccent' : 'text-textTertiary'}`} />
+            <span className={`text-[13px] font-mono truncate flex-1 min-w-0 ${activeUrl ? 'text-primeAccent' : 'text-textTertiary'}`}>
               {activeUrl || '默认 (当前域名)'}
             </span>
             {activeUrl && (
               <button
                 onClick={handleClearActiveUrl}
-                className={`shrink-0 text-[11px] px-2 py-1 rounded-lg transition-colors ${isLight
-                  ? 'bg-slate-200 hover:bg-slate-300 text-slate-600'
-                  : 'bg-white/10 hover:bg-white/20 text-silverText/70'
-                  }`}
+                className="shrink-0 text-[11px] px-2 py-1 rounded-lg transition-colors bg-bgHover hover:bg-bgHover text-textSecondary"
               >
                 恢复默认
               </button>
@@ -525,26 +514,21 @@ function ServerTab() {
         </div>
 
         {/* 服务器地址输入 */}
-        <div className={`rounded-xl p-4 ${isLight ? 'bg-white border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
-          <div className={`text-[11px] uppercase tracking-wider mb-2 font-mono ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>测速基准地址</div>
+        <div className="rounded-xl p-4 bg-bgSubtle border border-borderSubtle">
+          <div className="text-[11px] uppercase tracking-wider mb-2 font-mono text-textTertiary">测速基准地址</div>
           <div className="flex gap-2 items-center">
             <input
               type="text"
               value={testBaseUrl}
               onChange={(e) => setTestBaseUrl(e.target.value)}
               placeholder="http://localhost:3344"
-              className={`flex-1 rounded-lg px-3 py-2 text-[13px] font-mono outline-none transition-colors ${isLight
-                ? 'bg-slate-100 text-slate-600 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-primeAccent/30'
-                : 'bg-white/5 text-silverText/70 placeholder-silverText/40 focus:bg-white/10 focus:ring-2 focus:ring-primeAccent/30'
-                }`}
+              className="flex-1 rounded-lg px-3 py-2 text-[13px] font-mono outline-none transition-colors bg-bgSubtle text-textSecondary placeholder-textMuted focus:bg-bgHover focus:ring-2 focus:ring-primeAccent/30"
             />
             <button
               onClick={handleSpeedTest}
               disabled={testing || !testBaseUrl}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-lg font-semibold text-[13px] transition-all shrink-0 ${testing || !testBaseUrl
-                ? isLight
-                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                  : 'bg-white/5 text-silverText/40 cursor-not-allowed'
+                ? 'bg-bgSubtle text-textTertiary cursor-not-allowed'
                 : 'bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 border border-primeAccent/30'
                 }`}
             >
@@ -561,7 +545,7 @@ function ServerTab() {
               )}
             </button>
           </div>
-          <div className={`text-[11px] mt-2 ${isLight ? 'text-slate-400' : 'text-silverText/40'}`}>
+          <div className="text-[11px] mt-2 text-textTertiary">
             输入服务器地址进行测速，默认为当前浏览器访问地址
           </div>
         </div>
@@ -569,10 +553,10 @@ function ServerTab() {
         {/* 状态消息 */}
         {statusMsg && (
           <div className={`rounded-xl p-3 text-[12px] flex items-center gap-2 ${statusMsg.type === 'success'
-            ? isLight ? 'bg-emerald-50 text-emerald-600' : 'bg-emerald-500/10 text-emerald-400'
+            ? 'bg-emerald-500/10 text-emerald-500'
             : statusMsg.type === 'error'
-              ? isLight ? 'bg-red-50 text-red-600' : 'bg-red-500/10 text-red-400'
-              : isLight ? 'bg-slate-100 text-slate-600' : 'bg-white/5 text-silverText/70'
+              ? 'bg-red-500/10 text-red-400'
+              : 'bg-bgSubtle text-textSecondary'
             }`}>
             {statusMsg.type === 'loading' && <Loader2 size={12} className="animate-spin" />}
             {statusMsg.text}
@@ -580,10 +564,10 @@ function ServerTab() {
         )}
 
         {/* 使用说明 */}
-        <div className={`rounded-xl p-4 ${isLight ? 'bg-white border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
-          <div className={`text-[11px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-silverText/50'}`}>
+        <div className="rounded-xl p-4 bg-bgSubtle border border-borderSubtle">
+          <div className="text-[11px] leading-relaxed text-textTertiary">
             <div className="flex items-center gap-1.5 mb-2 font-mono uppercase tracking-wider">
-              <AlertCircle size={12} className={isLight ? 'text-slate-400' : 'text-silverText/40'} />
+              <AlertCircle size={12} className="text-textTertiary" />
               使用说明
             </div>
             <ul className="list-disc list-inside space-y-1 ml-1 text-[12px]">
@@ -601,7 +585,7 @@ function ServerTab() {
         style={{ backgroundColor: 'var(--bg-modal)' }}
         className={`flex-1 p-6 flex flex-col backdrop-blur`}
       >
-        <div className={`text-[11px] uppercase tracking-wider mb-3 font-mono ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>
+        <div className="text-[11px] uppercase tracking-wider mb-3 font-mono text-textTertiary">
           测速结果
         </div>
         <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -650,7 +634,7 @@ function SynonymTab() {
 
   if (loading) {
     return (
-      <div className={`flex-1 flex items-center justify-center animate-pulse ${isLight ? 'text-slate-400' : 'text-silverText/40'}`}>
+      <div className="flex-1 flex items-center justify-center animate-pulse text-textTertiary">
         加载中...
       </div>
     );
@@ -662,40 +646,40 @@ function SynonymTab() {
 
         {/* Status Cards */}
         <div className="grid grid-cols-2 gap-4">
-          <div className={`rounded-xl p-5 ${isLight ? 'bg-slate-50 border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
-            <div className={`text-[11px] uppercase tracking-wider mb-3 font-mono ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>词条总数</div>
+          <div className="rounded-xl p-5 bg-bgSubtle border border-borderSubtle">
+            <div className="text-[11px] uppercase tracking-wider mb-3 font-mono text-textTertiary">词条总数</div>
             <div className="flex items-center gap-3">
               <BookOpen size={14} className="text-primeAccent" />
-              <span className={`text-sm font-mono ${isLight ? 'text-slate-700' : 'text-white/80'}`}>{status?.synonym_count ?? 0} 个</span>
+              <span className="text-sm font-mono text-textSecondary">{status?.synonym_count ?? 0} 个</span>
             </div>
           </div>
 
-          <div className={`rounded-xl p-5 ${isLight ? 'bg-slate-50 border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
-            <div className={`text-[11px] uppercase tracking-wider mb-3 font-mono ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>同义词组</div>
+          <div className="rounded-xl p-5 bg-bgSubtle border border-borderSubtle">
+            <div className="text-[11px] uppercase tracking-wider mb-3 font-mono text-textTertiary">同义词组</div>
             <div className="flex items-center gap-3">
               <Database size={14} className="text-primeAccent" />
-              <span className={`text-sm font-mono ${isLight ? 'text-slate-700' : 'text-white/80'}`}>{status?.group_count ?? 0} 组</span>
+              <span className="text-sm font-mono text-textSecondary">{status?.group_count ?? 0} 组</span>
             </div>
           </div>
         </div>
 
         {/* Info Card */}
-        <div className={`rounded-xl p-5 ${isLight ? 'bg-slate-50 border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
-          <div className={`text-[11px] uppercase tracking-wider mb-3 font-mono ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>词典来源</div>
-          <div className={`text-[13px] leading-relaxed ${isLight ? 'text-slate-600' : 'text-silverText/60'}`}>
+        <div className="rounded-xl p-5 bg-bgSubtle border border-borderSubtle">
+          <div className="text-[11px] uppercase tracking-wider mb-3 font-mono text-textTertiary">词典来源</div>
+          <div className="text-[13px] leading-relaxed text-textTertiary">
             哈工大社会计算与信息检索研究中心同义词词林扩展版
           </div>
-          <div className={`text-[12px] mt-2 ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>
+          <div className="text-[12px] mt-2 text-textMuted">
             用于搜索时的同义词扩展，提升语义匹配能力
           </div>
         </div>
 
         {/* Sync Action */}
-        <div className={`rounded-xl p-5 space-y-4 ${isLight ? 'bg-slate-50 border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
+        <div className="rounded-xl p-5 space-y-4 bg-bgSubtle border border-borderSubtle">
           <div className="flex items-start justify-between">
             <div>
-              <h4 className={`font-medium text-[15px] mb-1.5 ${isLight ? 'text-slate-800' : 'text-white/90'}`}>手动同步同义词</h4>
-              <p className={`text-[13px] leading-relaxed ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>
+              <h4 className="font-medium text-[15px] mb-1.5 text-textPrimary">手动同步同义词</h4>
+              <p className="text-[13px] leading-relaxed text-textTertiary">
                 从词典文件导入同义词数据到数据库。<br />
                 若数据库已有数据，将跳过导入。
               </p>
@@ -706,7 +690,7 @@ function SynonymTab() {
             onClick={handleSync}
             disabled={syncing}
             className={`w-full flex items-center justify-center gap-2.5 py-3 rounded-xl font-semibold text-sm transition-all ${syncing
-              ? isLight ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white/5 text-silverText/40 cursor-not-allowed'
+              ? 'bg-bgSubtle text-textTertiary cursor-not-allowed'
               : 'bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 border border-primeAccent/20'
               }`}
           >
@@ -739,15 +723,15 @@ function AppearanceTab() {
       <div className="max-w-xl mx-auto space-y-8">
         {/* 配色风格选择 */}
         <div>
-          <h3 className={`text-[13px] font-mono uppercase tracking-wider mb-4 ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>配色风格</h3>
+          <h3 className="text-[13px] font-mono uppercase tracking-wider mb-4 text-textTertiary">配色风格</h3>
           <div className="grid grid-cols-3 gap-4">
             {themes.map((t) => (
               <button
                 key={t.id}
                 onClick={() => setTheme(t.id)}
                 className={`group relative p-4 rounded-xl border transition-all ${theme === t.id
-                  ? isLight ? 'bg-slate-100 border-slate-300 ring-2 ring-[var(--prime-accent)]' : 'bg-white/10 border-white/20 ring-2 ring-[var(--prime-accent)]'
-                  : isLight ? 'bg-white border-slate-200 hover:bg-slate-50' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10'
+                  ? 'bg-bgHover border-borderSubtle ring-2 ring-[var(--prime-accent)]'
+                  : 'bg-bgSubtle border-borderSubtle hover:bg-bgHover'
                   }`}
               >
                 {/* 预览色块 */}
@@ -762,8 +746,8 @@ function AppearanceTab() {
                 </div>
                 {/* 名称 */}
                 <div className="text-center">
-                  <div className={`text-[14px] font-medium ${isLight ? 'text-slate-800' : 'text-white/90'}`}>{t.name}</div>
-                  <div className={`text-[11px] mt-1 ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>{t.description}</div>
+                  <div className="text-[14px] font-medium text-textPrimary">{t.name}</div>
+                  <div className="text-[11px] mt-1 text-textTertiary">{t.description}</div>
                 </div>
                 {/* 激活指示 */}
                 {theme === t.id && (
@@ -778,37 +762,37 @@ function AppearanceTab() {
 
         {/* 亮度模式切换 */}
         <div>
-          <h3 className={`text-[13px] font-mono uppercase tracking-wider mb-4 ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>亮度模式</h3>
+          <h3 className="text-[13px] font-mono uppercase tracking-wider mb-4 text-textTertiary">亮度模式</h3>
           <div className="flex gap-4">
             <button
               onClick={() => setMode('dark')}
               className={`flex items-center gap-3 px-5 py-3 rounded-xl border transition-all ${mode === 'dark'
-                ? isLight ? 'bg-slate-100 border-slate-300 ring-2 ring-[var(--prime-accent)]' : 'bg-white/10 border-white/20 ring-2 ring-[var(--prime-accent)]'
-                : isLight ? 'bg-white border-slate-200 hover:bg-slate-50' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05]'
+                ? 'bg-bgHover border-borderSubtle ring-2 ring-[var(--prime-accent)]'
+                : 'bg-bgSubtle border-borderSubtle hover:bg-bgHover'
                 }`}
             >
-              <Moon size={18} className={isLight ? 'text-slate-500' : 'text-silverText/60'} />
-              <span className={`text-[14px] font-medium ${isLight ? 'text-slate-800' : 'text-white/90'}`}>暗色模式</span>
+              <Moon size={18} className="text-textTertiary" />
+              <span className="text-[14px] font-medium text-textPrimary">暗色模式</span>
               {mode === 'dark' && <Check size={14} className="text-[var(--prime-accent)]" />}
             </button>
             <button
               onClick={() => setMode('light')}
               className={`flex items-center gap-3 px-5 py-3 rounded-xl border transition-all ${mode === 'light'
-                ? isLight ? 'bg-slate-100 border-slate-300 ring-2 ring-[var(--prime-accent)]' : 'bg-white/10 border-white/20 ring-2 ring-[var(--prime-accent)]'
-                : isLight ? 'bg-white border-slate-200 hover:bg-slate-50' : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05]'
+                ? 'bg-bgHover border-borderSubtle ring-2 ring-[var(--prime-accent)]'
+                : 'bg-bgSubtle border-borderSubtle hover:bg-bgHover'
                 }`}
             >
-              <Sun size={18} className={isLight ? 'text-slate-500' : 'text-silverText/60'} />
-              <span className={`text-[14px] font-medium ${isLight ? 'text-slate-800' : 'text-white/90'}`}>亮色模式</span>
+              <Sun size={18} className="text-textTertiary" />
+              <span className="text-[14px] font-medium text-textPrimary">亮色模式</span>
               {mode === 'light' && <Check size={14} className="text-[var(--prime-accent)]" />}
             </button>
           </div>
         </div>
 
         {/* 当前配置显示 */}
-        <div className={`rounded-xl p-4 ${isLight ? 'bg-slate-50 border border-slate-200' : 'bg-white/[0.03] border border-white/5'}`}>
-          <div className={`text-[11px] uppercase tracking-wider mb-2 font-mono ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>当前配置</div>
-          <div className={`text-[13px] ${isLight ? 'text-slate-700' : 'text-white/80'}`}>
+        <div className="rounded-xl p-4 bg-bgSubtle border border-borderSubtle">
+          <div className="text-[11px] uppercase tracking-wider mb-2 font-mono text-textTertiary">当前配置</div>
+          <div className="text-[13px] text-textSecondary">
             {themes.find(t => t.id === theme)?.name} · {MODES.find(m => m.id === mode)?.name}
           </div>
         </div>
@@ -962,8 +946,8 @@ function WeixinTab() {
     return (
       <div className="w-full h-full flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <RefreshCw size={24} className="animate-spin text-silverText/30" />
-          <span className="text-[11px] text-silverText/30">加载中...</span>
+          <RefreshCw size={24} className="animate-spin text-textMuted" />
+          <span className="text-[11px] text-textMuted">加载中...</span>
         </div>
       </div>
     );
@@ -983,15 +967,15 @@ function WeixinTab() {
               />
             </div>
           ) : (
-            <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mb-6 ${isLight ? 'bg-slate-100' : 'bg-white/5'}`}>
-              <Bot size={40} className="text-silverText/20" />
+            <div className="w-20 h-20 rounded-2xl flex items-center justify-center mb-6 bg-bgSubtle">
+              <Bot size={40} className="text-textMuted/50" />
             </div>
           )}
 
-          <h3 className={`text-lg font-medium mb-1 ${isLight ? 'text-slate-800' : 'text-white'}`}>
+          <h3 className="text-lg font-medium mb-1 text-textPrimary">
             {status === 'active' ? '请使用微信扫码授权' : status === 'expired' ? '二维码已过期' : '微信机器人未配置'}
           </h3>
-          <p className={`text-[12px] mb-6 text-center leading-relaxed ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>
+          <p className="text-[12px] mb-6 text-center leading-relaxed text-textTertiary">
             {status === 'active'
               ? '使用微信扫描二维码完成授权绑定'
               : status === 'expired'
@@ -1010,7 +994,7 @@ function WeixinTab() {
             <button
               onClick={fetchBot}
               disabled={loading}
-              className={`px-6 py-2.5 rounded-xl text-[13px] transition-all ${isLight ? 'border border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-100' : 'border border-white/10 text-silverText/60 hover:text-white/80 hover:bg-white/5'}`}
+              className={`px-6 py-2.5 rounded-xl text-[13px] transition-all border border-borderSubtle text-textSecondary hover:text-textPrimary hover:bg-bgHover`}
             >
               同步状态
             </button>
@@ -1025,23 +1009,23 @@ function WeixinTab() {
     return (
       <div className="w-full h-full flex flex-col">
         {/* 顶部：Bot 信息 + 操作 */}
-        <div className={`shrink-0 px-6 py-3 border-b flex items-center justify-between gap-4 ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/5 bg-white/[0.01]'}`}>
+        <div className={`shrink-0 px-6 py-3 border-b flex items-center justify-between gap-4 border-borderSubtle bg-bgSubtle`}>
           <div className="flex items-center gap-3 min-w-0">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${botInfo.is_active ? 'bg-green-500/10 text-green-500' : (isLight ? 'bg-slate-200 text-slate-400' : 'bg-white/5 text-silverText/20')}`}>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${botInfo.is_active ? 'bg-green-500/10 text-green-500' : 'bg-bgSubtle text-textMuted'}`}>
               <Bot size={16} className={botInfo.is_active ? 'animate-pulse' : ''} />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className={`text-[12px] font-medium truncate ${isLight ? 'text-slate-800' : 'text-white/90'}`}>
+                <span className="text-[12px] font-medium truncate text-textPrimary">
                   {botInfo.ilink_user_id || '已授权用户'}
                 </span>
-                <span className={`text-[9px] font-mono ${botInfo.is_active ? 'text-green-500/60' : 'text-silverText/30'}`}>
+                <span className={`text-[9px] font-mono ${botInfo.is_active ? 'text-green-500/60' : 'text-textMuted'}`}>
                   {messages.length} 条消息
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className={`w-1.5 h-1.5 rounded-full ${botInfo.is_active ? 'bg-green-500' : 'bg-silverText/20'}`}></div>
-                <span className={`text-[10px] font-mono tracking-tight ${isLight ? 'text-slate-500' : 'text-silverText/40'}`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${botInfo.is_active ? 'bg-green-500' : 'bg-textMuted/50'}`}></div>
+                <span className="text-[10px] font-mono tracking-tight text-textTertiary">
                   {botInfo.is_active ? 'ONLINE' : 'PAUSED'}
                 </span>
               </div>
@@ -1052,7 +1036,7 @@ function WeixinTab() {
               onClick={handleToggle}
               disabled={isToggling}
               className={`px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all flex items-center gap-1.5 ${botInfo.is_active
-                ? (isLight ? 'bg-slate-200 text-slate-700 hover:bg-slate-300' : 'bg-white/10 text-white/70 hover:bg-white/20')
+                ? 'bg-bgHover text-textSecondary hover:bg-bgHover'
                 : 'bg-green-500 text-white hover:bg-green-400'
                 }`}
             >
@@ -1069,25 +1053,25 @@ function WeixinTab() {
         </div>
 
         {/* 中部：消息列表 */}
-        <div className={`flex-1 overflow-y-auto p-4 space-y-4 ${isLight ? 'bg-white' : 'bg-black/10'}`}>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-bgSubtle">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center">
-              <MessageSquare size={40} className={`mb-4 ${isLight ? 'text-slate-200' : 'text-silverText/10'}`} />
-              <p className={`text-[13px] ${isLight ? 'text-slate-400' : 'text-silverText/20'}`}>等待第一条消息注入...</p>
-              <p className={`text-[10px] mt-1 font-mono uppercase tracking-widest ${isLight ? 'text-slate-300' : 'text-silverText/10'}`}>Live Monitoring Active</p>
+              <MessageSquare size={40} className="mb-4 text-textMuted" />
+              <p className="text-[13px] text-textMuted">等待第一条消息注入...</p>
+              <p className="text-[10px] mt-1 font-mono uppercase tracking-widest text-textMuted">Live Monitoring Active</p>
             </div>
           ) : (
             messages.map((msg, idx) => (
               <div key={msg.id || idx} className={`flex flex-col ${msg.direction === 'incoming' ? 'items-start' : 'items-end'}`}>
                 <div className="flex items-center gap-2 mb-1 px-2">
-                  <span className={`text-[9px] font-mono ${isLight ? 'text-slate-400' : 'text-silverText/20'}`}>{new Date(msg.created_at).toLocaleTimeString()}</span>
+                  <span className="text-[9px] font-mono text-textMuted">{new Date(msg.created_at).toLocaleTimeString()}</span>
                   <span className={`text-[9px] font-bold uppercase tracking-widest ${msg.direction === 'incoming' ? 'text-blue-400/60' : 'text-primeAccent/60'}`}>
                     {msg.direction === 'incoming' ? '微信用户' : 'AI 助手'}
                   </span>
                 </div>
                 <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed ${msg.direction === 'incoming'
-                  ? isLight ? 'bg-slate-100 text-slate-700 rounded-tl-none' : 'bg-white/[0.06] text-silverText/90 rounded-tl-none'
-                  : isLight ? 'bg-primeAccent/10 text-primeAccent rounded-tr-none' : 'bg-primeAccent/10 text-white rounded-tr-none'
+                  ? 'bg-bgHover text-textSecondary rounded-tl-none'
+                  : 'bg-primeAccent/10 text-primeAccent rounded-tr-none'
                   }`}>
                   {msg.content}
                 </div>
@@ -1098,7 +1082,7 @@ function WeixinTab() {
         </div>
 
         {/* 底部：回复输入 */}
-        <div className={`shrink-0 px-4 py-3 border-t ${isLight ? 'border-slate-200 bg-slate-50' : 'border-white/5 bg-black/20'}`}>
+        <div className="shrink-0 px-4 py-3 border-t border-borderSubtle bg-bgSubtle">
           <div className="flex gap-2">
             <input
               type="text"
@@ -1106,7 +1090,7 @@ function WeixinTab() {
               onChange={(e) => setReplyText(e.target.value)}
               placeholder="输入回复内容..."
               onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && handleSendReply()}
-              className={`flex-1 border rounded-xl px-4 py-2 text-[13px] focus:outline-none focus:border-primeAccent/50 transition-all ${isLight ? 'bg-white border-slate-200 text-slate-800 placeholder-slate-400' : 'bg-white/[0.03] border-white/10 text-white placeholder-silverText/20'}`}
+              className="flex-1 border rounded-xl px-4 py-2 text-[13px] focus:outline-none focus:border-primeAccent/50 transition-all bg-bgSubtle border-borderSubtle text-textPrimary placeholder-textMuted"
             />
             <button
               onClick={handleSendReply}
@@ -1135,20 +1119,20 @@ export default function SettingsModal({ onClose, initialTab }) {
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div
         style={{ backgroundColor: 'var(--bg-modal)' }}
-        className={`backdrop-blur-xl border rounded-2xl w-full max-w-5xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 ${isLight ? 'border-slate-200' : 'border-white/10'}`}>
+        className={`backdrop-blur-xl border rounded-2xl w-full max-w-5xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 border-borderSubtle`}>
 
         {/* Header with Tabs */}
         <div
           style={{ backgroundColor: 'var(--bg-header)' }}
-          className={`flex items-center justify-between px-6 py-3 border-b backdrop-blur ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
+          className="flex items-center justify-between px-6 py-3 border-b backdrop-blur border-borderSubtle">
           <div className="flex items-center gap-1">
             {TABS.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all ${activeTab === tab.id
-                  ? isLight ? 'bg-slate-200 text-slate-800' : 'bg-white/10 text-white'
-                  : isLight ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-100' : 'text-silverText/50 hover:text-white/80 hover:bg-white/5'
+                  ? 'bg-bgHover text-textPrimary'
+                  : 'text-textTertiary hover:text-textPrimary hover:bg-bgSubtle'
                   }`}
               >
                 <tab.icon size={15} />
@@ -1156,7 +1140,7 @@ export default function SettingsModal({ onClose, initialTab }) {
               </button>
             ))}
           </div>
-          <button onClick={onClose} className={`p-2 rounded-lg transition-colors ${isLight ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-100' : 'text-silverText/50 hover:text-white hover:bg-white/5'}`}>
+          <button onClick={onClose} className="p-2 rounded-lg transition-colors text-textTertiary hover:text-textPrimary hover:bg-bgSubtle">
             <X size={20} />
           </button>
         </div>

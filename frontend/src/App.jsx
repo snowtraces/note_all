@@ -493,11 +493,11 @@ function AppContent() {
 
           {!selectedItem && viewMode !== 'graph' && viewMode !== 'image_gen' && (
             chatHistory.length > 0 && viewMode === 'chats' ? (
-              <div className={`w-full h-full flex flex-col ${isLight ? 'bg-slate-100' : 'bg-sidebar'}`}>
+              <div className="w-full h-full flex flex-col bg-sidebar">
                 {/* 顶栏 */}
-                <div className={`flex items-center justify-between px-4 md:px-10 py-4 md:py-5 border-b ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-sidebar/80 border-white/5'} backdrop-blur shrink-0 z-20`}>
+                <div className="flex items-center justify-between px-4 md:px-10 py-4 md:py-5 border-b bg-bgSubtle border-borderSubtle backdrop-blur shrink-0 z-20">
                   <div className="flex items-center gap-2 md:gap-3">
-                    <button onClick={() => { setChatHistory([]); setCurrentSessionId(0); }} className="md:hidden mr-2 text-silverText/60 hover:text-white">
+                    <button onClick={() => { setChatHistory([]); setCurrentSessionId(0); }} className="md:hidden mr-2 text-textTertiary hover:text-white">
                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                     </button>
                     <div className="w-8 h-8 rounded-full bg-primeAccent/20 flex items-center justify-center border border-primeAccent/30">
@@ -510,7 +510,7 @@ function AppContent() {
                       setChatHistory([]);
                       setCurrentSessionId(0);
                     }}
-                    className={`hidden md:block text-[11px] font-mono transition-colors ${isLight ? 'text-slate-400 hover:text-slate-600' : 'text-silverText/40 hover:text-white'}`}
+                    className="hidden md:block text-[11px] font-mono transition-colors text-textTertiary hover:text-textPrimary"
                   >
                     CLOSE SESSION [ESC]
                   </button>
@@ -522,16 +522,14 @@ function AppContent() {
                     {chatHistory.map((chat, idx) => (
                       <div key={idx} className={`flex flex-col ${chat.role === 'user' ? 'items-end' : 'items-start'}`}>
                         <div className={`rounded-2xl px-4 leading-relaxed text-[14px] shadow-sm ${chat.role === 'user'
-                          ? isLight
-                            ? 'bg-primeAccent/10 border border-primeAccent/20 text-primeAccent rounded-tr-none min-w-[20px] max-w-[80%]'
-                            : 'bg-primeAccent/10 border border-primeAccent/20 text-white/90 rounded-tr-none min-w-[20px] max-w-[80%]'
-                          : isLight ? 'bg-white border border-slate-200 text-slate-700 rounded-tl-none max-w-[90%]' : 'bg-white/[0.03] border border-white/5 text-silverText/90 rounded-tl-none max-w-[90%]'
+                          ? 'bg-primeAccent/10 border border-primeAccent/20 text-primeAccent rounded-tr-none min-w-[20px] max-w-[80%]'
+                          : 'bg-card border border-borderSubtle text-textSecondary rounded-tl-none max-w-[90%]'
                           }`}>
                           <MarkdownRenderer content={chat.content} />
 
                     {chat.references && chat.references.length > 0 && (
-                            <div className={`mt-6 pt-4 border-t ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
-                              <div className={`flex items-center gap-1.5 text-[10px] uppercase font-mono mb-3 tracking-widest ${isLight ? 'text-slate-400' : 'text-silverText/30'}`}>
+                            <div className="mt-6 pt-4 border-t border-borderSubtle">
+                              <div className="flex items-center gap-1.5 text-[10px] uppercase font-mono mb-3 tracking-widest text-textTertiary">
                                 <BookOpen size={10} /> 智能引证
                               </div>
                               <div className="flex flex-col gap-2">
@@ -539,7 +537,7 @@ function AppContent() {
                                   <div
                                       key={ref.id}
                                       onClick={() => guardedSetSelectedItem(ref)}
-                                      className={`flex items-center gap-3 p-2 rounded-lg border transition-all cursor-pointer ${isLight ? 'bg-slate-50 border-slate-200 hover:bg-slate-100 hover:border-primeAccent/30' : 'bg-white/[0.02] border-white/5 hover:bg-white/5 hover:border-primeAccent/20'}`}
+                                      className="flex items-center gap-3 p-2 rounded-lg border transition-all cursor-pointer bg-bgSubtle border-borderSubtle hover:bg-bgHover hover:border-primeAccent/20"
                                     >
                                       <div className="min-w-0 flex-1">
                                         <div className="flex items-center justify-between gap-2 mb-1">
@@ -548,11 +546,11 @@ function AppContent() {
                                               <span key={i} className="text-[9px] bg-primeAccent/10 text-primeAccent/70 px-1 rounded">#{t.trim()}</span>
                                             ))}
                                           </div>
-                                          <span className={`text-[9px] font-mono shrink-0 ${isLight ? 'text-slate-400' : 'text-silverText/20'}`}>
+                                          <span className="text-[9px] font-mono shrink-0 text-textMuted">
                                             {new Date(ref.created_at).toLocaleDateString('zh-CN', {month:'2-digit', day:'2-digit'})}
                                           </span>
                                         </div>
-                                        <div className={`text-[11px] leading-snug line-clamp-2 ${isLight ? 'text-slate-600' : 'text-white/70'}`}>{ref.ai_summary || '碎片内容细节...'}</div>
+                                        <div className="text-[11px] leading-snug line-clamp-2 text-textSecondary">{ref.ai_summary || '碑片内容细节...'}</div>
                                       </div>
                                     </div>
                                   ))}
@@ -565,7 +563,7 @@ function AppContent() {
 
                     {askLoading && (
                       <div className="flex items-start">
-                        <div className={`border rounded-2xl rounded-tl-none px-6 py-4 animate-pulse ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-white/[0.02] border-white/5'}`}>
+                        <div className="border rounded-2xl rounded-tl-none px-6 py-4 animate-pulse bg-bgSubtle border-borderSubtle">
                           <div className="flex gap-1.5 items-center">
                             <div className="w-1.5 h-1.5 rounded-full bg-primeAccent/40"></div>
                             <div className="w-1.5 h-1.5 rounded-full bg-primeAccent/40"></div>
@@ -579,7 +577,7 @@ function AppContent() {
                 </div>
 
                 {/* 底部追问输入框 */}
-                <div className={`p-4 md:p-8 md:pb-12 shrink-0 ${isLight ? 'bg-slate-50' : 'bg-gradient-to-t from-[#080808] via-[#080808] to-transparent'}`}>
+                <div className="p-4 md:p-8 md:pb-12 shrink-0 bg-bgSubtle">
                   <div className="max-w-3xl mx-auto relative">
                     <input
                       type="text"
@@ -591,7 +589,7 @@ function AppContent() {
                           e.target.value = '';
                         }
                       }}
-                      className={`w-full border rounded-2xl px-6 py-3 md:py-4 text-sm focus:outline-none focus:border-primeAccent/50 transition-all ${isLight ? 'bg-white border-slate-200 text-slate-800 placeholder-slate-400' : 'bg-white/[0.03] border-white/10 text-white/90 placeholder-white/20 focus:bg-white/[0.05]'}`}
+                      className="w-full border rounded-2xl px-6 py-3 md:py-4 text-sm focus:outline-none focus:border-primeAccent/50 transition-all bg-bgSubtle border-borderSubtle text-textPrimary placeholder-textMuted"
                     />
                   </div>
                 </div>

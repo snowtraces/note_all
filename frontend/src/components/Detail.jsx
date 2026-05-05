@@ -360,7 +360,7 @@ export default function Detail({
       {/* 顶栏控制 */}
       <div className="flex items-center justify-between px-4 md:px-5 py-2.5 border-b border-borderSubtle bg-main shrink-0">
         <div className="font-medium text-textPrimary tracking-wide flex items-center gap-1 md:gap-2 text-[15px]">
-          <button onClick={() => handleClose(null)} className="md:hidden p-1 -ml-1 mr-1 text-silverText/60 hover:text-white transition-colors">
+          <button onClick={() => handleClose(null)} className="md:hidden p-1 -ml-1 mr-1 text-textTertiary hover:text-white transition-colors">
             <ChevronLeft size={24} />
           </button>
           <BrainCircuit size={18} className="text-primeAccent hidden md:block" />
@@ -371,14 +371,14 @@ export default function Detail({
             <>
               <button
                 onClick={() => handleRestore(item.id)}
-                className="px-2 md:px-4 py-1.5 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/20"
+                className="px-2 md:px-4 py-1.5 bg-primeAccent/20 text-primeAccent hover:bg-primeAccent/30 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/30 shadow-lg shadow-primeAccent/5"
                 title="撤销删除"
               >
                 <ArchiveRestore size={14} /> <span className="hidden md:inline">撤销删除</span>
               </button>
               <button
                 onClick={() => handleDelete(item.id, true)}
-                className="px-2 md:px-4 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.1)]"
+                className="px-2 md:px-4 py-1.5 bg-red-500/20 text-red-500 hover:bg-red-500/30 hover:text-red-400 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-red-500/30 shadow-lg shadow-red-500/10"
                 title="彻底摧毁"
               >
                 <Trash2 size={14} /> <span className="hidden md:inline">彻底摧毁</span>
@@ -387,7 +387,7 @@ export default function Detail({
           ) : (
             <button
               onClick={() => handleDelete(item.id)}
-              className="px-2 md:px-4 py-1.5 bg-red-500/5 text-red-500/60 hover:bg-red-500/10 hover:text-red-500 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-red-500/10"
+              className="px-2 md:px-4 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-red-500/20"
               title="移入垃圾篓"
             >
               <Trash2 size={14} /> <span className="hidden md:inline">移入垃圾篓</span>
@@ -398,14 +398,14 @@ export default function Detail({
             <>
               <button
                 onClick={handleDownloadMarkdown}
-                className="px-2 md:px-4 py-1.5 bg-primeAccent/5 text-primeAccent/60 hover:bg-primeAccent/10 hover:text-primeAccent transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/10"
+                className="px-2 md:px-4 py-1.5 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/20"
                 title="下载为Markdown"
               >
                 <Download size={14} /> <span className="hidden md:inline">下载为.md</span>
               </button>
               <button
                 onClick={() => setShowShareModal(true)}
-                className="px-2 md:px-4 py-1.5 bg-primeAccent/5 text-primeAccent/60 hover:bg-primeAccent/10 hover:text-primeAccent transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/10"
+                className="px-2 md:px-4 py-1.5 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/20"
                 title="分享碎片"
               >
                 <Share2 size={14} /> <span className="hidden md:inline">分享碎片</span>
@@ -414,7 +414,7 @@ export default function Detail({
           )}
           <button
             onClick={() => handleClose(null)}
-            className={`hidden md:block p-1.5 rounded-full transition-colors ml-2 ${isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700' : 'bg-white/5 hover:bg-white/10 text-white/60 hover:text-white'}`}
+            className="hidden md:block p-1.5 rounded-full transition-colors ml-2 bg-bgSubtle hover:bg-bgHover text-textTertiary hover:text-textPrimary"
             title="关闭详情视图 (Esc)"
           >
             <X size={18} />
@@ -434,7 +434,7 @@ export default function Detail({
               className={`absolute right-0 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center transition-all duration-300 ${
                 showToC
                   ? 'w-7 h-24 bg-primeAccent/30 backdrop-blur-md border border-primeAccent/40 rounded-l-lg text-primeAccent shadow-lg'
-                  : 'w-5 h-14 bg-sidebar/80 backdrop-blur-sm border border-borderSubtle rounded-l-md text-textSecondary/60 hover:text-primeAccent hover:bg-primeAccent/10 hover:border-primeAccent/20 shadow-md hover:shadow-lg'
+                  : 'w-5 h-14 bg-sidebar/80 backdrop-blur-sm border border-borderSubtle rounded-l-md text-textTertiary hover:text-primeAccent hover:bg-primeAccent/10 hover:border-primeAccent/20 shadow-md hover:shadow-lg'
               }`}
               title={showToC ? '收起大纲' : '展开大纲'}
             >
@@ -635,7 +635,7 @@ export default function Detail({
                   onClick={() => setPreviewImage(fileUrl)}
                 />
               ) : (
-                <div className={`opacity-40 flex flex-col items-center justify-center p-4 h-full ${isLight ? 'text-slate-400' : 'text-white/50'}`}>
+                <div className="opacity-40 flex flex-col items-center justify-center p-4 h-full text-textTertiary">
                   <ImageIcon size={36} className="mb-3 shrink-0" />
                   <span className="text-[10px] tracking-widest uppercase font-mono">{item.file_type || 'DOCUMENT'}</span>
                 </div>
@@ -733,7 +733,7 @@ export default function Detail({
                             onClick={() => handleClose(p)}
                             className="p-3 hover:bg-primeAccent/10 transition-colors cursor-pointer group/node"
                           >
-                            <div className={`text-[11px] line-clamp-2 leading-relaxed ${isLight ? 'text-slate-600 group-hover/node:text-slate-800' : 'text-silverText/70 group-hover/node:text-white'} transition-colors`}>
+                            <div className="text-[11px] line-clamp-2 leading-relaxed text-textSecondary group-hover/node:text-textPrimary transition-colors">
                               {p.ai_summary || p.original_name || '未命名片段'}
                             </div>
                           </div>
@@ -789,9 +789,7 @@ export default function Detail({
                   disabled={isSubmittingStatus}
                   className={`w-full py-3 rounded-xl flex items-center justify-center gap-2 text-xs font-bold transition-all ${item.status === 'done'
                     ? 'bg-primeAccent/10 text-primeAccent border border-primeAccent/30 shadow-[0_0_15px_color-mix(in_srgb,var(--prime-accent),transparent_90%)]'
-                    : isLight
-                      ? 'bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 border border-primeAccent/30 shadow-[0_0_20px_color-mix(in_srgb,var(--prime-accent),transparent_90%)]'
-                      : 'bg-primeAccent text-white-fixed hover:bg-primeAccent/90 shadow-[0_0_20px_color-mix(in_srgb,var(--prime-accent),transparent_70%)]'
+                    : 'bg-primeAccent text-white-fixed hover:bg-primeAccent/90 shadow-[0_0_20px_color-mix(in_srgb,var(--prime-accent),transparent_70%)]'
                     }`}
                 >
                   {isSubmittingStatus ? (

@@ -1,6 +1,14 @@
 # Changelog
 
 ## [Unreleased]
+- **语义化视觉系统迁移与暗色模式优化 (Semantic Visual System & Dark Mode Optimization)**:
+  - **语义化 Token 迁移**: 彻底移除旧版 `silverText` 工具类，统一采用基于 CSS 变量的语义化 Token（`textPrimary`, `textSecondary`, `textTertiary`, `textMuted`）。
+  - **Tailwind 透明度增强**: 优化 Tailwind 配置以支持语义化 Token 的透明度修饰符（如 `text-textSecondary/80`），通过 `color-mix` 技术实现动态透明度处理。
+  - **深色模式阴影重构**: 引入微发光（Subtle Glow）与边缘高亮（Edge Highlight）技术，解决深色背景下传统阴影不可见的问题，增强了界面的层次感。
+  - **交互对比度提升**: 
+    - 优化了详情页顶部「删除、下载、分享」按钮的色彩饱和度与背景深度。
+    - 将正文高亮（`mark`）文本颜色统一为白色，确保在品牌色背景下的最佳易读性。
+    - 统一了侧边栏与导航栏的悬停（Hover）状态语义化处理。
 - **斜杠指令系统增强与交互手册 (Slash Command System Enhancements & Manual)**:
   - **动态指令扩展**: 实现高度可定制的指令匹配逻辑，支持 `/hl-颜色` (高亮) 和 `/h1-内容` (带内容的标题) 等动态参数解析，告别繁琐的后续编辑。
   - **独立帮助弹窗**: 新增 `/help` 指令触发的交互式手册弹窗。采用极简卡片设计，支持深浅模式高对比度自动适配。

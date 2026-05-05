@@ -294,7 +294,7 @@ export default function GraphView({ onNodeClick, onClose, data: initialData, onD
         
         {/* 全屏加载指示器，取代原本粗暴的 return 拦截从而保护下方容器能被 ResizeObserver 检测 */}
         {loading && graphData.nodes.length === 0 && (
-            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center text-silverText/60 bg-base0">
+            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center text-textTertiary bg-base0">
                 <BrainCircuit size={48} className="animate-spin mb-4 text-primeAccent/40" />
                 <span className="text-sm tracking-widest uppercase">Initializing Canvas...</span>
             </div>
@@ -303,23 +303,23 @@ export default function GraphView({ onNodeClick, onClose, data: initialData, onD
         {/* 数据面板与卡片 */}
         <div className="absolute top-4 left-4 z-20 flex flex-col gap-4 pointer-events-none opacity-90">
             <div>
-                <h2 className={`text-xl font-bold tracking-wide flex items-center gap-2 ${isLight ? 'text-slate-800' : 'text-white'}`}>
+                <h2 className="text-xl font-bold tracking-wide flex items-center gap-2 text-textPrimary">
                     <Share2 className="text-primeAccent" size={18} />
                     Graph View
                 </h2>
-                <p className={`text-xs font-mono mt-1 ${isLight ? 'text-slate-500' : 'text-white/40'}`}>
+                <p className="text-xs font-mono mt-1 text-textTertiary">
                     {renderedData.nodes.length} nodes · {renderedData.links.length} links
                 </p>
             </div>
 
             {/* 个体信息卡片展示 */}
             {hoverNode && (
-                <div className={`backdrop-blur-md border p-3.5 rounded-xl shadow-2xl max-w-[280px] animate-in fade-in slide-in-from-left-2 duration-300 ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-black/40 border-white/10'}`}>
-                     <p className={`font-semibold mb-1.5 leading-snug ${isLight ? 'text-slate-800' : 'text-white/90'}`}>
+                <div className="backdrop-blur-md border p-3.5 rounded-xl shadow-2xl max-w-[280px] animate-in fade-in slide-in-from-left-2 duration-300 bg-bgOverlay border-borderSubtle">
+                     <p className="font-semibold mb-1.5 leading-snug text-textPrimary">
                         {hoverNode.type === 'tag' ? '#' + hoverNode.name : hoverNode.name}
                      </p>
                      {hoverNode.type === 'note' && hoverNode.summary && (
-                         <p className={`text-xs leading-relaxed line-clamp-3 ${isLight ? 'text-slate-600' : 'text-white/50'}`}>
+                         <p className="text-xs leading-relaxed line-clamp-3 text-textSecondary">
                              {hoverNode.summary}
                          </p>
                      )}
@@ -335,7 +335,7 @@ export default function GraphView({ onNodeClick, onClose, data: initialData, onD
             {!showSettings && (
                <button
                   onClick={() => setShowSettings(true)}
-                  className={`p-2.5 border rounded-lg transition-colors backdrop-blur-md shadow-xl ${isLight ? 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200 hover:text-slate-800' : 'bg-black/40 border-white/10 text-white/50 hover:bg-white/10 hover:text-white'}`}
+                  className="p-2.5 border rounded-lg transition-colors backdrop-blur-md shadow-xl bg-bgOverlay border-borderSubtle text-textTertiary hover:bg-bgHover hover:text-textPrimary"
                   title="Graph Settings"
                >
                   <Settings size={18} />
@@ -344,72 +344,72 @@ export default function GraphView({ onNodeClick, onClose, data: initialData, onD
 
             {/* Obsidian 风格属性调节面板 */}
             {showSettings && (
-                <div className={`w-64 backdrop-blur-xl border rounded-xl p-4 shadow-2xl animate-in fade-in slide-in-from-right-2 duration-300 ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-black/80 border-white/10'}`}>
+                <div className="w-64 backdrop-blur-xl border rounded-xl p-4 shadow-2xl animate-in fade-in slide-in-from-right-2 duration-300 bg-bgOverlay border-borderSubtle">
                     <div className="flex justify-between items-center mb-5">
-                        <h3 className={`font-semibold flex items-center gap-2 text-sm ${isLight ? 'text-slate-800' : 'text-white/90'}`}><Settings size={14}/> Graph Settings</h3>
-                        <button onClick={() => setShowSettings(false)} className={isLight ? 'text-slate-400 hover:text-slate-600' : 'text-white/40 hover:text-white'}><X size={16}/></button>
+                        <h3 className="font-semibold flex items-center gap-2 text-sm text-textPrimary"><Settings size={14}/> Graph Settings</h3>
+                        <button onClick={() => setShowSettings(false)} className="text-textTertiary hover:text-textPrimary"><X size={16}/></button>
                     </div>
 
                     {/* Filters 过滤视图 */}
                     <div className="space-y-3.5 mb-6">
-                        <h4 className="text-[10px] uppercase text-primeAccent font-bold tracking-widest border-b pb-1" style={{ borderColor: isLight ? 'rgba(15,23,42,0.1)' : 'rgba(255,255,255,0.1)' }}>Filters</h4>
+                        <h4 className="text-[10px] uppercase text-primeAccent font-bold tracking-widest border-b pb-1 border-borderSubtle">Filters</h4>
 
-                        <label className={`flex items-center justify-between text-xs cursor-pointer transition-colors ${isLight ? 'text-slate-600 hover:text-slate-800' : 'text-white/70 hover:text-white'}`}>
+                        <label className="flex items-center justify-between text-xs cursor-pointer transition-colors text-textSecondary hover:text-textPrimary">
                             <span>Tags</span>
                             <div className="relative inline-flex items-center">
                                 <input type="checkbox" checked={showTags} onChange={e => setShowTags(e.target.checked)} className="sr-only peer" />
-                                <div className={`w-7 h-4 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:rounded-full after:h-3 after:w-3 after:transition-all ${isLight ? 'bg-slate-200 after:bg-white after:border-slate-300 after:border peer-checked:bg-primeAccent' : 'bg-white/20 after:bg-white after:border-gray-300 after:border peer-checked:bg-primeAccent'}`}></div>
+                                <div className="w-7 h-4 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:rounded-full after:h-3 after:w-3 after:transition-all bg-bgHover after:bg-white after:border-borderSubtle after:border peer-checked:bg-primeAccent"></div>
                             </div>
                         </label>
 
-                        <label className={`flex items-center justify-between text-xs cursor-pointer transition-colors ${isLight ? 'text-slate-600 hover:text-slate-800' : 'text-white/70 hover:text-white'}`}>
+                        <label className="flex items-center justify-between text-xs cursor-pointer transition-colors text-textSecondary hover:text-textPrimary">
                             <span>Orphans</span>
                             <div className="relative inline-flex items-center">
                                 <input type="checkbox" checked={showOrphans} onChange={e => setShowOrphans(e.target.checked)} className="sr-only peer" />
-                                <div className={`w-7 h-4 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:rounded-full after:h-3 after:w-3 after:transition-all ${isLight ? 'bg-slate-200 after:bg-white after:border-slate-300 after:border peer-checked:bg-primeAccent' : 'bg-white/20 after:bg-white after:border-gray-300 after:border peer-checked:bg-primeAccent'}`}></div>
+                                <div className="w-7 h-4 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:rounded-full after:h-3 after:w-3 after:transition-all bg-bgHover after:bg-white after:border-borderSubtle after:border peer-checked:bg-primeAccent"></div>
                             </div>
                         </label>
                     </div>
 
                     {/* Forces 物理受力模拟 */}
                     <div className="space-y-4 mb-6">
-                        <h4 className="text-[10px] uppercase text-primeAccent font-bold tracking-widest border-b pb-1" style={{ borderColor: isLight ? 'rgba(15,23,42,0.1)' : 'rgba(255,255,255,0.1)' }}>Forces</h4>
+                        <h4 className="text-[10px] uppercase text-primeAccent font-bold tracking-widest border-b pb-1 border-borderSubtle">Forces</h4>
 
                         <div className="space-y-1.5">
-                            <div className={`flex justify-between text-[11px] ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
+                            <div className="flex justify-between text-[11px] text-textTertiary">
                                 <span>Repel Force</span>
                                 <span className="font-mono">{repelForce}</span>
                             </div>
-                            <input type="range" min="10" max="400" value={repelForce} onChange={e => setRepelForce(Number(e.target.value))} className={`w-full h-1 rounded-lg appearance-none cursor-pointer transition-all ${isLight ? 'bg-slate-200 accent-primeAccent' : 'bg-white/10 accent-primeAccent'}`}/>
+                            <input type="range" min="10" max="400" value={repelForce} onChange={e => setRepelForce(Number(e.target.value))} className="w-full h-1 rounded-lg appearance-none cursor-pointer transition-all bg-bgHover accent-primeAccent"/>
                         </div>
 
                         <div className="space-y-1.5">
-                            <div className={`flex justify-between text-[11px] ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
+                            <div className="flex justify-between text-[11px] text-textTertiary">
                                 <span>Link Distance</span>
                                 <span className="font-mono">{linkDistance}</span>
                             </div>
-                            <input type="range" min="10" max="150" value={linkDistance} onChange={e => setLinkDistance(Number(e.target.value))} className={`w-full h-1 rounded-lg appearance-none cursor-pointer transition-all ${isLight ? 'bg-slate-200 accent-primeAccent' : 'bg-white/10 accent-primeAccent'}`}/>
+                            <input type="range" min="10" max="150" value={linkDistance} onChange={e => setLinkDistance(Number(e.target.value))} className="w-full h-1 rounded-lg appearance-none cursor-pointer transition-all bg-bgHover accent-primeAccent"/>
                         </div>
                     </div>
 
                     {/* Display 显示标度 */}
                     <div className="space-y-4">
-                        <h4 className="text-[10px] uppercase text-primeAccent font-bold tracking-widest border-b pb-1" style={{ borderColor: isLight ? 'rgba(15,23,42,0.1)' : 'rgba(255,255,255,0.1)' }}>Display</h4>
+                        <h4 className="text-[10px] uppercase text-primeAccent font-bold tracking-widest border-b pb-1 border-borderSubtle">Display</h4>
 
                         <div className="space-y-1.5">
-                            <div className={`flex justify-between text-[11px] ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
+                            <div className="flex justify-between text-[11px] text-textTertiary">
                                 <span>Node Size</span>
                                 <span className="font-mono">{nodeSizeMultiplier.toFixed(1)}x</span>
                             </div>
-                            <input type="range" min="0.3" max="3" step="0.1" value={nodeSizeMultiplier} onChange={e => setNodeSizeMultiplier(Number(e.target.value))} className={`w-full h-1 rounded-lg appearance-none cursor-pointer transition-all ${isLight ? 'bg-slate-200 accent-primeAccent' : 'bg-white/10 accent-primeAccent'}`}/>
+                            <input type="range" min="0.3" max="3" step="0.1" value={nodeSizeMultiplier} onChange={e => setNodeSizeMultiplier(Number(e.target.value))} className="w-full h-1 rounded-lg appearance-none cursor-pointer transition-all bg-bgHover accent-primeAccent"/>
                         </div>
 
                         <div className="space-y-1.5">
-                            <div className={`flex justify-between text-[11px] ${isLight ? 'text-slate-500' : 'text-white/50'}`}>
+                            <div className="flex justify-between text-[11px] text-textTertiary">
                                 <span>Link Thickness</span>
                                 <span className="font-mono">{linkThicknessMultiplier.toFixed(1)}x</span>
                             </div>
-                            <input type="range" min="0.3" max="3" step="0.1" value={linkThicknessMultiplier} onChange={e => setLinkThicknessMultiplier(Number(e.target.value))} className={`w-full h-1 rounded-lg appearance-none cursor-pointer transition-all ${isLight ? 'bg-slate-200 accent-primeAccent' : 'bg-white/10 accent-primeAccent'}`}/>
+                            <input type="range" min="0.3" max="3" step="0.1" value={linkThicknessMultiplier} onChange={e => setLinkThicknessMultiplier(Number(e.target.value))} className="w-full h-1 rounded-lg appearance-none cursor-pointer transition-all bg-bgHover accent-primeAccent"/>
                         </div>
                     </div>
                 </div>
@@ -420,7 +420,7 @@ export default function GraphView({ onNodeClick, onClose, data: initialData, onD
         <div className="absolute bottom-6 right-6 z-10 flex gap-2 pointer-events-auto">
             <button
                 onClick={() => fgRef.current?.zoomToFit(800, 50)}
-                className={`p-2.5 border rounded-lg transition-colors backdrop-blur-sm shadow-xl ${isLight ? 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200 hover:text-slate-800' : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white'}`}
+                className="p-2.5 border rounded-lg transition-colors backdrop-blur-sm shadow-xl bg-bgOverlay border-borderSubtle text-textTertiary hover:bg-bgHover hover:text-textPrimary"
                 title="Reset View"
             >
                 <Expand size={16} />
@@ -437,25 +437,25 @@ export default function GraphView({ onNodeClick, onClose, data: initialData, onD
         </div>
 
         {/* 图例 Legend */}
-        <div className={`absolute bottom-6 left-6 z-10 pointer-events-none flex flex-col gap-2 opacity-80 backdrop-blur-md p-3 rounded-xl border ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-black/20 border-white/5'}`}>
-             <div className={`flex items-center gap-2.5 text-[11px] font-medium tracking-wide ${isLight ? 'text-slate-700' : 'text-white/80'}`}>
+        <div className="absolute bottom-6 left-6 z-10 pointer-events-none flex flex-col gap-2 opacity-80 backdrop-blur-md p-3 rounded-xl border bg-bgOverlay border-borderSubtle">
+             <div className="flex items-center gap-2.5 text-[11px] font-medium tracking-wide text-textSecondary">
                  <div className="w-2.5 h-2.5 rounded-full bg-primeAccent"></div>
                  Tag Concept
              </div>
-             <div className={`flex items-center gap-2.5 text-[11px] font-medium tracking-wide ${isLight ? 'text-slate-700' : 'text-white/80'}`}>
-                 <div className={`w-2.5 h-2.5 rounded-full ${isLight ? 'bg-slate-500' : 'bg-[#8b949e]'}`}></div>
+             <div className="flex items-center gap-2.5 text-[11px] font-medium tracking-wide text-textSecondary">
+                 <div className="w-2.5 h-2.5 rounded-full bg-textTertiary"></div>
                  Note Fragment
              </div>
-             <div className={`flex items-center gap-2.5 text-[11px] font-medium tracking-wide ${isLight ? 'text-slate-700' : 'text-white/80'}`}>
-                 <div className={`w-2.5 h-2.5 rounded-full ${isLight ? 'bg-slate-400' : 'bg-[#4b5563]'}`}></div>
+             <div className="flex items-center gap-2.5 text-[11px] font-medium tracking-wide text-textSecondary">
+                 <div className="w-2.5 h-2.5 rounded-full bg-textMuted"></div>
                  Ghost (Not Created)
              </div>
         </div>
 
         {renderedData.nodes.length === 0 && !loading && (
              <div className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none text-center">
-                <ShieldAlert size={48} className={isLight ? 'text-slate-300 mb-4' : 'text-white/10 mb-4'} />
-                <p className={isLight ? 'text-slate-500 text-sm' : 'text-white/40 text-sm'}>No connections formed yet.</p>
+                <ShieldAlert size={48} className="text-textMuted mb-4" />
+                <p className="text-textTertiary text-sm">No connections formed yet.</p>
              </div>
         )}
 

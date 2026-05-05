@@ -85,11 +85,11 @@ export default function Toast({ id, message, title, type, duration }) {
         relative overflow-hidden rounded-xl shadow-lg border
         transition-all duration-300 ease-out
         min-w-[280px] max-w-[400px]
-        ${isLight ? 'bg-white border-slate-200' : 'bg-modal border-white/10'}
+        ${'bg-modal border-borderSubtle'}
       `}
     >
       {/* 进度条背景 */}
-      <div className={`absolute bottom-0 left-0 right-0 h-1 ${isLight ? 'bg-slate-100' : 'bg-white/5'}`}>
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-bgSubtle">
         {/* 进度条动画 */}
         <div
           className="absolute left-0 bottom-0 h-full transition-all"
@@ -108,25 +108,25 @@ export default function Toast({ id, message, title, type, duration }) {
           {/* 文字内容 */}
           <div className="flex-1 min-w-0">
             {title && (
-              <div className={`text-sm font-medium mb-1 ${isLight ? 'text-slate-700' : 'text-white/90'}`}>
+              <div className="text-sm font-medium mb-1 text-textPrimary">
                 {title}
               </div>
             )}
-            <div className={`text-sm leading-relaxed ${isLight ? 'text-slate-600' : 'text-silverText/80'}`}>
+            <div className="text-sm leading-relaxed text-textSecondary">
               {message}
             </div>
           </div>
 
           {/* 倒计时 & 关闭按钮 */}
           <div className="shrink-0 flex items-center gap-2">
-            <span className={`text-[10px] font-mono ${isLight ? 'text-slate-400' : 'text-white/40'}`}>
+            <span className="text-[10px] font-mono text-textTertiary">
               {Math.ceil(remaining / 1000)}s
             </span>
             <button
               onClick={() => clearToast(id)}
               className={`
                 p-1 rounded-md transition-colors
-                ${isLight ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-white/5 text-white/40'}
+                ${'hover:bg-bgSubtle text-textTertiary'}
               `}
             >
               <X size={14} />

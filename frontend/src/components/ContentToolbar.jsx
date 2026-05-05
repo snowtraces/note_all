@@ -56,11 +56,10 @@ export default function ContentToolbar({
             <button
               key={m.key}
               onClick={() => onModeChange(m.key)}
-              className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono transition-all ${
-                editorMode === m.key
-                  ? 'bg-primeAccent/15 text-primeAccent shadow-sm'
-                  : 'text-textSecondary/50 hover:text-textSecondary hover:bg-card'
-              }`}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-all ${editorMode === m.key
+                ? 'bg-primeAccent/15 text-primeAccent shadow-sm'
+                : 'text-textSecondary/80 hover:text-textSecondary hover:bg-card'
+                }`}
               title={m.label}
             >
               <m.icon size={12} />

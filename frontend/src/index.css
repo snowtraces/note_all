@@ -55,8 +55,9 @@
   --bg-graph: var(--dark-bg-graph);
   --text-primary: var(--dark-text-primary);
   --text-secondary: var(--dark-text-secondary);
+  --text-tertiary: rgba(255, 255, 255, 0.5);
+  --text-muted: rgba(255, 255, 255, 0.3);
   --border-subtle: var(--dark-border-subtle);
-  --silver-text: rgb(197, 198, 199);
   --prime-base: var(--dark-bg-base);
   --glass-bg: rgba(31, 40, 51, 0.45);
   --glass-border: rgba(197, 198, 199, 0.1);
@@ -64,6 +65,9 @@
   --input-border: color-mix(in srgb, var(--prime-accent), transparent 80%);
   --bg-table-header: rgba(255, 255, 255, 0.04);
   --bg-table-row-hover: color-mix(in srgb, var(--prime-accent), transparent 95%);
+  --bg-hover: rgba(255, 255, 255, 0.1);
+  --bg-subtle: rgba(255, 255, 255, 0.05);
+  --bg-overlay: rgba(0, 0, 0, 0.8);
 }
 
 [data-mode="light"] {
@@ -79,8 +83,9 @@
   --bg-graph: var(--light-bg-graph);
   --text-primary: var(--light-text-primary);
   --text-secondary: var(--light-text-secondary);
+  --text-tertiary: #64748b;
+  --text-muted: #9ca3af;
   --border-subtle: var(--light-border-subtle);
-  --silver-text: rgb(71, 85, 105);
   --prime-base: var(--light-bg-base);
   --glass-bg: rgba(255, 255, 255, 0.95);
   --glass-border: rgba(15, 23, 42, 0.1);
@@ -88,6 +93,9 @@
   --input-border: color-mix(in srgb, var(--prime-accent), transparent 60%);
   --bg-table-header: rgba(15, 23, 42, 0.04);
   --bg-table-row-hover: color-mix(in srgb, var(--prime-accent), transparent 90%);
+  --bg-hover: rgba(15, 23, 42, 0.05);
+  --bg-subtle: rgba(15, 23, 42, 0.03);
+  --bg-overlay: rgba(255, 255, 255, 0.95);
 }
 
 /* ============ 主题色装饰 (Accent System) ============ */
@@ -125,7 +133,7 @@
   --prime-accent-dim: #047857;
 }
 
-/* ============ 基础样式与原子类重写 ============ */
+/* ============ 基础样式 ============ */
 
 @layer base {
   body {
@@ -136,106 +144,11 @@
   }
 }
 
-/* 全局 border 颜色：深色模式下使用暗色边框 */
+/* 全局 border 颜色 */
 *,
 ::before,
 ::after {
   border-color: var(--border-subtle);
-}
-
-/* 强制覆盖亮色模式下的文字颜色与不透明度，确保最佳阅读对比度 */
-[data-mode="light"] .text-white {
-  color: #000000 !important;
-}
-
-[data-mode="dark"] .text-white {
-  color: #ffffff !important;
-}
-
-/* ============ text-white 透明度统一规则 ============ */
-
-[data-mode="light"] .text-white\/5 {
-  color: var(--border-subtle) !important;
-}
-
-[data-mode="dark"] .text-white\/5 {
-  color: rgba(255, 255, 255, 0.05) !important;
-}
-
-[data-mode="light"] .text-white\/40,
-[data-mode="light"] .text-textSecondary\/40,
-[data-mode="light"] .text-silverText\/40 {
-  color: #64748b !important;
-}
-
-[data-mode="dark"] .text-white\/40,
-[data-mode="dark"] .text-textSecondary\/40,
-[data-mode="dark"] .text-silverText\/40 {
-  color: rgba(255, 255, 255, 0.4) !important;
-}
-
-[data-mode="light"] .text-white\/50 {
-  color: #64748b !important;
-}
-
-[data-mode="dark"] .text-white\/50 {
-  color: rgba(255, 255, 255, 0.5) !important;
-}
-
-[data-mode="light"] .text-white\/60,
-[data-mode="light"] .text-silverText\/90 {
-  color: #475569 !important;
-}
-
-[data-mode="dark"] .text-white\/60,
-[data-mode="dark"] .text-silverText\/90 {
-  color: rgba(255, 255, 255, 0.6) !important;
-}
-
-[data-mode="light"] .text-white\/70 {
-  color: #334155 !important;
-}
-
-[data-mode="dark"] .text-white\/70 {
-  color: rgba(255, 255, 255, 0.7) !important;
-}
-
-[data-mode="light"] .text-white\/80,
-[data-mode="light"] .text-textSecondary\/80 {
-  color: #1e293b !important;
-}
-
-[data-mode="dark"] .text-white\/80,
-[data-mode="dark"] .text-textSecondary\/80 {
-  color: rgba(255, 255, 255, 0.8) !important;
-}
-
-[data-mode="light"] .text-white\/90 {
-  color: #0f172a !important;
-}
-
-[data-mode="dark"] .text-white\/90 {
-  color: rgba(255, 255, 255, 0.9) !important;
-}
-
-/* ============ text-silverText 透明度规则 ============ */
-
-[data-mode="light"] .text-silverText\/60 {
-  color: #4b5563 !important;
-}
-
-[data-mode="dark"] .text-silverText\/60 {
-  color: rgba(197, 198, 199, 0.6) !important;
-}
-
-[data-mode="light"] .text-textSecondary\/30,
-[data-mode="light"] .text-silverText\/30 {
-  color: #9ca3af !important;
-}
-
-[data-mode="dark"] .text-textSecondary\/30,
-[data-mode="dark"] .text-silverText\/30 {
-  color: rgba(255, 255, 255, 0.3) !important;
 }
 
 /* 强制白色文字：用于深色背景上的文字，即使在亮色模式下也保持白色 */
@@ -243,107 +156,54 @@
   color: #ffffff !important;
 }
 
-[data-mode="light"] .bg-white\/10 {
-  background-color: rgba(15, 23, 42, 0.05) !important;
-}
-
-[data-mode="dark"] .bg-white\/10 {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-/* 标签在亮色模式下的浅灰背景 */
-[data-mode="light"] .bg-white\/5 {
-  background-color: rgba(15, 23, 42, 0.03) !important;
-}
-
-[data-mode="dark"] .bg-white\/5 {
-  background-color: rgba(255, 255, 255, 0.05) !important;
-}
-
-[data-mode="light"] .border-white\/10 {
-  border-color: var(--border-subtle) !important;
-}
-
-[data-mode="dark"] .border-white\/10 {
-  border-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-[data-mode="light"] .border-white\/5 {
-  border-color: rgba(15, 23, 42, 0.05) !important;
-}
-
-[data-mode="dark"] .border-white\/5 {
-  border-color: rgba(255, 255, 255, 0.05) !important;
+/* 极简主题色微调背景 */
+.bg-accent-subtle {
+  background-color: color-mix(in srgb, var(--prime-accent) 1.5%, var(--bg-card));
 }
 
 /* ============ 深色模式阴影增强 ============ */
 /* 深色背景下传统黑色阴影不可见，使用发光边框效果替代 */
 
 [data-mode="dark"] .shadow-sm {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.8), 0 0 1px rgba(255, 255, 255, 0.05) !important;
 }
 
 [data-mode="dark"] .shadow {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.9), 0 0 1px rgba(255, 255, 255, 0.05) !important;
 }
 
 [data-mode="dark"] .shadow-md {
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.6) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.9), 0 0 2px rgba(255, 255, 255, 0.05) !important;
 }
 
 [data-mode="dark"] .shadow-lg {
-  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.7) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.9), 0 0 10px rgba(102, 252, 241, 0.05) !important;
 }
 
 [data-mode="dark"] .shadow-xl {
-  box-shadow: 0 20px 25px rgba(0, 0, 0, 0.7) !important;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 1), 0 0 15px rgba(102, 252, 241, 0.08) !important;
 }
 
 [data-mode="dark"] .shadow-2xl {
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.8) !important;
+  box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 1), 0 0 25px rgba(102, 252, 241, 0.12) !important;
 }
 
 /* 核心识别增强：锐利边框方案 (不放光，无脏感) */
 [data-mode="dark"] .card-rim {
   border: 1px solid var(--dark-border-subtle);
-  border-top-color: rgba(255, 255, 255, 0.25); /* 顶部边缘线 */
+  border-top-color: rgba(255, 255, 255, 0.25);
+  /* 顶部边缘线 */
   background: var(--bg-card);
   transition: all 0.2s ease;
 }
 
 [data-mode="dark"] .card-rim:hover {
   border-color: rgba(255, 255, 255, 0.35);
-  background: #161616;
+  background: var(--bg-hover);
 }
 
 [data-mode="dark"] .shadow-inner {
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4), inset 0 0 2px rgba(255, 255, 255, 0.05) !important;
-}
-
-/* ============ bg-black 透明度规则 ============ */
-
-[data-mode="light"] .bg-black\/20 {
-  background-color: rgba(241, 245, 249, 0.8) !important;
-}
-
-[data-mode="dark"] .bg-black\/20 {
-  background-color: rgba(0, 0, 0, 0.2) !important;
-}
-
-[data-mode="light"] .bg-black\/40 {
-  background-color: rgba(241, 245, 249, 0.9) !important;
-}
-
-[data-mode="dark"] .bg-black\/40 {
-  background-color: rgba(0, 0, 0, 0.4) !important;
-}
-
-[data-mode="light"] .bg-black\/80 {
-  background-color: rgba(255, 255, 255, 0.95) !important;
-}
-
-[data-mode="dark"] .bg-black\/80 {
-  background-color: rgba(0, 0, 0, 0.8) !important;
 }
 
 /* 亮色模式下输入框通用样式 */
@@ -498,6 +358,15 @@ select {
   margin: 0 0.125rem;
 }
 
+.markdown-content mark,
+.markdown-ocr mark {
+  background: var(--prime-accent);
+  color: #ffffff !important;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+}
+
 /* OCR 内容区 */
 .markdown-ocr {
   font-size: 16px;
@@ -568,8 +437,15 @@ select {
 }
 
 @keyframes pulse-placeholder {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 0.8; }
+
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+
+  50% {
+    opacity: 0.8;
+  }
 }
 
 /* ============ Toast 动画 ============ */
@@ -578,6 +454,7 @@ select {
     opacity: 0;
     transform: translateY(20px) scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);

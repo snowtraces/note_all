@@ -17,9 +17,9 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
 
   // 加载最近回顾并监听 SSE 通知
   useEffect(() => {
-    getLatestReview().then(r => { if (r) setReviewContent(r); }).catch(() => {});
+    getLatestReview().then(r => { if (r) setReviewContent(r); }).catch(() => { });
     const handler = () => {
-      getLatestReview().then(r => { if (r) setReviewContent(r); }).catch(() => {});
+      getLatestReview().then(r => { if (r) setReviewContent(r); }).catch(() => { });
       setReviewLoading(false);
       // 自动切到回顾 tab
       setActiveTab('review');
@@ -54,15 +54,15 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
   const serendipity = serendipityData;
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-start py-8 text-silverText/20 bg-sidebar relative overflow-y-auto custom-scrollbar">
+    <div className="w-full h-full flex flex-col items-center justify-start py-8 text-textMuted bg-sidebar relative overflow-y-auto custom-scrollbar">
 
       <div className="relative z-10 flex flex-col items-center w-full max-w-5xl px-4 md:px-8">
         {/* 图标 + 标题区 */}
-        <div className={`w-12 h-12 mb-4 rounded-2xl flex items-center justify-center shadow-xl ${isLight ? 'bg-slate-100 border border-slate-200' : 'bg-white/[0.02] border border-white/[0.05]'}`}>
+        <div className="w-12 h-12 mb-4 rounded-2xl flex items-center justify-center shadow-xl bg-bgSubtle border border-borderSubtle">
           <BrainCircuit size={22} className="text-primeAccent/30" />
         </div>
         <h2 className="text-lg tracking-wide mb-1 text-textPrimary uppercase font-mono">Note All AI</h2>
-        <p className="text-[11px] font-mono text-textSecondary/60 text-center leading-relaxed mb-6 tracking-widest uppercase">
+        <p className="text-[11px] font-mono text-textTertiary text-center leading-relaxed mb-6 tracking-widest uppercase">
           碎片随手记 · AI 即刻懂
         </p>
 
@@ -82,7 +82,7 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
                 }
               }}
               placeholder="向 AI 咨询关于你的笔记内容..."
-              className="flex-1 bg-transparent border-none outline-none text-[15px] text-textPrimary placeholder-textSecondary/40 tracking-wide"
+              className="flex-1 bg-transparent border-none outline-none text-[15px] text-textPrimary placeholder-textMuted tracking-wide"
             />
             {askInput.trim() && (
               <button
@@ -110,22 +110,20 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
                 <div className="flex items-center gap-1 p-1 bg-sidebar rounded-lg border border-borderSubtle">
                   <button
                     onClick={() => setActiveTab('serendipity')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-[11px] font-mono transition-all ${
-                      activeTab === 'serendipity'
-                        ? 'bg-card text-textPrimary shadow-sm border border-borderSubtle'
-                        : 'text-textSecondary/50 hover:text-textSecondary'
-                    }`}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-[11px] font-mono transition-all ${activeTab === 'serendipity'
+                      ? 'bg-card text-textPrimary shadow-sm border border-borderSubtle'
+                      : 'text-textSecondary/50 hover:text-textSecondary'
+                      }`}
                   >
                     <Inbox size={13} />
                     待处理灵感
                   </button>
                   <button
                     onClick={() => setActiveTab('review')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-[11px] font-mono transition-all ${
-                      activeTab === 'review'
-                        ? 'bg-card text-textPrimary shadow-sm border border-borderSubtle'
-                        : 'text-textSecondary/50 hover:text-textSecondary'
-                    }`}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-[11px] font-mono transition-all ${activeTab === 'review'
+                      ? 'bg-card text-textPrimary shadow-sm border border-borderSubtle'
+                      : 'text-textSecondary/50 hover:text-textSecondary'
+                      }`}
                   >
                     <CalendarDays size={13} />
                     今日回顾
@@ -145,7 +143,7 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
                           >
                             <ChevronLeft size={14} />
                           </button>
-                          <span className="text-[10px] font-mono text-textSecondary/60 min-w-[36px] text-center">
+                          <span className="text-[10px] font-mono text-textTertiary min-w-[36px] text-center">
                             {page} / {Math.ceil(serendipityData.total / 9)}
                           </span>
                           <button
@@ -183,7 +181,7 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
               {activeTab === 'serendipity' ? (
                 <>
                   {!serendipity ? (
-                    <div className="text-center py-12 text-[12px] text-textSecondary/40 font-mono">
+                    <div className="text-center py-12 text-[12px] text-textMuted font-mono">
                       暂无待处理碎片
                     </div>
                   ) : serendipity.references && serendipity.references.length > 0 ? (
@@ -192,14 +190,14 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
                         <div
                           key={ref.id}
                           onClick={() => onItemClick?.(ref)}
-                          className="flex flex-col gap-2 p-4 rounded-xl bg-transparent border border-borderSubtle hover:border-primeAccent/50 hover:bg-primeAccent/5 transition-all cursor-pointer group/ref h-full min-h-[130px] relative"
+                          className="flex flex-col gap-2 p-4 rounded-xl bg-accent-subtle border border-borderSubtle hover:border-primeAccent/30 hover:bg-primeAccent/5 transition-all cursor-pointer group/ref h-full min-h-[120px] relative"
                         >
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleLabItem(ref.id); }}
                             className={`absolute top-3 right-3 p-1.5 rounded-lg border transition-all ${labBasket.includes(ref.id)
                               ? 'bg-primeAccent/20 border-primeAccent/40 text-primeAccent shadow-[0_0_10px_rgba(255,215,0,0.2)]'
                               : 'bg-sidebar border-borderSubtle text-textSecondary/30 hover:text-textPrimary hover:bg-card'
-                            }`}
+                              }`}
                             title="加入实验室合成篮"
                           >
                             <FlaskConical size={12} />
@@ -211,7 +209,7 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
                             </span>
                           </div>
 
-                          <div className="text-[12.5px] text-textSecondary/80 leading-relaxed line-clamp-2 group-hover/ref:text-textPrimary transition-colors flex-1 pr-6">
+                          <div className="text-[12.5px] text-textPrimary/60 leading-relaxed line-clamp-2 group-hover/ref:text-textPrimary transition-colors flex-1 pr-6">
                             {ref.ai_summary || ref.original_name}
                           </div>
 
@@ -219,7 +217,7 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-12 text-[12px] text-textSecondary/40 font-mono">
+                    <div className="text-center py-12 text-[12px] text-textMuted font-mono">
                       全部碎片已检阅完毕
                     </div>
                   )}
@@ -244,17 +242,17 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
                           />
                         ))}
                       </div>
-                      <p className="text-[10px] text-textSecondary/30 font-mono">生成完成后自动刷新</p>
+                      <p className="text-[10px] text-textMuted font-mono">生成完成后自动刷新</p>
                     </div>
                   ) : reviewContent ? (
-                    <div className="w-full text-[12px] text-textSecondary leading-relaxed bg-sidebar rounded-xl p-4 border border-borderSubtle animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    <div className="w-full text-[12px] text-textPrimary/90 leading-relaxed bg-sidebar rounded-xl p-4 border border-borderSubtle animate-in fade-in slide-in-from-bottom-2 duration-500">
                       <MarkdownRenderer content={reviewContent.content || reviewContent.Content} />
-                      <div className="mt-3 text-[10px] font-mono text-textSecondary/30">
+                      <div className="mt-3 text-[10px] font-mono text-textMuted">
                         {new Date(reviewContent.created_at || reviewContent.CreatedAt).toLocaleString('zh-CN', { hour12: false })}
                       </div>
                     </div>
                   ) : (
-                    <div className="text-center text-[12px] text-textSecondary/40 font-mono">
+                    <div className="text-center text-[12px] text-textMuted font-mono">
                       点击右上角「生成回顾」，AI 将为你总结今日知识收获
                     </div>
                   )}

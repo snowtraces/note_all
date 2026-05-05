@@ -44,13 +44,13 @@ export default function EditorToolbar({
   const handleCodeBlock = () => {
     const { state } = editor;
     const { selection } = state;
-    
+
     // 如果选区为空，或者是取消代码块状态，则直接使用原生的 toggle
     if (selection.empty || editor.isActive('codeBlock')) {
       editor.chain().focus().toggleCodeBlock().run();
       return;
     }
-    
+
     // 如果有选区，将其文本内容提取出来放入一个单一的代码块中
     const text = state.doc.textBetween(selection.from, selection.to, '\n');
     editor.chain().focus().deleteSelection().insertContent({
@@ -88,13 +88,15 @@ export default function EditorToolbar({
     {
       items: [
         { icon: ImageIcon, action: () => triggerImageUpload(editor), active: false, title: '上传图片' },
-        { icon: Link, action: () => {
-          if (editor.isActive('link')) {
-            editor.chain().focus().unsetLink().run();
-          } else {
-            setShowLinkInput(true);
-          }
-        }, active: editor.isActive('link'), title: '链接' },
+        {
+          icon: Link, action: () => {
+            if (editor.isActive('link')) {
+              editor.chain().focus().unsetLink().run();
+            } else {
+              setShowLinkInput(true);
+            }
+          }, active: editor.isActive('link'), title: '链接'
+        },
         { icon: TableIcon, action: () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(), active: editor.isActive('table'), title: '插入表格' },
       ],
     },
@@ -111,13 +113,11 @@ export default function EditorToolbar({
               <button
                 key={ii}
                 onClick={item.action}
-                className={`toolbar-btn p-1.5 rounded-md transition-all shrink-0 ${
-                  item.danger
-                    ? 'text-red-400/70 hover:text-red-400 hover:bg-red-400/10'
-                    : 'text-textSecondary/70 hover:text-textPrimary hover:bg-primeAccent/10'
-                } ${
-                  item.active && !item.danger ? 'bg-primeAccent/15 text-primeAccent shadow-sm' : ''
-                }`}
+                className={`toolbar-btn p-1.5 rounded-md transition-all shrink-0 ${item.danger
+                  ? 'text-red-400/80 hover:text-red-400 hover:bg-red-400/10'
+                  : 'text-textTertiary hover:text-textPrimary hover:bg-primeAccent/10'
+                  } ${item.active && !item.danger ? 'bg-primeAccent/15 text-primeAccent shadow-sm' : ''
+                  }`}
                 title={item.title}
               >
                 {item.icon ? <item.icon size={14} /> : <span className="text-[10px] font-bold px-1 whitespace-nowrap">{item.label}</span>}
@@ -140,7 +140,7 @@ export default function EditorToolbar({
             autoFocus
           />
           <button onClick={setLink} className="text-[10px] text-primeAccent font-medium hover:underline">确认</button>
-          <button onClick={() => { setShowLinkInput(false); setLinkUrl(''); }} className="text-[10px] text-textSecondary/50 hover:text-red-400">取消</button>
+          <button onClick={() => { setShowLinkInput(false); setLinkUrl(''); }} className="text-[10px] text-textMuted hover:text-red-400">取消</button>
         </div>
       )}
 
@@ -151,11 +151,10 @@ export default function EditorToolbar({
             <button
               key={m.key}
               onClick={() => onModeChange(m.key)}
-              className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-mono transition-all ${
-                editorMode === m.key
-                  ? 'bg-primeAccent/15 text-primeAccent shadow-sm'
-                  : 'text-textSecondary/50 hover:text-textSecondary hover:bg-card'
-              }`}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-all ${editorMode === m.key
+                ? 'bg-primeAccent/15 text-primeAccent shadow-sm'
+                : 'text-textSecondary/80 hover:text-textSecondary hover:bg-card'
+                }`}
               title={m.label}
             >
               <m.icon size={12} />
