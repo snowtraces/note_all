@@ -167,7 +167,8 @@
   display: flex;
   align-items: center;
   user-select: none;
-  margin-top: 0.42em; /* 补偿 line-height 1.8 导致的对齐偏移 */
+  margin-top: 0.42em;
+  /* 补偿 line-height 1.8 导致的对齐偏移 */
 }
 
 .tiptap-content ul[data-type="taskList"] li>label input[type="checkbox"] {
@@ -223,19 +224,165 @@
 /* ============ 行内代码 ============ */
 
 .tiptap-content :not(pre)>code {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-size: 11px;
-  background: var(--bg-code);
-  color: var(--text-primary);
-  padding: 0.125rem 0.375rem;
-  border-radius: 0.25rem;
-  border: 1px solid var(--border-subtle);
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 0.875em;
+  font-weight: 400;
+  background: color-mix(in srgb, var(--prime-accent), transparent 92%);
+  color: var(--prime-accent);
+  padding: 0.2em 0.4em;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--prime-accent), transparent 85%);
   margin: 0 0.125rem;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
 /* ============ 代码块 ============ */
 
-/* 代码块由 React NodeView 渲染（CodeBlockComponent），无需额外 CSS */
+.tiptap-codeblock-wrapper .bg-code {
+  background-color: #0d0d0d !important;
+}
+
+.tiptap-codeblock-wrapper .bg-code-header {
+  background-color: #161616 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+[data-mode="light"] .tiptap-codeblock-wrapper .bg-code {
+  background-color: #ffffff !important;
+  border-color: #e1e4e8 !important;
+}
+
+[data-mode="light"] .tiptap-codeblock-wrapper .bg-code-header {
+  background-color: #f6f8fa !important;
+  border-bottom-color: #e1e4e8 !important;
+}
+
+.tiptap-codeblock-wrapper [data-node-view-content] {
+  outline: none;
+}
+
+/* ============ 代码块高亮 (Prism.js) ============ */
+
+/* 深色模式 (基于 GitHub Dark Dimmed 风格) */
+[data-mode="dark"] .token.comment,
+[data-mode="dark"] .token.prolog,
+[data-mode="dark"] .token.doctype,
+[data-mode="dark"] .token.cdata {
+  color: #768390;
+  font-style: italic;
+}
+
+[data-mode="dark"] .token.keyword,
+[data-mode="dark"] .token.selector-tag {
+  color: #f47067;
+}
+
+[data-mode="dark"] .token.string,
+[data-mode="dark"] .token.regex,
+[data-mode="dark"] .token.attr-value {
+  color: #8ddb8c;
+}
+
+[data-mode="dark"] .token.number,
+[data-mode="dark"] .token.boolean,
+[data-mode="dark"] .token.constant,
+[data-mode="dark"] .token.symbol,
+[data-mode="dark"] .token.deleted {
+  color: #6cb6ff;
+}
+
+[data-mode="dark"] .token.function,
+[data-mode="dark"] .token.class-name,
+[data-mode="dark"] .token.title,
+[data-mode="dark"] .token.section {
+  color: var(--prime-accent);
+}
+
+[data-mode="dark"] .token.variable,
+[data-mode="dark"] .token.property,
+[data-mode="dark"] .token.tag,
+[data-mode="dark"] .token.namespace {
+  color: #f69d50;
+}
+
+[data-mode="dark"] .token.attr-name,
+[data-mode="dark"] .token.builtin,
+[data-mode="dark"] .token.char,
+[data-mode="dark"] .token.inserted {
+  color: #6cb6ff;
+}
+
+[data-mode="dark"] .token.operator,
+[data-mode="dark"] .token.entity,
+[data-mode="dark"] .token.url {
+  color: #adbac7;
+}
+
+[data-mode="dark"] .token.atrule,
+[data-mode="dark"] .token.important {
+  color: #f47067;
+}
+
+[data-mode="dark"] .token.punctuation {
+  color: #768390;
+}
+
+[data-mode="dark"] .token.italic {
+  font-style: italic;
+}
+
+[data-mode="dark"] .token.bold {
+  font-weight: bold;
+}
+
+/* 亮色模式 (基于 GitHub Light 风格) */
+[data-mode="light"] .token.comment,
+[data-mode="light"] .token.prolog,
+[data-mode="light"] .token.doctype,
+[data-mode="light"] .token.cdata {
+  color: #6a737d;
+  font-style: italic;
+}
+
+[data-mode="light"] .token.keyword,
+[data-mode="light"] .token.atrule {
+  color: #d73a49;
+}
+
+[data-mode="light"] .token.string,
+[data-mode="light"] .token.attr-value,
+[data-mode="light"] .token.regex {
+  color: #22863a;
+}
+
+[data-mode="light"] .token.function,
+[data-mode="light"] .token.class-name,
+[data-mode="light"] .token.title,
+[data-mode="light"] .token.section {
+  color: #6f42c1;
+}
+
+[data-mode="light"] .token.variable,
+[data-mode="light"] .token.property,
+[data-mode="light"] .token.tag {
+  color: #e36209;
+}
+
+[data-mode="light"] .token.attr-name,
+[data-mode="light"] .token.builtin,
+[data-mode="light"] .token.char,
+[data-mode="light"] .token.inserted,
+[data-mode="light"] .token.number,
+[data-mode="light"] .token.boolean,
+[data-mode="light"] .token.constant {
+  color: #005cc5;
+}
+
+[data-mode="light"] .token.punctuation,
+[data-mode="light"] .token.operator {
+  color: #24292e;
+}
 
 .tiptap-codeblock-wrapper {
   margin: 0;

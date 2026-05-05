@@ -18,7 +18,6 @@ import {
   CustomImage, 
   CustomCodeBlock, 
   InlineMathDecorations, 
-  lowlight,
   HeadingIdPatch 
 } from './MarkdownEditor';
 
@@ -45,7 +44,7 @@ const MarkdownRenderer = React.memo(({ content, className = '' }) => {
       TaskItem.configure({ nested: true }),
       Highlight.configure({ multicolor: false }),
       Typography,
-      CustomCodeBlock.configure({ lowlight }),
+      CustomCodeBlock,
       InlineMathDecorations,
       HeadingIdPatch,
     ],

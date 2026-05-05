@@ -18,9 +18,8 @@ import { Placeholder } from '@tiptap/extension-placeholder';
 import { Highlight } from '@tiptap/extension-highlight';
 import { Underline } from '@tiptap/extension-underline';
 import { Typography } from '@tiptap/extension-typography';
-import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight';
-import { common, createLowlight } from 'lowlight';
 import { Markdown } from 'tiptap-markdown';
+import { CodeBlockPrism } from './CodeBlockPrism';
 import GlobalDragHandle from 'tiptap-extension-global-drag-handle';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import mermaid from 'mermaid';
@@ -30,13 +29,14 @@ import { uploadImage } from '../api/noteApi';
 import { getActiveServerUrl } from '../api/client';
 import SlashCommand, { setOnImageUpload } from './SlashCommandExtension';
 
-export const lowlight = createLowlight(common);
+// Prism is now used via CodeBlockPrism extension
 
 const LANGUAGES = [
-  'plain', 'mermaid', 'math', 'bash', 'css', 'html', 'javascript', 'typescript', 'python',
-  'go', 'rust', 'java', 'c', 'cpp', 'ruby', 'php', 'sql', 'json',
-  'yaml', 'xml', 'markdown', 'shell', 'dockerfile', 'graphql', 'tsx',
-  'jsx', 'swift', 'kotlin', 'scala', 'lua', 'perl', 'r',
+  'plain', 'mermaid', 'math', 'bash', 'c', 'cpp', 'csharp', 'css', 'diff', 'dockerfile', 
+  'go', 'graphql', 'html', 'ini', 'java', 'javascript', 'json', 'jsx', 'kotlin', 'latex',
+  'less', 'lua', 'makefile', 'markdown', 'nginx', 'objectivec', 'perl', 'php', 'powershell',
+  'python', 'r', 'ruby', 'rust', 'scala', 'scss', 'shell', 'sql', 'swift', 'toml', 'tsx', 
+  'typescript', 'xml', 'yaml',
 ];
 
 mermaid.initialize({ startOnLoad: false, theme: 'default' });
@@ -180,8 +180,10 @@ export const CodeBlockComponent = ({ node, updateAttributes, editor }) => {
   const [previewContent, setPreviewContent] = useState('');
   const [previewError, setPreviewError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const btnRef = useRef(null);
   const pickerRef = useRef(null);
+  const scrollContainerRef = useRef(null);
   const copyTimerRef = useRef(null);
 
   const handleCopy = (e) => {
@@ -202,6 +204,37 @@ export const CodeBlockComponent = ({ node, updateAttributes, editor }) => {
   const filteredLangs = LANGUAGES.filter(l =>
     l.toLowerCase().includes(langSearch.toLowerCase())
   );
+
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [langSearch]);
+
+  useEffect(() => {
+    if (showLangPicker) {
+      const activeItem = scrollContainerRef.current?.querySelector(`[data-index="${selectedIndex}"]`);
+      activeItem?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [selectedIndex, showLangPicker]);
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex((prev) => (filteredLangs.length > 0 ? (prev + 1) % filteredLangs.length : 0));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex((prev) => (filteredLangs.length > 0 ? (prev - 1 + filteredLangs.length) % filteredLangs.length : 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (filteredLangs[selectedIndex]) {
+        updateAttributes({ language: filteredLangs[selectedIndex] });
+        setShowLangPicker(false);
+        setLangSearch('');
+      }
+    } else if (e.key === 'Escape') {
+      setShowLangPicker(false);
+      setLangSearch('');
+    }
+  };
 
   const openPicker = () => {
     if (btnRef.current) {
@@ -256,8 +289,8 @@ export const CodeBlockComponent = ({ node, updateAttributes, editor }) => {
 
   return (
     <NodeViewWrapper className="tiptap-codeblock-wrapper">
-      <div className="bg-code rounded-lg border border-borderSubtle my-4 overflow-hidden shadow-lg">
-        <div className="bg-code-header px-4 py-2 flex items-center justify-between border-b border-borderSubtle">
+      <div className="bg-code rounded-xl border border-borderSubtle/60 my-6 overflow-hidden">
+        <div className="bg-code-header px-4 py-2.5 flex items-center justify-between border-b border-borderSubtle/60">
           {isEditable ? (
             <button
               ref={btnRef}
@@ -291,7 +324,7 @@ export const CodeBlockComponent = ({ node, updateAttributes, editor }) => {
             )}
           </button>
         </div>
-        <pre className="p-4 overflow-x-auto custom-scrollbar text-[13px] font-mono leading-relaxed whitespace-pre-wrap break-words">
+        <pre className="p-4 overflow-x-auto custom-scrollbar text-[14px] font-mono leading-relaxed whitespace-pre-wrap break-words">
           <NodeViewContent as="code" />
         </pre>
         {(language === 'mermaid' || language === 'math' || language === 'latex') && (
@@ -318,25 +351,27 @@ export const CodeBlockComponent = ({ node, updateAttributes, editor }) => {
             type="text"
             value={langSearch}
             onChange={(e) => setLangSearch(e.target.value)}
+            onKeyDown={handleKeyDown}
             placeholder="搜索语言..."
             contentEditable={false}
             className="px-3 py-2 text-[11px] text-textPrimary bg-sidebar border-b border-borderSubtle outline-none font-mono w-full"
             autoFocus
           />
-          <div className="overflow-y-auto custom-scrollbar py-1 flex-1">
+          <div ref={scrollContainerRef} className="overflow-y-auto custom-scrollbar py-1 flex-1">
             {filteredLangs.length === 0 && (
               <div className="px-3 py-2 text-[10px] text-textSecondary/40 font-mono">无匹配</div>
             )}
-            {filteredLangs.map(lang => (
+            {filteredLangs.map((lang, index) => (
               <button
                 key={lang}
+                data-index={index}
                 contentEditable={false}
                 onClick={() => {
                   updateAttributes({ language: lang });
                   setShowLangPicker(false);
                   setLangSearch('');
                 }}
-                className={`w-full px-3 py-1.5 text-[11px] font-mono lowercase text-left transition-colors ${lang === language
+                className={`w-full px-3 py-1.5 text-[11px] font-mono lowercase text-left transition-colors ${index === selectedIndex
                   ? 'bg-primeAccent/15 text-primeAccent'
                   : 'text-textSecondary/70 hover:text-textPrimary hover:bg-primeAccent/5'
                   }`}
@@ -352,7 +387,7 @@ export const CodeBlockComponent = ({ node, updateAttributes, editor }) => {
   );
 };
 
-export const CustomCodeBlock = CodeBlockLowlight.extend({
+export const CustomCodeBlock = CodeBlockPrism.extend({
   addNodeView() {
     return ReactNodeViewRenderer(CodeBlockComponent);
   },
@@ -709,7 +744,7 @@ export default function MarkdownEditor({
       }),
       Highlight.configure({ multicolor: false }),
       Typography,
-      CustomCodeBlock.configure({ lowlight }),
+      CustomCodeBlock,
       AutoWrapSelection,
       InlineMathDecorations,
       HeadingIdPatch,
