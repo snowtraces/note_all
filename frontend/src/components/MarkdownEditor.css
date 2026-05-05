@@ -67,8 +67,10 @@
   opacity: 0.6;
 }
 
+.tiptap-content mark:not([style*="background-color"]) {
+  background-color: var(--prime-accent);
+}
 .tiptap-content mark {
-  background: var(--prime-accent);
   color: #000;
   padding: 0.1em 0.3em;
   border-radius: 2px;

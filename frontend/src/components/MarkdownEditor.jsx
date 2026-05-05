@@ -27,7 +27,8 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { uploadImage } from '../api/noteApi';
 import { getActiveServerUrl } from '../api/client';
-import SlashCommand, { setOnImageUpload } from './SlashCommandExtension';
+import SlashCommand, { setOnImageUpload, setOnShowHelp } from './SlashCommandExtension';
+import SlashCommandHelpModal from './SlashCommandHelpModal';
 
 // Prism is now used via CodeBlockPrism extension
 
@@ -628,6 +629,7 @@ export default function MarkdownEditor({
   const lastMarkdownRef = useRef(initialContent || '');
   const [isTableActive, setIsTableActive] = useState(false);
   const [activeTableWrapper, setActiveTableWrapper] = useState(null);
+  const [showHelp, setShowHelp] = useState(false);
 
   const updateTableMenuPos = useCallback((editor) => {
     setIsTableActive(editor.isActive('table'));
@@ -729,6 +731,12 @@ export default function MarkdownEditor({
         transformPastedText: true,
         transformCopiedText: true,
       }),
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: 'text-primeAccent underline underline-offset-4 decoration-primeAccent/30 hover:decoration-primeAccent transition-all',
+        },
+      }),
       CustomImage.configure({
         inline: false,
         allowBase64: true,
@@ -742,7 +750,7 @@ export default function MarkdownEditor({
       Placeholder.configure({
         placeholder: '开始书写，Markdown 语法即时渲染...',
       }),
-      Highlight.configure({ multicolor: false }),
+      Highlight.configure({ multicolor: true }),
       Typography,
       CustomCodeBlock,
       AutoWrapSelection,
@@ -820,6 +828,7 @@ export default function MarkdownEditor({
   // 同步 onImageUpload 回调给 SlashCommand
   useEffect(() => {
     setOnImageUpload(onImageUpload || null);
+    setOnShowHelp(() => setShowHelp(true));
   }, [onImageUpload]);
 
   if (!editor) return null;
@@ -843,7 +852,13 @@ export default function MarkdownEditor({
       )}
       <div className="tiptap-editor-container relative">
         <EditorContent editor={editor} className="tiptap-content-area" />
+        <div id="tiptap-bubble-menu-container" />
       </div>
+
+      <SlashCommandHelpModal 
+        isOpen={showHelp} 
+        onClose={() => setShowHelp(false)} 
+      />
     </div>
   );
 }

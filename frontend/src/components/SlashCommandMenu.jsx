@@ -3,16 +3,29 @@ import {
   Pilcrow, Heading1, Heading2, Heading3,
   List, ListOrdered, ListChecks, Quote,
   Code2, Minus, Table2, Image as ImageIcon,
+  Calendar, Clock, Highlighter, Link,
+  Heading4, Heading5, Heading6, Eraser,
+  HelpCircle,
 } from 'lucide-react';
 
 const COMMAND_GROUPS = [
   {
+    label: '系统',
+    items: [
+      { id: 'help', title: '帮助说明', desc: '查看所有斜杠指令的使用指南', aliases: ['help', 'bz', 'docs', '?'], icon: HelpCircle },
+    ]
+  },
+  {
     label: '文本',
     items: [
       { id: 'paragraph', title: '正文', desc: '普通文本段落', aliases: ['p', 'text', 'zw', 'zhengwen'], icon: Pilcrow },
+      { id: 'clear', title: '清除格式', desc: '擦除本行所有样式，重置为正文', aliases: ['clear', 'reset', 'qc', 'clean'], icon: Eraser },
       { id: 'heading1', title: '标题 1', desc: '一级标题', aliases: ['h1', '1', 'bt1'], icon: Heading1 },
       { id: 'heading2', title: '标题 2', desc: '二级标题', aliases: ['h2', '2', 'bt2'], icon: Heading2 },
       { id: 'heading3', title: '标题 3', desc: '三级标题', aliases: ['h3', '3', 'bt3'], icon: Heading3 },
+      { id: 'heading4', title: '标题 4', desc: '四级标题', aliases: ['h4', '4', 'bt4'], icon: Heading4 },
+      { id: 'heading5', title: '标题 5', desc: '五级标题', aliases: ['h5', '5', 'bt5'], icon: Heading5 },
+      { id: 'heading6', title: '标题 6', desc: '六级标题', aliases: ['h6', '6', 'bt6'], icon: Heading6 },
       { id: 'blockquote', title: '引用块', desc: '引用内容', aliases: ['quote', 'block', 'yy', 'yinyong', '>'], icon: Quote },
     ],
   },
@@ -52,9 +65,19 @@ function flattenItems(groups) {
 function filterGroups(query, groups) {
   if (!query) return groups;
   const q = query.toLowerCase();
-  
+
   // 匹配 /table3*4, /table3x4, 或 /table3×4
   const tableMatch = q.match(/^table(\d+)[*xX×](\d+)$/);
+  // 匹配 /code-xxx 或 /code:xxx
+  const codeMatch = q.match(/^code[-:](.+)$/);
+  // 匹配 /hl-xxx
+  const hlMatch = q.match(/^hl[-:](.+)$/);
+  // 匹配 /link:xxx
+  const linkMatch = q.match(/^link[:](.+)$/);
+  // 匹配 /img:xxx
+  const imgMatch = q.match(/^img[:](.+)$/);
+  // 匹配 /h1-xxx 到 /h6-xxx
+  const headingMatch = q.match(/^h([1-6])[-:](.+)$/);
 
   let result = groups
     .map((g) => ({
@@ -85,6 +108,105 @@ function filterGroups(query, groups) {
         }]
       });
     }
+  }
+
+  if (codeMatch) {
+    const lang = codeMatch[1];
+    result.unshift({
+      label: '快捷指令',
+      items: [{
+        id: `dynamic_code_${lang}`,
+        title: `代码块: ${lang}`,
+        desc: `插入 ${lang} 语言代码块`,
+        icon: Code2,
+        lang,
+      }]
+    });
+  }
+
+  if (hlMatch) {
+    const color = hlMatch[1];
+    result.unshift({
+      label: '快捷指令',
+      items: [{
+        id: `cmd_highlight_${color}`,
+        title: `🔴 高亮色块: ${color}`,
+        desc: `应用 ${color} 背景高亮`,
+        icon: Highlighter,
+        color,
+      }]
+    });
+  }
+
+  if (linkMatch) {
+    const url = linkMatch[1];
+    result.unshift({
+      label: '快捷指令',
+      items: [{
+        id: `dynamic_link_${url}`,
+        title: `插入链接`,
+        desc: `插入指向 ${url} 的链接`,
+        icon: Link,
+        url,
+      }]
+    });
+  }
+
+  if (imgMatch) {
+    const url = imgMatch[1];
+    result.unshift({
+      label: '快捷指令',
+      items: [{
+        id: `dynamic_img_${url}`,
+        title: `插入网络图片`,
+        desc: `插入图片 ${url}`,
+        icon: ImageIcon,
+        url,
+      }]
+    });
+  }
+
+  if (headingMatch) {
+    const level = parseInt(headingMatch[1], 10);
+    const content = headingMatch[2];
+    const iconMap = [null, Heading1, Heading2, Heading3, Heading4, Heading5, Heading6];
+    result.unshift({
+      label: '快捷指令',
+      items: [{
+        id: `cmd_heading_${level}_${content}`,
+        title: `H${level} 标题: ${content}`,
+        desc: `插入 ${level} 级标题并填充内容`,
+        icon: iconMap[level],
+        level,
+        content,
+      }]
+    });
+  }
+
+  if (q === 'date' || q === 'time' || q === 'now') {
+    const now = new Date();
+    let text = '';
+    let title = '';
+    if (q === 'date') {
+      text = now.toLocaleDateString();
+      title = '插入当前日期';
+    } else if (q === 'time') {
+      text = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      title = '插入当前时间';
+    } else {
+      text = now.toLocaleString();
+      title = '插入完整时间';
+    }
+    result.unshift({
+      label: '快捷指令',
+      items: [{
+        id: `dynamic_text_${q}`,
+        title: title,
+        desc: text,
+        icon: q === 'date' ? Calendar : Clock,
+        text,
+      }]
+    });
   }
 
   return result;
@@ -159,9 +281,8 @@ export default function SlashCommandMenu({
                 <button
                   key={item.id}
                   data-selected={idx === selectedIndex ? 'true' : 'false'}
-                  className={`slash-command-item${
-                    idx === selectedIndex ? ' slash-command-item-selected' : ''
-                  }`}
+                  className={`slash-command-item${idx === selectedIndex ? ' slash-command-item-selected' : ''
+                    }`}
                   onMouseDown={(e) => {
                     e.preventDefault();
                     onSelect(item);
