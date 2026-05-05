@@ -193,7 +193,7 @@ const SlashCommand = Extension.create({
                 doRender();
                 return true;
               }
-              if (event.key === 'Enter') {
+              if (event.key === 'Enter' && !event.isComposing) {
                 event.preventDefault();
                 event.stopPropagation();
                 if (flatItems[selectedIdx]) {

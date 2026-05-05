@@ -586,7 +586,7 @@ function AppContent() {
                       placeholder="继续追问 AI..."
                       disabled={askLoading}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' && e.target.value.trim()) {
+                        if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.target.value.trim()) {
                           executeAskAI(e.target.value.trim());
                           e.target.value = '';
                         }

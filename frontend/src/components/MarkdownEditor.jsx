@@ -755,20 +755,31 @@ export default function MarkdownEditor({
   }, [editor, editorRef]);
 
   // 外部内容变更时同步（比如从 RAW 模式切回来）
+  // IME composition 期间绝不调用 setContent，否则会破坏 composition 状态导致无限循环卡死；
+  // composition 结束后补偿同步被跳过的 setContent
   useEffect(() => {
-    if (editor && initialContent !== undefined) {
+    if (!editor || initialContent === undefined) return;
+
+    const syncContent = () => {
       if (initialContent !== lastMarkdownRef.current) {
         const currentMd = editor.storage.markdown.getMarkdown();
         if (initialContent !== currentMd) {
-          queueMicrotask(() => {
-            editor.commands.setContent(initialContent || '', false, {
-              parseOptions: { preserveWhitespace: 'full' },
-            });
-            lastMarkdownRef.current = initialContent;
+          editor.commands.setContent(initialContent || '', false, {
+            parseOptions: { preserveWhitespace: 'full' },
           });
+          lastMarkdownRef.current = initialContent;
         }
       }
-    }
+    };
+
+    if (!editor.view.composing) syncContent();
+
+    const onCompositionEnd = () => {
+      // compositionend 后 ProseMirror 需要一个 tick 才刷新 composing=false
+      setTimeout(() => { if (!editor.view.composing) syncContent(); }, 50);
+    };
+    editor.view.dom.addEventListener('compositionend', onCompositionEnd);
+    return () => editor.view.dom.removeEventListener('compositionend', onCompositionEnd);
   }, [initialContent, editor]);
 
   // 同步 onImageUpload 回调给 SlashCommand

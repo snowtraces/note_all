@@ -76,7 +76,7 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
               value={askInput}
               onChange={(e) => setAskInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && askInput.trim()) {
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing && askInput.trim()) {
                   if (onAsk) onAsk(askInput.trim());
                   setAskInput('');
                 }

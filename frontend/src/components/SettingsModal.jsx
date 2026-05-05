@@ -1105,7 +1105,7 @@ function WeixinTab() {
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               placeholder="输入回复内容..."
-              onKeyDown={(e) => e.key === 'Enter' && handleSendReply()}
+              onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && handleSendReply()}
               className={`flex-1 border rounded-xl px-4 py-2 text-[13px] focus:outline-none focus:border-primeAccent/50 transition-all ${isLight ? 'bg-white border-slate-200 text-slate-800 placeholder-slate-400' : 'bg-white/[0.03] border-white/10 text-white placeholder-silverText/20'}`}
             />
             <button

@@ -134,7 +134,7 @@ export default function EditorToolbar({
             type="url"
             value={linkUrl}
             onChange={(e) => setLinkUrl(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && setLink()}
+            onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && setLink()}
             placeholder="https://..."
             className="bg-sidebar border border-borderSubtle text-textPrimary text-[10px] rounded px-2 py-1 outline-none focus:border-primeAccent/30 w-[140px]"
             autoFocus

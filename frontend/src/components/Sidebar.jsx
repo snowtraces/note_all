@@ -208,9 +208,9 @@ export default function Sidebar({
                 if (showTagDrop && filteredTags.length > 0) {
                   if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIndex(i => Math.min(i + 1, filteredTags.length - 1)); return; }
                   if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIndex(i => Math.max(i - 1, 0)); return; }
-                  if (e.key === 'Enter' && activeIndex >= 0) { e.preventDefault(); selectTag(filteredTags[activeIndex].tag); return; }
+                  if (e.key === 'Enter' && !e.nativeEvent.isComposing && activeIndex >= 0) { e.preventDefault(); selectTag(filteredTags[activeIndex].tag); return; }
                 }
-                if (e.key === 'Enter') {
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
                   if (query.startsWith('?')) { handleAskAI(query.slice(1).trim() || query); return; }
                   handleSearch(query);
                 }
