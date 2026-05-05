@@ -167,6 +167,7 @@
   display: flex;
   align-items: center;
   user-select: none;
+  margin-top: 0.42em; /* 补偿 line-height 1.8 导致的对齐偏移 */
 }
 
 .tiptap-content ul[data-type="taskList"] li>label input[type="checkbox"] {

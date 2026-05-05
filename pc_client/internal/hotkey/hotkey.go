@@ -48,13 +48,13 @@ func StartHotkeyListener(cfg *domain.Config) {
 		log.Println("✅ 全局热键 Alt+Q 已注册，按下即可截图上传")
 	}
 
-	// 注册 Alt+Shift+Q (文本录入)
+	// 注册 Alt+Shift+Q (新增文档)
 	ret2, _, err2 := sys.ProcRegisterHotKey.Call(0, hotkeyShiftQ, modAlt|modShift, vkQ)
 	if ret2 == 0 {
 		log.Printf("⚠️  注册热键 Alt+Shift+Q 失败: %v", err2)
 	} else {
 		defer sys.ProcUnregisterHotKey.Call(0, hotkeyShiftQ)
-		log.Println("✅ 全局热键 Alt+Shift+Q 已注册，按下即可文本录入")
+		log.Println("✅ 全局热键 Alt+Shift+Q 已注册，按下即可新增文档")
 	}
 
 	var m struct {

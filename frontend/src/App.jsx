@@ -261,13 +261,13 @@ function AppContent() {
     }
   };
 
-  const handleTextSubmit = async (text) => {
+  const handleCreateNewNote = async () => {
     try {
-      await createTextNote(text);
-      setTimeout(() => executeSearch(query), 3000);
-      setTimeout(() => executeSearch(query), 12000);
+      const newNote = await createTextNote("");
+      setSelectedItem(newNote);
+      executeSearch(query);
     } catch (e) {
-      alert('文本录入失败...');
+      alert('新增文档失败...');
       console.error(e);
     }
   };
@@ -422,7 +422,7 @@ function AppContent() {
             setSelectedItem={guardedSetSelectedItem}
             uploading={uploading}
             handleUpload={handleUpload}
-            handleTextSubmit={handleTextSubmit}
+            handleTextSubmit={handleCreateNewNote}
             handleAskAI={executeAskAI}
             loadChatSession={loadChatSession}
             currentSessionId={currentSessionId}

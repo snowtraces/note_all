@@ -138,7 +138,7 @@ function Convert-HtmlToMarkdown($raw) {
 
 # ── 窗体 ────────────────────────────────────────────────────────────────
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "Note All 文本录入"
+$form.Text = "Note All 新增文档"
 $form.Size = New-Object System.Drawing.Size(520, 480)
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = "FixedDialog"

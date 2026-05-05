@@ -6,6 +6,7 @@ import {
   MessageSquare,
   Network,
   PenLine,
+  Plus,
   RefreshCcw,
   Search,
   Tag,
@@ -55,9 +56,7 @@ export default function Sidebar({
   const textareaRef = useRef(null);
   const sidebarRef = useRef(null);
 
-  // 文本录入状态
-  const [showTextInput, setShowTextInput] = useState(false);
-  const [inputText, setInputText] = useState('');
+  // 新增文档状态
   const [textSubmitting, setTextSubmitting] = useState(false);
 
   // 实验室视图卡片悬浮状态
@@ -450,42 +449,22 @@ export default function Sidebar({
         <div className={`p-4 border-t bg-modal shrink-0 ${isLight ? 'border-slate-200' : 'border-white/5'}`}>
           <input type="file" ref={fileInputRef} onChange={handleUpload} className="hidden" />
 
-          {showTextInput && (
-            <div className="mb-3 flex flex-col gap-2">
-              <textarea
-                ref={textareaRef}
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder="键入想法并交予 AI 处理..."
-                rows={4}
-                className={`w-full border rounded-xl p-3 text-[13px] focus:outline-none ${isLight ? 'bg-slate-50 border-slate-200 text-slate-800' : 'bg-sidebar border border-primeAccent/30 text-textPrimary'}`}
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={async () => {
-                    const t = inputText.trim(); if (!t) return;
-                    setTextSubmitting(true); await handleTextSubmit(t); setTextSubmitting(false);
-                    setInputText(''); setShowTextInput(false);
-                  }}
-                  disabled={textSubmitting || !inputText.trim()}
-                  className="flex-1 bg-primeAccent/20 border border-primeAccent/40 py-2 rounded-lg text-primeAccent text-xs hover:bg-primeAccent/30 transition-all font-medium"
-                >
-                  {textSubmitting ? "处理中..." : "保存想法"}
-                </button>
-                <button onClick={() => setShowTextInput(false)} className={`px-4 py-2 text-xs rounded-lg ${isLight ? 'border border-slate-200 text-slate-500' : 'border border-white/10 text-silverText/40'}`}>取消</button>
-              </div>
-            </div>
-          )}
+
 
           <div className="flex gap-2">
             <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-primeAccent/10 to-transparent border border-borderSubtle py-3 rounded-lg text-textSecondary hover:text-textPrimary transition-all text-[12px]">
               {uploading ? "吸入中..." : <><UploadCloud size={14} /> 上传图片</>}
             </button>
             <button
-              onClick={() => { setShowTextInput(!showTextInput); setTimeout(() => textareaRef.current?.focus(), 50); }}
-              className={`flex-1 flex items-center justify-center gap-2 border py-3 rounded-lg text-textSecondary hover:text-textPrimary transition-all text-[12px] ${showTextInput ? 'border-primeAccent/50 bg-primeAccent/10 text-primeAccent' : 'border-borderSubtle bg-sidebar'}`}
+              onClick={async () => {
+                setTextSubmitting(true);
+                await handleTextSubmit();
+                setTextSubmitting(false);
+              }}
+              disabled={textSubmitting}
+              className={`flex-1 flex items-center justify-center gap-2 border py-3 rounded-lg text-textSecondary hover:text-textPrimary transition-all text-[12px] ${textSubmitting ? 'border-primeAccent/50 bg-primeAccent/10 text-primeAccent' : 'border-borderSubtle bg-sidebar'}`}
             >
-              <PenLine size={14} /> 文本录入
+              <Plus size={14} /> 新增文档
             </button>
           </div>
         </div>

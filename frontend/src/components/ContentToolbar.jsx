@@ -24,30 +24,7 @@ export default function ContentToolbar({
 }) {
   return (
     <div className="shrink-0 sticky bottom-0 lg:static border-t border-borderSubtle bg-main px-4 md:px-5 py-2 flex items-center gap-2 z-30">
-      {/* 左侧：重处理 */}
-      <div className="flex items-center gap-1.5">
-        <select value={selectedTemplateId} onChange={(e) => onSelectTemplate(e.target.value)}
-          disabled={isReprocessing}
-          className="bg-sidebar border border-borderSubtle text-textSecondary text-[10px] rounded px-1.5 py-1 outline-none focus:border-primeAccent/30 max-w-[100px] truncate"
-          title="选择模板">
-          <option value="" className="bg-header text-textPrimary">默认模板</option>
-          {templates.map(t => (
-            <option key={t.id} value={t.id} className="bg-header text-textPrimary">{t.name}{t.is_active ? ' · 激活' : ''}</option>
-          ))}
-        </select>
-        <button onClick={onReprocess} disabled={isReprocessing}
-          className="flex items-center gap-1.5 px-2 py-1 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 transition-all rounded text-[10px] font-medium disabled:opacity-50"
-          title="重新 AI 处理">
-          <RefreshCw size={13} className={isReprocessing ? 'animate-spin' : ''} />
-          {isReprocessing ? '处理中...' : '重处理'}
-        </button>
-        {reprocessStatus && (
-          <span className={`text-[10px] font-mono flex items-center gap-1 ${reprocessStatus.type === 'success' ? 'text-green-400' : 'text-red-400'}`}>
-            {reprocessStatus.type === 'success' ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
-            {reprocessStatus.msg}
-          </span>
-        )}
-      </div>
+
 
       {/* 右侧：其余按钮 — 可滚动 */}
       <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar min-w-0 ml-auto">

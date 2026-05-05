@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { BrainCircuit, X, ArchiveRestore, Trash2, Image as ImageIcon, Link, Zap, Share2, RefreshCw, CheckCircle2, ClipboardEdit, Eye, ChevronLeft, ChevronDown, ChevronUp, List, PanelRightClose, Download } from 'lucide-react';
+import { BrainCircuit, Sparkles, X, ArchiveRestore, Trash2, Image as ImageIcon, Link, Zap, Share2, RefreshCw, CheckCircle2, ClipboardEdit, Eye, ChevronLeft, ChevronDown, ChevronUp, List, PanelRightClose, Download } from 'lucide-react';
 import MarkdownRenderer from './MarkdownRenderer';
 import ContentToolbar from './ContentToolbar';
 import EditorToolbar from './EditorToolbar';
@@ -82,6 +82,12 @@ export default function Detail({
 
     setEditValue(item?.ocr_text || '');
     setTiptapContent(item?.ocr_text || '');
+    // 如果是全新空文档，自动进入编辑模式
+    if (!item.ocr_text && item.status === 'pending') {
+      setEditorMode('edit');
+    } else {
+      setEditorMode('view');
+    }
     editBaseline.current = item?.ocr_text || '';
     setReprocessStatus(null);
     setAnnotation(item?.user_comment || '');
@@ -438,19 +444,68 @@ export default function Detail({
 
           <div
             ref={contentScrollRef}
-            className="flex-1 p-4 md:p-5 lg:p-6 overflow-visible lg:overflow-y-auto custom-scrollbar raw-textarea-scroll-container"
+            className="flex-1 pt-2 px-4 md:pt-3 md:px-5 lg:pt-4 lg:px-6 pb-4 md:pb-5 lg:pb-6 overflow-visible lg:overflow-y-auto custom-scrollbar raw-textarea-scroll-container"
           >
-            {/* AiTitle 主标题 */}
-            <div className="mb-2">
-              <h1 className="text-2xl md:text-3xl font-bold text-textPrimary leading-snug tracking-wide">
-                {item.ai_title || item.original_name || '未命名笔记'}
-              </h1>
-              {item.ai_summary && (
-                <div className="mt-1 text-[15px] text-textSecondary/40 leading-relaxed ai-summary-markdown">
-                  <MarkdownRenderer content={item.ai_summary} className="summary-preview" />
+            {/* AI 智能解析区块 - 紧凑排版 */}
+            {(item.ai_title || item.ai_summary) && (
+              <div className="group mb-2 px-1 py-0.5 transition-all opacity-60 hover:opacity-100">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-baseline gap-2">
+                    <span className="shrink-0 flex items-center gap-1 text-[9px] font-bold font-mono uppercase tracking-widest text-primeAccent/40 border border-primeAccent/10 px-1 rounded bg-primeAccent/[0.02]">
+                      <Sparkles size={8} /> AI
+                    </span>
+                    <h1 className="text-lg font-bold text-textSecondary leading-tight">
+                      {item.ai_title || item.original_name || '未命名笔记'}
+                    </h1>
+                  </div>
+
+                  {/* 重处理控制 - 优化深色模式与可见性 */}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-1 group-hover:translate-x-0">
+                    <div className="flex items-center bg-sidebar/40 backdrop-blur-md border border-borderSubtle rounded-lg px-1.5 py-0.5 shadow-sm hover:border-primeAccent/30 transition-colors">
+                      <div className="relative flex items-center">
+                        <select 
+                          value={selectedTemplateId} 
+                          onChange={(e) => setSelectedTemplateId(e.target.value)}
+                          disabled={isReprocessing}
+                          className="bg-transparent text-textSecondary text-[10px] font-medium rounded pl-1 pr-3.5 outline-none focus:text-primeAccent max-w-[85px] truncate border-none cursor-pointer appearance-none"
+                          title="选择 AI 处理模板"
+                        >
+                          <option value="" className="bg-header text-textPrimary">默认模板</option>
+                          {templates.map(t => (
+                            <option key={t.id} value={t.id} className="bg-header text-textPrimary">{t.name}</option>
+                          ))}
+                        </select>
+                        <ChevronDown size={10} className="absolute right-0 pointer-events-none text-textSecondary/40" />
+                      </div>
+                      <div className="w-[1px] h-3 bg-borderSubtle/50 mx-1 shrink-0" />
+                      <button
+                        onClick={handleReprocess}
+                        disabled={isReprocessing}
+                        className="flex items-center justify-center p-1 text-textSecondary hover:text-primeAccent transition-colors rounded-md"
+                        title="立即重新 AI 处理"
+                      >
+                        <RefreshCw size={12} className={isReprocessing ? 'animate-spin text-primeAccent' : ''} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
+                
+                {item.ai_summary && (
+                  <div className="text-[12px] text-textSecondary/40 leading-relaxed italic mt-1">
+                    {item.ai_summary}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 如果没有 AI 标题，至少显示原始名称 */}
+            {!item.ai_title && !item.ai_summary && (
+              <div className="mb-4">
+                <h1 className="text-2xl md:text-3xl font-bold text-textPrimary leading-snug tracking-wide">
+                  {item.original_name || '未命名笔记'}
+                </h1>
+              </div>
+            )}
 
             {/* 正文 */}
             <div className="mt-1 pt-2 border-t border-borderSubtle -mx-4 px-4 md:-mx-5 md:px-5 lg:-mx-6 lg:px-6">

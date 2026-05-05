@@ -78,11 +78,11 @@ func (a *NoteApi) Upload(c *gin.Context) {
 // CreateFromText 接受纯文本 JSON，跳过 OCR 直接走 LLM 摘要+标签
 func (a *NoteApi) CreateFromText(c *gin.Context) {
 	var body struct {
-		Text         string `json:"text" binding:"required"`
+		Text         string `json:"text"`
 		OriginalName string `json:"original_name"` // optional: 来自浏览器插件的标题
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少 text 参数"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数解析失败"})
 		return
 	}
 
@@ -93,7 +93,7 @@ func (a *NoteApi) CreateFromText(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":    "文本录入成功，正在后台提炼...",
+		"message":    "新增文档成功，正在后台提炼...",
 		"data":       note,
 		"storage_id": note.StorageID,
 	})

@@ -263,7 +263,7 @@ func CreateNoteFromText(text string, providedName string) (*models.NoteItem, err
 		runes := []rune(text)
 		switch {
 		case len(runes) == 0:
-			originalName = "文本录入"
+			originalName = "新增文档"
 		case len(runes) > 30:
 			originalName = string(runes[:30]) + "..."
 		default:
@@ -297,7 +297,7 @@ func CreateNoteFromText(text string, providedName string) (*models.NoteItem, err
 	rawUrl := originalUrl
 
 	global.WorkerChan <- func() {
-		prefix := "[文本录入作业]"
+		prefix := "[新增文档作业]"
 		if isUrl {
 			prefix = "[URL剪藏作业]"
 		}

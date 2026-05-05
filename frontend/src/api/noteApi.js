@@ -59,6 +59,8 @@ export const createTextNote = async (text) => {
     body: JSON.stringify({ text }),
   });
   if (!res.ok) throw new Error("Text note creation failed");
+  const data = await res.json();
+  return data.data;
 };
 
 export const getTags = async () => {
