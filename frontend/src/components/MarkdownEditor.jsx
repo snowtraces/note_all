@@ -747,15 +747,22 @@ export default function MarkdownEditor({
 
   // 外部内容变更时同步（比如从 RAW 模式切回来）
   // IME composition 期间绝不调用 setContent，否则会破坏 composition 状态导致无限循环卡死；
+  // 同时，如果编辑器处于聚焦状态，说明用户正在输入，此时也绝不调用 setContent，避免打断输入流或破坏 IME 状态。
   // composition 结束后补偿同步被跳过的 setContent
   useEffect(() => {
     if (!editor || initialContent === undefined) return;
 
     const syncContent = () => {
+      // 如果正在输入或已聚焦，跳过同步。只有在非聚焦状态下（如切模式、切笔记）才进行强制同步。
+      if (editor.view.composing || editor.isFocused) return;
+
       if (initialContent !== lastMarkdownRef.current) {
         const currentMd = editor.storage.markdown.getMarkdown();
         if (initialContent !== currentMd) {
           queueMicrotask(() => {
+            // 再次检查聚焦状态，防止 microtask 执行时用户已聚焦
+            if (editor.isFocused) return;
+            
             editor.commands.setContent(initialContent || '', false, {
               parseOptions: { preserveWhitespace: 'full' },
             });
@@ -765,11 +772,11 @@ export default function MarkdownEditor({
       }
     };
 
-    if (!editor.view.composing) syncContent();
+    syncContent();
 
     const onCompositionEnd = () => {
       // compositionend 后 ProseMirror 需要一个 tick 才刷新 composing=false
-      setTimeout(() => { if (!editor.view.composing) syncContent(); }, 50);
+      setTimeout(() => { syncContent(); }, 50);
     };
     editor.view.dom.addEventListener('compositionend', onCompositionEnd);
     return () => editor.view.dom.removeEventListener('compositionend', onCompositionEnd);

@@ -194,16 +194,16 @@ const SlashCommand = Extension.create({
                 return true;
               }
               if (event.key === 'Enter' && !event.isComposing) {
-                event.preventDefault();
-                event.stopPropagation();
-                if (flatItems[selectedIdx]) {
+                if (flatItems.length > 0 && flatItems[selectedIdx]) {
+                  event.preventDefault();
+                  event.stopPropagation();
                   try {
                     cmdFn(flatItems[selectedIdx]);
                   } catch (err) {
                     console.error('[SlashCommand] Error executing command:', err);
                   }
+                  return true;
                 }
-                return true;
               }
               return false;
             },

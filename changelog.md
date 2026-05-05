@@ -1,6 +1,9 @@
 # Changelog
 
 ## [Unreleased]
+- **编辑器输入法兼容性修复 (IME Compatibility Fix)**:
+  - **同步逻辑优化**: 修复了在中文输入法下，在普通正文或引用块中按下回车键会导致文字变回拼音的问题。通过引入 `editor.isFocused` 检查，确保编辑器在聚焦输入时不会被外部状态同步触发的 `setContent` 打断，彻底解决了 IME 组合态被破坏的风险。
+  - **斜杠命令拦截精简**: 优化了 `SlashCommandExtension` 的按键处理逻辑，仅在有匹配命令项时才拦截 `Enter` 键，避免了在普通输入场景下对回车键的非预期干预。
 - **编辑器与预览统一 (Unified Editor & Preview Rendering)**:
   - **Tiptap 引擎全量覆盖**: 彻底移除了 `react-markdown`，实现了编辑与预览模式的 100% 渲染一致性。
   - **可见性感知导航 (Visibility-Aware Navigation)**: 解决编辑器后台挂载导致的锚点劫持问题。ToC 组件现在会自动过滤隐藏元素，精准锁定当前可见的正文标题。
