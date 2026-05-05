@@ -275,21 +275,60 @@ export default function Detail({
     editBaseline.current = editValue;
   };
 
+  const changeMode = useCallback((newMode) => {
+    if (newMode === editorMode) return;
+
+    if (newMode === 'raw' && tiptapEditorRef.current) {
+      const md = tiptapEditorRef.current.storage.markdown.getMarkdown();
+      setEditValue(md);
+    }
+    if (newMode === 'edit') {
+      setTiptapContent(editValue);
+    }
+    
+    setEditorMode(newMode);
+    // 只有切到 RAW 模式时强制关闭大纲，编辑和预览模式可以共用大纲状态
+    if (newMode === 'raw') setShowToC(false);
+  }, [editorMode, editValue]);
+
   // Ctrl+S 全局保存 — raw / edit 模式下始终有效
   const onSaveWrapRef = useRef(onSaveWrap);
   onSaveWrapRef.current = onSaveWrap;
 
   useEffect(() => {
-    if (editorMode === 'view') return;
     const handler = (e) => {
+      // 快捷键仅在非输入状态生效
+      const activeEl = document.activeElement;
+      const isInput = activeEl.tagName === 'INPUT' || 
+                      activeEl.tagName === 'TEXTAREA' || 
+                      activeEl.isContentEditable;
+
+      // Ctrl+S 保存
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        onSaveWrapRef.current();
+        if (editorMode !== 'view') {
+          e.preventDefault();
+          onSaveWrapRef.current();
+        }
+        return;
+      }
+
+      // 模式切换快捷键 (非输入状态)
+      if (!isInput) {
+        if (e.key === 'i') {
+          e.preventDefault();
+          changeMode('edit');
+        } else if (e.key === 'r') {
+          e.preventDefault();
+          changeMode('raw');
+        } else if (e.key === 'v') {
+          e.preventDefault();
+          changeMode('view');
+        }
       }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [editorMode]);
+  }, [editorMode, changeMode]);
 
   const handleReprocess = async () => {
     if (!item) return;
@@ -428,7 +467,7 @@ export default function Detail({
         <div className="flex-none lg:flex-1 lg:min-w-0 h-auto lg:h-full flex flex-col lg:border-r border-borderSubtle bg-main relative">
 
           {/* 大纲吸附按钮 — 吸附在右侧边框 */}
-          {editorMode === 'view' && (
+          {(editorMode === 'view' || editorMode === 'edit') && (
             <button
               onClick={() => setShowToC(!showToC)}
               className={`absolute right-0 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center transition-all duration-300 ${
@@ -541,22 +580,7 @@ export default function Detail({
             <EditorToolbar
               editor={tiptapEditorRef.current}
               editorMode={editorMode}
-              onModeChange={(newMode) => {
-                if (newMode === 'raw' && tiptapEditorRef.current) {
-                  const md = tiptapEditorRef.current.storage.markdown.getMarkdown();
-                  setEditValue(md);
-                  editBaseline.current = md;
-                }
-                if (newMode === 'edit') {
-                  const base = item?.ocr_text || '';
-                  setEditValue(base);
-                  setTiptapContent(base);
-                  editBaseline.current = base;
-                }
-                setEditorMode(newMode);
-                // 离开预览模式时关闭大纲，切到预览时不自动打开
-                if (newMode !== 'view') setShowToC(false);
-              }}
+              onModeChange={changeMode}
               hasUnsavedChanges={hasUnsaved}
               isSaving={isSaving}
               onSave={onSaveWrap}
@@ -580,21 +604,7 @@ export default function Detail({
               hasUnsavedChanges={hasUnsaved}
               isSaving={isSaving}
               onLocalizeImages={handleLocalizeImages}
-              onModeChange={(newMode) => {
-                if (newMode === 'edit') {
-                  const base = item?.ocr_text || '';
-                  setEditValue(base);
-                  setTiptapContent(base);
-                  editBaseline.current = base;
-                }
-                if (newMode === 'raw' && tiptapEditorRef.current) {
-                  const md = tiptapEditorRef.current.storage.markdown.getMarkdown();
-                  setEditValue(md);
-                  editBaseline.current = md;
-                }
-                setEditorMode(newMode);
-                if (newMode !== 'view') setShowToC(false);
-              }}
+              onModeChange={changeMode}
               onSelectTemplate={setSelectedTemplateId}
               onReprocess={handleReprocess}
               onSave={onSaveWrap}
@@ -605,7 +615,7 @@ export default function Detail({
         {/* 源侧边区 + 大纲浮动覆盖 */}
         <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 bg-panel/80 flex flex-col flex-none h-auto lg:h-full relative border-t lg:border-t-0 lg:border-l border-borderSubtle">
           {/* 大纲浮动覆盖层 */}
-          {showToC && editorMode === 'view' && (
+          {showToC && (editorMode === 'view' || editorMode === 'edit') && (
             <div className="absolute inset-0 z-30 bg-main/80 backdrop-blur-xl flex flex-col animate-in slide-in-from-right duration-300">
               <div className="px-3 py-2.5 border-b border-borderSubtle/40 flex items-center justify-between shrink-0">
                 <span className="text-[11px] text-textSecondary/70 font-bold tracking-widest font-mono uppercase">大纲导读</span>
@@ -617,7 +627,7 @@ export default function Detail({
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto custom-scrollbar py-1">
-                <TableOfContents content={item.ocr_text} containerRef={contentScrollRef} contained />
+                <TableOfContents content={editValue} containerRef={contentScrollRef} contained />
               </div>
             </div>
           )}

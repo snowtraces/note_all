@@ -146,12 +146,20 @@ export default function EditorToolbar({
 
       {/* 模式切换 + 保存 — 始终可见 */}
       <div className="flex items-center gap-2 ml-auto shrink-0">
+        {hasUnsavedChanges && (
+          <button onClick={onSave} disabled={isSaving}
+            className="flex items-center gap-1.5 px-3 py-1 bg-primeAccent/20 text-primeAccent hover:bg-primeAccent hover:text-white transition-all rounded text-[10px] font-bold border border-primeAccent/30 backdrop-blur shadow-lg disabled:opacity-50">
+            <Save size={13} />
+            {isSaving ? '保存中...' : '保存'}
+          </button>
+        )}
+
         <div className="flex items-center gap-0.5 bg-sidebar rounded-md p-0.5 border border-borderSubtle">
           {EDITOR_MODES.map(m => (
             <button
               key={m.key}
               onClick={() => onModeChange(m.key)}
-              className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-all ${editorMode === m.key
+              className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-all ${editorMode === m.key
                 ? 'bg-primeAccent/15 text-primeAccent shadow-sm'
                 : 'text-textSecondary/80 hover:text-textSecondary hover:bg-card'
                 }`}
@@ -162,14 +170,6 @@ export default function EditorToolbar({
             </button>
           ))}
         </div>
-
-        {hasUnsavedChanges && (
-          <button onClick={onSave} disabled={isSaving}
-            className="flex items-center gap-1.5 px-3 py-1 bg-primeAccent/20 text-primeAccent hover:bg-primeAccent hover:text-white transition-all rounded text-[10px] font-bold border border-primeAccent/30 backdrop-blur shadow-lg disabled:opacity-50">
-            <Save size={13} />
-            {isSaving ? '保存中...' : '保存'}
-          </button>
-        )}
       </div>
     </div>
   );

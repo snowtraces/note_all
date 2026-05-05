@@ -156,9 +156,24 @@
   color: #ffffff !important;
 }
 
-/* 极简主题色微调背景 */
+/* ============ 极简主题色微调背景 ============ */
 .bg-accent-subtle {
   background-color: color-mix(in srgb, var(--prime-accent) 1.5%, var(--bg-card));
+}
+
+/* ============ 正文自定义鼠标光标 ============ */
+.tiptap-content,
+.markdown-ocr,
+.raw-textarea-scroll-container textarea {
+  /* 保持经典 Windows 工字型 (I-beam)，但替换为品牌高亮色以解决系统光标易丢失的问题 */
+  cursor: url("data:image/svg+xml,%3Csvg width='16' height='24' viewBox='0 0 16 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8 5v14M5 5h6M5 19h6' stroke='%2366FCF1' stroke-width='1.5'/%3E%3C/svg%3E") 8 12, text !important;
+}
+
+[data-mode="light"] .tiptap-content,
+[data-mode="light"] .markdown-ocr,
+[data-mode="light"] .raw-textarea-scroll-container textarea {
+  /* 亮色模式：深青色经典 I-beam */
+  cursor: url("data:image/svg+xml,%3Csvg width='16' height='24' viewBox='0 0 16 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8 5v14M5 5h6M5 19h6' stroke='%230891B2' stroke-width='1.5'/%3E%3C/svg%3E") 8 12, text !important;
 }
 
 /* ============ 深色模式阴影增强 ============ */
