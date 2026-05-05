@@ -48,6 +48,7 @@ export default function Detail({
   const [isLocalizing, setIsLocalizing] = useState(false);
   const [showToC, setShowToC] = useState(false);
   const [activeConnectionTab, setActiveConnectionTab] = useState('related');
+
   // normalized 比较：忽略空行差异和尾部换行，避免 Tiptap 序列化格式误判
   const normalizeText = (text) => (text || '').replace(/\n{3,}/g, '\n\n').replace(/\s+$/, '');
   const hasUnsaved = editorMode !== 'view' && normalizeText(editValue) !== normalizeText(editBaseline.current);
@@ -261,12 +262,28 @@ export default function Detail({
   if (!item) return null;
 
   const onSaveWrap = async () => {
-    if (!handleUpdateText || !item) return;
+    if (!handleUpdateText || !item || isSaving) return;
     setIsSaving(true);
     await handleUpdateText(item.id, editValue);
     setIsSaving(false);
     editBaseline.current = editValue;
   };
+
+  // Ctrl+S 全局保存 — raw / edit 模式下始终有效
+  const onSaveWrapRef = useRef(onSaveWrap);
+  onSaveWrapRef.current = onSaveWrap;
+
+  useEffect(() => {
+    if (editorMode === 'view') return;
+    const handler = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        onSaveWrapRef.current();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [editorMode]);
 
   const handleReprocess = async () => {
     if (!item) return;
@@ -444,7 +461,6 @@ export default function Detail({
                     initialContent={tiptapContent}
                     onUpdate={(md) => { if (editorMode === 'edit') { setEditValue(md); setTiptapContent(md); }}}
                     editorRef={tiptapEditorRef}
-                    onSave={onSaveWrap}
                   />
                 </div>
                 {editorMode === 'raw' && (

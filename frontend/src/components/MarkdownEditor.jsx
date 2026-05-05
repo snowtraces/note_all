@@ -588,7 +588,6 @@ export default function MarkdownEditor({
   onUpdate,
   editorRef,
   onImageUpload,
-  onSave,
   className = '',
 }) {
   const lastMarkdownRef = useRef(initialContent || '');
@@ -736,14 +735,6 @@ export default function MarkdownEditor({
       },
       handleDrop: handleDrop,
       handlePaste: handlePaste,
-      handleKeyDown: (view, event) => {
-        if ((event.ctrlKey || event.metaKey) && event.key === 's') {
-          event.preventDefault();
-          onSave?.();
-          return true;
-        }
-        return false;
-      },
     },
   });
 
@@ -764,10 +755,12 @@ export default function MarkdownEditor({
       if (initialContent !== lastMarkdownRef.current) {
         const currentMd = editor.storage.markdown.getMarkdown();
         if (initialContent !== currentMd) {
-          editor.commands.setContent(initialContent || '', false, {
-            parseOptions: { preserveWhitespace: 'full' },
+          queueMicrotask(() => {
+            editor.commands.setContent(initialContent || '', false, {
+              parseOptions: { preserveWhitespace: 'full' },
+            });
+            lastMarkdownRef.current = initialContent;
           });
-          lastMarkdownRef.current = initialContent;
         }
       }
     };
