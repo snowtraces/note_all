@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"note_all_backend/api"
+	"note_all_backend/global"
+	"note_all_backend/mcp"
 	"note_all_backend/middleware"
 
 	"github.com/gin-contrib/gzip"
@@ -29,6 +31,43 @@ func SetupRouter() *gin.Engine {
 		}
 		c.Next()
 	})
+
+	// ============== MCP (Model Context Protocol) 引擎内置集成 ==============
+	// 初始化 MCP SSE 传输后端
+	sseServer := mcp.InitSSEServer()
+
+	// 缓存鉴权 Token
+	mcpToken := global.Config.McpToken
+	if mcpToken == "" {
+		mcpToken = global.Config.SysPassword
+	}
+	if mcpToken == "" {
+		mcpToken = "note-all-mcp-token-123456"
+	}
+
+	authHandler := func(c *gin.Context) {
+		// 校验令牌 (支持 Query ?token=xxx 或 Authorization Bearer Header)
+		token := c.Query("token")
+		if token == "" {
+			authHeader := c.GetHeader("Authorization")
+			if strings.HasPrefix(authHeader, "Bearer ") {
+				token = strings.TrimPrefix(authHeader, "Bearer ")
+			}
+		}
+
+		if token != mcpToken {
+			c.String(http.StatusUnauthorized, "Unauthorized: Invalid or missing MCP token")
+			c.Abort()
+			return
+		}
+
+		// 路由鉴权通过，直接转交给 mcp-go 的 SSE 传输引擎接管
+		sseServer.ServeHTTP(c.Writer, c.Request)
+	}
+
+	// 绑定 MCP 核心路由（由外部 AI 工具流直接订阅连接）
+	r.GET("/sse", authHandler)
+	r.POST("/message", authHandler)
 
 	// 心跳检测接口
 	r.GET("/ping", func(c *gin.Context) {

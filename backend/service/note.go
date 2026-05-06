@@ -218,10 +218,52 @@ func UploadAndCreateNote(file *multipart.FileHeader) (*models.NoteItem, error) {
 	if err := global.DB.Create(&fileMeta).Error; err != nil {
 		log.Printf("[Upload] 创建文件元数据失败（不影响主流程）: %v", err)
 	}
-
 	// 5. 将任务发送到后台队列进行阻塞排队处理，避免并发过高触发 OCR/LLM 接口限流 (429)
 	nID := note.ID
 
+	global.WorkerChan <- func() {
+		performFullAnalysis(nID, 0)
+	}
+
+	return &note, nil
+}
+
+// CreateNoteFromReader 从任意 io.Reader 构造笔记并推入 AI 分析队列（供 MCP 推送等接口复用）
+func CreateNoteFromReader(filename string, fileType string, size int64, r io.Reader) (*models.NoteItem, error) {
+	// 1. 存入底层块系统 (snow_storage)
+	secureName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), filename)
+	storageID, err := global.Storage.Save(secureName, r)
+	if err != nil {
+		return nil, fmt.Errorf("底层存储失败: %v", err)
+	}
+
+	// 2. 构建 DB 数据实体 (目前状态为 pending)
+	note := models.NoteItem{
+		OriginalName: filename,
+		StorageID:    storageID,
+		FileType:     fileType,
+		FileSize:     size,
+		Status:       "pending",
+	}
+
+	// 3. 落库
+	if err := global.DB.Create(&note).Error; err != nil {
+		return nil, fmt.Errorf("数据库元数据建立失败: %v", err)
+	}
+
+	// 4. 创建文件元数据记录（用于独立的文件查询）
+	fileMeta := models.FileMetadata{
+		StorageID: storageID,
+		MimeType:  fileType,
+		FileSize:  size,
+		FileName:  filename,
+	}
+	if err := global.DB.Create(&fileMeta).Error; err != nil {
+		log.Printf("[CreateNoteFromReader] 创建文件元数据失败（不影响主流程）: %v", err)
+	}
+
+	// 5. 将任务发送到后台队列进行阻塞排队处理
+	nID := note.ID
 	global.WorkerChan <- func() {
 		performFullAnalysis(nID, 0)
 	}

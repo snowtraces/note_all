@@ -1,6 +1,13 @@
 # Changelog
 
 ## [Unreleased]
+- **MCP 协议支持与内置合流服务端 (Model Context Protocol SSE Server & Token Authorization)**:
+  - **HTTP SSE 鉴权传输**: 基于 `github.com/mark3labs/mcp-go` 实现了 Model Context Protocol (MCP) 标准，采用 Server-Sent Events (SSE) 协议进行单向事件传输。
+  - **Gin 主路由无缝合流**: 在 `router.go` 中直接将 MCP 接口 `/sse` (GET) 和 `/message` (POST) 注册在 Gin 主路由组上，共享 **`:3344`** 端口。实现单进程、一键式并发运行网页端与 AI 客户端连接。
+  - **安全 Token 防御层**: 实现了基于 `"mcp_token"` 配置参数（支持 `?token=xxx` 参数及 `Bearer` 头）的拦截器，完美防止恶意扫描和未授权请求。
+  - **Token 穿透机制**: 通过调用 `server.WithAppendQueryToMessageEndpoint()` 成功实现 SSE 长连接建立后的 Session 穿透，在回发 `/message` 端口时自动保留安全 token 校验，解决了因客户端未附带 Token 导致 401 文本返回引起的 `Failed to parse JSON` 闪退崩溃 Bug。
+  - **只读与破坏性声明优化**: 在 `tools.go` 中为 5 大工具（检索、阅读、最近、文本推送、图片推送）全量补齐 `WithReadOnlyHintAnnotation` 标签，并将 `WithDestructiveHintAnnotation` 设为 `false`，彻底根治了 Cursor/Claude 对话中烦人的破坏性安全确认提示。
+  - **本地客户端免配挂载**: 自动对本地 **[claude_desktop_config.json](file:///C:/Users/cheng/AppData/Roaming/Claude/claude_desktop_config.json)** 进行写入和修改，极大简化了 Claude 客户端的接入成本。
 - **语义化视觉系统迁移与暗色模式优化 (Semantic Visual System & Dark Mode Optimization)**:
   - **语义化 Token 迁移**: 彻底移除旧版 `silverText` 工具类，统一采用基于 CSS 变量的语义化 Token（`textPrimary`, `textSecondary`, `textTertiary`, `textMuted`）。
   - **Tailwind 透明度增强**: 优化 Tailwind 配置以支持语义化 Token 的透明度修饰符（如 `text-textSecondary/80`），通过 `color-mix` 技术实现动态透明度处理。

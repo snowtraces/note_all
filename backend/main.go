@@ -2,16 +2,49 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"log"
 	"os"
 
 	"note_all_backend/database"
 	"note_all_backend/global"
+	"note_all_backend/mcp"
 	"note_all_backend/router"
 	"note_all_backend/service"
+
+	"gorm.io/gorm/logger"
 )
 
 func main() {
+	// 解析命令行参数
+	mcpMode := flag.Bool("mcp", false, "以 MCP 协议(SSE/HTTP)模式启动服务")
+	flag.Parse()
+
+	if *mcpMode {
+		// 0. 加载配置
+		configBytes, err := os.ReadFile("config.json")
+		if err != nil {
+			log.Printf("读取 config.json 失败，尝试以默认配置运行: %v\n", err)
+		} else if err := json.Unmarshal(configBytes, &global.Config); err != nil {
+			log.Fatalf("解析 config.json 失败: %v", err)
+		}
+
+		// 1. 仅初始化底层核心组件，不启动 Gin Web、微信机器人、自动同步等
+		database.InitSystem()
+		service.InitWorker()
+
+		// 彻底关闭 GORM SQL 日志打印到 stdout，保持控制台整洁
+		if global.DB != nil {
+			global.DB.Logger = global.DB.Logger.LogMode(logger.Silent)
+		}
+
+		log.Println("Note-All 正在以 MCP 服务端模式启动（SSE 传输协议）...")
+
+		// 启动 MCP 服务端协议，开始监听 stdin/stdout 传输流
+		mcp.StartServer()
+		return
+	}
+
 	// 0. 加载配置
 	configBytes, err := os.ReadFile("config.json")
 	if err != nil {

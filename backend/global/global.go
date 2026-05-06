@@ -36,6 +36,7 @@ type AppConfig struct {
 	JwtSecret        string `json:"jwt_secret"`   // JWT 加密密钥
 	ImageApiUrl      string `json:"image_api_url"`
 	ImageApiToken    string `json:"image_api_token"`
+	McpToken         string `json:"mcp_token"`         // MCP 服务的访问 Token
 
 	// 分片配置
 	ChunkMaxSize    int `json:"chunk_max_size"`    // 单片最大字符数，默认 500
