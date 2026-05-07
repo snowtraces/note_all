@@ -523,6 +523,9 @@ export const InlineMathDecorations = Extension.create({
           const decorations = [];
 
           doc.descendants((node, pos) => {
+            if (node.type.name === 'codeBlock' || node.type.name === 'code_block') {
+              return false;
+            }
             if (node.isBlock && node.isTextblock) {
               const text = node.textContent;
               const mathRegex = /\$([^\$\n]+)\$/g;
@@ -536,6 +539,18 @@ export const InlineMathDecorations = Extension.create({
 
                 const start = pos + 1 + match.index;
                 const end = start + match[0].length;
+
+                // 检查匹配到的文本是否在行内代码 (code mark) 中
+                let hasCodeMark = false;
+                doc.nodesBetween(start, end, (child) => {
+                  if (child.isInline && child.marks.some(mark => mark.type.name === 'code')) {
+                    hasCodeMark = true;
+                  }
+                });
+
+                if (hasCodeMark) {
+                  continue;
+                }
 
                 const isCursorInside = selection &&
                   ((selection.from >= start && selection.from <= end) ||

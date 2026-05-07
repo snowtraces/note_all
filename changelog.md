@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+- **Markdown 行内数学公式解析优化 (Inline Math Parsing Fix)**:
+  - **防止代码块/行内代码误解析**: 在 `InlineMathDecorations` 遍历 ProseMirror 节点时，显式忽略 `codeBlock` (代码块) 节点的子孙，并使用 `doc.nodesBetween` 检查匹配范围中的文本是否被 `code` 标记 (行内代码) 包裹。如是，则不进行公式解析，彻底解决了在代码块或行内代码中含有的 `$xx$` 符号被错误尝试渲染为 KaTeX 数学公式导致格式错乱、产生红字渲染错误的 Bug。
 - **MCP 协议支持与内置合流服务端 (Model Context Protocol SSE Server & Token Authorization)**:
   - **HTTP SSE 鉴权传输**: 基于 `github.com/mark3labs/mcp-go` 实现了 Model Context Protocol (MCP) 标准，采用 Server-Sent Events (SSE) 协议进行单向事件传输。
   - **Gin 主路由无缝合流**: 在 `router.go` 中直接将 MCP 接口 `/sse` (GET) 和 `/message` (POST) 注册在 Gin 主路由组上，共享 **`:3344`** 端口。实现单进程、一键式并发运行网页端与 AI 客户端连接。
