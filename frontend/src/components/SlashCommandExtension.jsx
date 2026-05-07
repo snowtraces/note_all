@@ -204,6 +204,14 @@ const SlashCommand = Extension.create({
         allowedPrefixes: [' ', '\n', ''],
         decorationClass: 'slash-command-decoration',
         findSuggestionMatch: ({ $position }) => {
+          // 如果当前在代码块中，或者处于行内代码 (code mark) 中，不触发斜杠命令
+          if ($position.parent.type.name === 'codeBlock' || $position.parent.type.name === 'code_block') {
+            return null;
+          }
+          if ($position.marks().some(mark => mark.type.name === 'code')) {
+            return null;
+          }
+
           const textBefore = $position.parent.textContent.slice(0, $position.parentOffset);
 
           // 匹配以 / 开头，后面跟着非空格字符的串

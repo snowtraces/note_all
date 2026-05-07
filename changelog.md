@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+- **斜杠指令环境屏蔽优化 (Slash Command Exclusions in Code Context)**:
+  - **防止代码环境误触发**: 在 `SlashCommand` 插件匹配规则 `findSuggestionMatch` 中，深度校验光标当前选区的父节点类型与 active marks。如果当前父节点为 `codeBlock` 或 `code_block` (即多行代码块内)，或者检测到光标处含有 `code` 标记 (即行内代码内)，则自动返回 `null`，不再触发快捷命令弹出菜单。彻底解决了在编写系统路径、注释中带 `/` 的字符时频繁弹窗打断思路的恼人问题。
 - **超长代码块折叠与收起功能 (Code Block Folding & Collapsing)**:
   - **默认折叠限高**: 针对超过 20 行的代码块，初始挂载时默认进行折叠，高度限制为 `350px`，并通过极其优雅的 `linear-gradient` 渐变遮罩实现代码的自然渐隐淡出效果。
   - **智能输入保障**: 配合 `useRef` 及 `useEffect` 侦听，当用户在编辑代码块的过程中，如果行数突破 20 行，会自动展开代码块而不执行强行折叠，确保打断零感、提供流畅的输入体验。
