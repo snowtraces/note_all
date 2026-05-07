@@ -187,6 +187,20 @@ export const CodeBlockComponent = ({ node, updateAttributes, editor }) => {
   const scrollContainerRef = useRef(null);
   const copyTimerRef = useRef(null);
 
+  const [isCollapsed, setIsCollapsed] = useState(true);
+  const linesCount = node.textContent.split('\n').length;
+  const isTooLong = linesCount > 20; // 超过 20 行算超长
+  const displayCollapsed = isTooLong && isCollapsed;
+  const lastLinesCount = useRef(linesCount);
+
+  useEffect(() => {
+    if (isEditable && linesCount > 20 && lastLinesCount.current <= 20) {
+      // 在编辑状态下，如果行数是从 20 行以内涨到 20 行以上，自动展开，避免打断用户输入
+      setIsCollapsed(false);
+    }
+    lastLinesCount.current = linesCount;
+  }, [linesCount, isEditable]);
+
   const handleCopy = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -325,9 +339,44 @@ export const CodeBlockComponent = ({ node, updateAttributes, editor }) => {
             )}
           </button>
         </div>
-        <pre className="p-4 overflow-x-auto custom-scrollbar text-[14px] font-mono leading-relaxed whitespace-pre-wrap break-words">
-          <NodeViewContent as="code" />
-        </pre>
+        <div className="relative">
+          <pre 
+            style={displayCollapsed ? { maxHeight: '350px', overflowY: 'hidden' } : { maxHeight: 'none' }}
+            className="p-4 overflow-x-auto custom-scrollbar text-[14px] font-mono leading-relaxed whitespace-pre-wrap break-words transition-all duration-300"
+          >
+            <NodeViewContent as="code" />
+          </pre>
+          {displayCollapsed && (
+            <div 
+              style={{ background: 'linear-gradient(to top, var(--bg-code) 0%, transparent 100%)' }}
+              className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none z-10" 
+            />
+          )}
+        </div>
+        {isTooLong && (
+          <div className="flex justify-center pb-3 pt-1 border-t border-borderSubtle/30 bg-code-header/30" contentEditable={false}>
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-textSecondary hover:text-primeAccent hover:bg-primeAccent/10 rounded-lg transition-all font-medium"
+            >
+              {isCollapsed ? (
+                <>
+                  <span>展开代码 ({linesCount} 行)</span>
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="mt-0.5">
+                    <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </>
+              ) : (
+                <>
+                  <span>收起代码</span>
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="mt-0.5 rotate-180">
+                    <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </>
+              )}
+            </button>
+          </div>
+        )}
         {(language === 'mermaid' || language === 'math' || language === 'latex') && (
           <div className="bg-sidebar border-t border-borderSubtle p-4 flex flex-col items-center justify-center overflow-x-auto min-h-[60px]" contentEditable={false}>
             {previewError ? (

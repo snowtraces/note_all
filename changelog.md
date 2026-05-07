@@ -1,6 +1,10 @@
 # Changelog
 
 ## [Unreleased]
+- **超长代码块折叠与收起功能 (Code Block Folding & Collapsing)**:
+  - **默认折叠限高**: 针对超过 20 行的代码块，初始挂载时默认进行折叠，高度限制为 `350px`，并通过极其优雅的 `linear-gradient` 渐变遮罩实现代码的自然渐隐淡出效果。
+  - **智能输入保障**: 配合 `useRef` 及 `useEffect` 侦听，当用户在编辑代码块的过程中，如果行数突破 20 行，会自动展开代码块而不执行强行折叠，确保打断零感、提供流畅的输入体验。
+  - **展开/收起切换**: 在代码块底部挂载了轻量语义化的展开/收起交互控制条，显示如 “展开代码 (32 行)” 的精确行数提示。支持秒开与二次收起折叠，无论在编辑模式（Editor）还是只读渲染器中均能无缝运作。
 - **Markdown 行内数学公式解析优化 (Inline Math Parsing Fix)**:
   - **防止代码块/行内代码误解析**: 在 `InlineMathDecorations` 遍历 ProseMirror 节点时，显式忽略 `codeBlock` (代码块) 节点的子孙，并使用 `doc.nodesBetween` 检查匹配范围中的文本是否被 `code` 标记 (行内代码) 包裹。如是，则不进行公式解析，彻底解决了在代码块或行内代码中含有的 `$xx$` 符号被错误尝试渲染为 KaTeX 数学公式导致格式错乱、产生红字渲染错误的 Bug。
 - **MCP 协议支持与内置合流服务端 (Model Context Protocol SSE Server & Token Authorization)**:
