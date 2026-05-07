@@ -18,7 +18,7 @@ func SetupRouter() *gin.Engine {
 	r := gin.Default()
 	r.Use(gzip.Gzip(gzip.DefaultCompression,
 		gzip.WithExcludedExtensions([]string{".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".svg", ".woff2"}),
-		gzip.WithExcludedPaths([]string{"/api/stream"}),
+		gzip.WithExcludedPaths([]string{"/api/stream", "/sse", "/message"}),
 	))
 	// CORS 中间件
 	r.Use(func(c *gin.Context) {
@@ -61,7 +61,14 @@ func SetupRouter() *gin.Engine {
 			return
 		}
 
-		// 路由鉴权通过，直接转交给 mcp-go 的 SSE 传输引擎接管
+		// 注入 SSE 与防缓冲响应头，保证长连接不被反向代理、CDN 或中间层断开
+		c.Header("Content-Type", "text/event-stream")
+		c.Header("Cache-Control", "no-cache")
+		c.Header("Connection", "keep-alive")
+		c.Header("X-Accel-Buffering", "no")      // 彻底关闭 Nginx 等反向代理的缓存缓冲
+		c.Header("Content-Encoding", "identity") // 明确通知 Cloudflare 等 CDN 绝对不要对此流进行压缩，直接直通，彻底避免边缘缓冲
+
+		// 路由鉴权通过，直接转交给 mcp-go 的 SSE 传输引擎接管（此时已彻底绕过 Gzip 压缩，确保 100% 原生 Flusher 畅通）
 		sseServer.ServeHTTP(c.Writer, c.Request)
 	}
 
