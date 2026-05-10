@@ -190,12 +190,26 @@ Note All MCP 服务端不再受限于 Stdio 的本地管道限制，支持网络
 - **消息发送接口 (POST)**：`http://localhost:3344/message?token=note-all-mcp-token-123456`
 
 ### 本地集成调试方法
-调试 SSE 服务可以通过 MCP Inspector 连接：
+调试 SSE 服务可以通过 MCP Inspector 建立连接，注意**不能直接将 URL 作为位置参数传入**（这会被解析为 STDIO 模式的可执行命令路径）。
+
+有以下两种正确的调试连接方法：
+
+#### 方法 1：使用 `--sse` 参数一键启动命令行（推荐）
+在启动命令中显式加入 `--sse` 标志。在终端或 Shell 中建议使用双引号包裹带有特殊参数的 URL：
 ```bash
-# 使用 MCP Inspector 调试 SSE 服务端
-npx -y @modelcontextprotocol/inspector http://localhost:3344/sse?token=note-all-mcp-token-123456
+npx -y @modelcontextprotocol/inspector --sse "http://localhost:3344/sse?token=note-all-mcp-token-123456"
 ```
-> 通过 MCP Inspector 可以可视化查看已注册的 `tools` 和 `resources`，并在网页中模拟 AI 客户端发起调用。
+
+#### 方法 2：通过 Web UI 交互式连接
+1. 在终端中直接运行无附加参数的命令启动 Inspector：
+   ```bash
+   npx -y @modelcontextprotocol/inspector
+   ```
+2. 在浏览器中打开调试网页（默认地址：`http://localhost:6274`）。
+3. 在左侧连接面板中，将 **Transport** 下拉框由 `STDIO` 切换为 **`SSE`**。
+4. 在 **URL** 输入框中填入：`http://localhost:3344/sse?token=note-all-mcp-token-123456`，点击 **Connect** 即可完美连接。
+
+> 通过 MCP Inspector 连接成功后，可以可视化查看已注册的 `tools` 和 `resources`，并在网页中模拟 AI 客户端发起调用。
 
 ---
 
@@ -239,12 +253,8 @@ npx -y @modelcontextprotocol/inspector http://localhost:3344/sse?token=note-all-
 {
   "mcpServers": {
     "note-all-sse": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/client-cli",
-        "http://localhost:3344/sse?token=note-all-mcp-token-123456"
-      ]
+      "type": "sse",
+      "url": "http://localhost:3344/sse?token=note-all-mcp-token-123456"
     }
   }
 }

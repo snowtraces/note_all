@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+- **MCP 客户端配置文档修正 (MCP Client Configuration Spec Update)**:
+  - **更新 SSE 挂载示例**: 将 `spec_c1_mcp_server.md` 中关于 Claude Desktop 的 `claude_desktop_config.json` 挂载示例修正为标准的 `"type": "sse"` 与 `"url"` 参数格式，移除过时的 npx @modelcontextprotocol/client-cli 桥接调用，提升主流 MCP 客户端的接入敏捷性。
 - **斜杠指令环境屏蔽优化 (Slash Command Exclusions in Code Context)**:
   - **防止代码环境误触发**: 在 `SlashCommand` 插件匹配规则 `findSuggestionMatch` 中，深度校验光标当前选区的父节点类型与 active marks。如果当前父节点为 `codeBlock` 或 `code_block` (即多行代码块内)，或者检测到光标处含有 `code` 标记 (即行内代码内)，则自动返回 `null`，不再触发快捷命令弹出菜单。彻底解决了在编写系统路径、注释中带 `/` 的字符时频繁弹窗打断思路的恼人问题。
 - **超长代码块折叠与收起功能 (Code Block Folding & Collapsing)**:
