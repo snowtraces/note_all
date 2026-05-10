@@ -17,7 +17,7 @@ import { HeadingIdPatch } from './HeadingIdPatch';
 
 export function getCommonExtensions({ markdownClipboard = false } = {}) {
   return [
-    StarterKit.configure({ codeBlock: false }),
+    StarterKit.configure({ codeBlock: false, link: false }),
     Markdown.configure({
       html: true,
       ...(markdownClipboard ? { transformPastedText: true, transformCopiedText: true } : {}),

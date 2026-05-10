@@ -265,6 +265,19 @@
   outline: none;
 }
 
+/* mermaid/math 预览区 */
+.mermaid-preview svg {
+  display: block;
+  max-width: 680px;
+  width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.math-preview {
+  text-align: center;
+}
+
 /* ============ 代码块高亮 (Prism.js) ============ */
 
 /* 深色模式 (基于 GitHub Dark Dimmed 风格) */
