@@ -54,10 +54,10 @@ type WeixinQRCodeResp struct {
 // WeixinStatusResp 轮询状态响应
 type WeixinStatusResp struct {
 	Status      string `json:"status"` // wait, scaned, confirmed, expired
-	BotToken    string `json:"-"`      // 不向前端暴露
+	BotToken    string `json:"bot_token"` // 内部 unmarshal 需要，前端返回时由 API 层过滤
 	IlinkBotID  string `json:"ilink_bot_id"`
 	IlinkUserID string `json:"ilink_user_id"`
-	BaseURL     string `json:"-"`      // 不向前端暴露
+	BaseURL     string `json:"baseurl"`   // 内部 unmarshal 需要，前端返回时由 API 层过滤
 }
 
 // GetWeixinQRCode 获取登录二维码
@@ -200,6 +200,7 @@ func StartWeixinBotPolling(credID uint) {
 					"is_active":   false,
 					"updates_buf": "", // 失效时清空游标
 				})
+				global.SSEBus.Publish("weixin_status")
 				return
 			}
 
@@ -215,6 +216,7 @@ func StartWeixinBotPolling(credID uint) {
 					processWeixinMessage(cred, msg)
 				}
 			}
+			global.SSEBus.Publish("weixin_msg")
 
 			// 轮询成功，更新下一次轮询的耗时建议 (如果有)
 			if resp.LongpollingTimeoutMs > 0 {

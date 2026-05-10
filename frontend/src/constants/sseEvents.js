@@ -23,6 +23,18 @@ const SSE_EVENT_MAP = {
     duration: 4000,
     action: 'review_ready',
   },
+  weixin_msg: {
+    message: '收到微信新消息',
+    type: 'info',
+    duration: 0,
+    action: 'weixin_msg',
+  },
+  weixin_status: {
+    message: '微信 Bot 状态变化',
+    type: 'info',
+    duration: 3000,
+    action: 'weixin_status',
+  },
 };
 
 /**

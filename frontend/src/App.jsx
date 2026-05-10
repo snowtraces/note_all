@@ -89,6 +89,10 @@ function AppContent() {
           window.dispatchEvent(new Event('IMAGE_GEN_REFRESH'));
         } else if (eventConfig.action === 'review_ready') {
           window.dispatchEvent(new Event('REVIEW_READY'));
+        } else if (eventConfig.action === 'weixin_msg') {
+          window.dispatchEvent(new Event('WEIXIN_MSG'));
+        } else if (eventConfig.action === 'weixin_status') {
+          window.dispatchEvent(new Event('WEIXIN_STATUS'));
         }
         showToast(eventConfig.message, {
           duration: eventConfig.duration,

@@ -90,7 +90,12 @@ func (a *WeixinApi) CheckStatus(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": resp})
+	// 不向前端暴露 BotToken 和 BaseURL
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{
+		"status":        resp.Status,
+		"ilink_bot_id":  resp.IlinkBotID,
+		"ilink_user_id": resp.IlinkUserID,
+	}})
 }
 
 // ListMessages 获取最近的消息记录

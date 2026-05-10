@@ -34,8 +34,6 @@ export default function WeixinTab() {
 
   useEffect(() => {
     fetchBot();
-    const timer = setInterval(fetchBot, 10000);
-    return () => clearInterval(timer);
   }, []);
 
   const fetchQRCode = async () => {
@@ -99,22 +97,25 @@ export default function WeixinTab() {
     return () => clearInterval(timer);
   }, [status, qrData]);
 
-  // 消息轮询
+  // SSE 事件驱动：收到推送时刷新消息和状态，不再轮询
   useEffect(() => {
-    let timer;
+    const onMsg = () => {
+      getWeixinMessages().then(data => setMessages(data || [])).catch(e => console.error(e));
+    };
+    const onStatus = () => { fetchBot(); };
+    window.addEventListener('WEIXIN_MSG', onMsg);
+    window.addEventListener('WEIXIN_STATUS', onStatus);
+    return () => {
+      window.removeEventListener('WEIXIN_MSG', onMsg);
+      window.removeEventListener('WEIXIN_STATUS', onStatus);
+    };
+  }, []);
+
+  // 初次进入已绑定状态时加载消息
+  useEffect(() => {
     if (status === 'confirmed') {
-      const fetchMsgs = async () => {
-        try {
-          const data = await getWeixinMessages();
-          setMessages(data || []);
-        } catch (e) {
-          console.error('Fetch messages error:', e);
-        }
-      };
-      fetchMsgs();
-      timer = setInterval(fetchMsgs, 5000);
+      getWeixinMessages().then(data => setMessages(data || [])).catch(e => console.error('Fetch messages error:', e));
     }
-    return () => clearInterval(timer);
   }, [status]);
 
   // 自动滚动

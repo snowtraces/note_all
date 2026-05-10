@@ -148,7 +148,12 @@ func SendTaskNotification(taskName string, runLog *models.CronTaskLog, notifStr 
 
 				for _, cred := range activeCreds {
 					if cred.IlinkUserID != "" && !sentUsers[cred.IlinkUserID] {
-						ReplyText(cred, cred.IlinkUserID, msgText, "")
+						var ownerCtx models.WeixinUserContext
+						token := ""
+						if global.DB.Where("bot_id = ? AND user_id = ?", cred.IlinkBotID, cred.IlinkUserID).First(&ownerCtx).Error == nil {
+							token = ownerCtx.ContextToken
+						}
+						ReplyText(cred, cred.IlinkUserID, msgText, token)
 						log.Printf("[Notifier] 已向 Bot 拥有者管理员发送微信通知 (Task: %s, Owner: %s)", taskName, cred.IlinkUserID)
 					}
 				}
