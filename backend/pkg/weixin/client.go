@@ -99,8 +99,8 @@ func (c *WechatClient) DoRequest(ctx context.Context, method, path string, body 
 	return respBytes, nil
 }
 
-// SendMessage 发送微信消息
-func (c *WechatClient) SendMessage(ctx context.Context, toUserID, clientID, contextToken string, items []MessageItem) error {
+// SendMessage 发送微信消息，返回响应 (含可能的续期 context_token)
+func (c *WechatClient) SendMessage(ctx context.Context, toUserID, clientID, contextToken string, items []MessageItem) (*SendMessageResp, error) {
 	body := map[string]interface{}{
 		"msg": map[string]interface{}{
 			"to_user_id":    toUserID,
@@ -113,8 +113,21 @@ func (c *WechatClient) SendMessage(ctx context.Context, toUserID, clientID, cont
 		"base_info": BuildBaseInfo(),
 	}
 
-	_, err := c.DoRequest(ctx, "POST", "/ilink/bot/sendmessage", body)
-	return err
+	respBytes, err := c.DoRequest(ctx, "POST", "/ilink/bot/sendmessage", body)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp SendMessageResp
+	if err := json.Unmarshal(respBytes, &resp); err != nil {
+		return nil, err
+	}
+
+	if resp.Ret != 0 {
+		return &resp, fmt.Errorf("sendmessage logic error (ret=%d, errcode=%d): %s", resp.Ret, resp.Errcode, resp.Errmsg)
+	}
+
+	return &resp, nil
 }
 
 func BuildBaseInfo() BaseInfo {

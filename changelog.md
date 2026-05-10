@@ -1,6 +1,19 @@
 # Changelog
 
 ## [Unreleased]
+- **定时任务、自动化精准抓取与全局安全推送系统 (Scheduled Tasks, Custom Web Scraping & Multi-Channel Secure Notifications) [Phase E1]**:
+  - **常驻周期调度守护引擎 (Cron Scheduler Core)**: 实现了 1 分钟精度的高效 Ticker 常驻后台守护协程，支持两类主流时间计划配置：⏱️ 基于分钟级的时间周期频率间隔（如 `"1440"` 代表 24 小时）、📅 基于每日固定时间点（如 `"09:30"`）的无锁化智能重算。后台轮询过程自带隔离式的崩溃防护（`recover`）与 Panic 日志持久化，防止异常断网或解析失败时主服务终止。
+  - **双模式网页精准提取爬虫 (Selector-Based Precision Ingestion & Fallback)**: 构建了 `WebCrawlerTaskHandler` 网页爬虫。支持提取多个链接、域名级频率限制延迟机制（任务级配置 `rate_limit_ms` 以 `time.Sleep` 睡眠间隔），完美阻断反爬封锁。支持基于 URL 正则表达式自动匹配，在匹配成功时由 `goquery` 通过自定义的 Title/Body DOM CSS 筛选并剔除 `ExcludeSelectors` 的无用干扰元素，最后使用 `html-to-markdown` 渲染出干净正文；在未匹配成功时，自动无损智能降级（Fallback）至系统原生的 Jina Reader/Readability 双提取通道并无缝入列 LLM 异步打标摘要 RAG 流水线。
+  - **三合一安全多渠道推送系统 (SMTP / Webhook Notification Hub)**:
+    - 统一推送分发器支持发信、群通知。
+    - **发信渠道 (SMTP)**: 兼容标准端口 25/587 明文/显式发信、以及 465 隐式 TLS 发件安全，完美兼容主流发信通道。
+    - **群通知渠道 (Webhook)**: 针对企业微信/钉钉等标准群机器人 Webhook，实现了动态 JSON 推送上报，展示任务成败摘要。
+    - **iLink 微信 Bot 关联推送 (Bot Push)**: 深度打通微信助手。若触发微信推送且 Bot 在线，会动态溯源系统中已授权的 `WeixinUserContext` 交互游标上下文，向活跃用户发送本次执行简报。
+  - **Gin REST API 接口层控制器 (REST Endpoints)**: 新增了 `api/cron_task.go` 下的 `CronApi`。提供了全套任务计划 CRUD、日志分页历史详情查询 (`GetTaskLogs`)、自定义网页提取规则 CRUD、以及全局安全推送设置接口。支持对 SMTP 密码返回时自动转换为 `*************` 脱敏占位符，并在当前更新时若传占位符则智能保留数据库旧值的防覆盖功能。
+  - **一站式定时任务控制面板 (Settings Tab UI)**:
+    - 在 React 前端的 `SettingsModal` 模态窗中，全新增设了「定时任务」管理 Tab。
+    - 包含三个沉浸式的毛玻璃子视图：**任务计划管理** (创建/编辑任务、快速触发 ⚡️、日志展示)、**网页匹配抽取规则** (添加特定网站的 CSS 提纯规则、URL 正则匹配校验)、**全局通知触点** (配置发件服务器及企微机器人 Webhook)。
+    - 完成了全套 API 双向数据绑定，支持 Vite 编译并且通过了 100% 的生产构建打包。
 - **MCP 客户端配置文档修正 (MCP Client Configuration Spec Update)**:
   - **更新 SSE 挂载示例**: 将 `spec_c1_mcp_server.md` 中关于 Claude Desktop 的 `claude_desktop_config.json` 挂载示例修正为标准的 `"type": "sse"` 与 `"url"` 参数格式，移除过时的 npx @modelcontextprotocol/client-cli 桥接调用，提升主流 MCP 客户端的接入敏捷性。
 - **斜杠指令环境屏蔽优化 (Slash Command Exclusions in Code Context)**:

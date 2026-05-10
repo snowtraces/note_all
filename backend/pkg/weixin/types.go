@@ -72,6 +72,14 @@ type GetUpdatesResp struct {
 	LongpollingTimeoutMs int             `json:"longpolling_timeout_ms"`
 }
 
+// SendMessageResp 发送消息响应结构
+type SendMessageResp struct {
+	Ret          int    `json:"ret"`
+	Errcode      int    `json:"errcode"`
+	Errmsg       string          `json:"errmsg"`
+	ContextToken string `json:"context_token"`
+}
+
 // GetUpdates 封装获取更新的请求
 func (c *WechatClient) GetUpdates(ctx context.Context, buf string) (*GetUpdatesResp, error) {
 	body := map[string]interface{}{

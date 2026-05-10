@@ -394,9 +394,15 @@ function AppContent() {
       <div className="order-last md:order-first z-[60] shrink-0 border-t md:border-t-0 md:border-r border-borderSubtle bg-sidebar">
         <NavRail 
           viewMode={viewMode}
-          setViewMode={setViewMode}
+          setViewMode={(mode) => {
+            setViewMode(mode);
+            setShowSettings(false);
+          }}
           showTrash={showTrash}
-          setShowTrash={setShowTrash}
+          setShowTrash={(val) => {
+            setShowTrash(val);
+            setShowSettings(false);
+          }}
           setShowSettings={setShowSettings}
           setSelectedItem={guardedSetSelectedItem}
           labBasket={labBasket}

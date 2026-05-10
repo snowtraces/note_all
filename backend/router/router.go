@@ -201,6 +201,25 @@ func SetupRouter() *gin.Engine {
 		apiGroup.POST("/system/embedding/rebuild", systemApi.RebuildEmbeddings)
 		apiGroup.POST("/system/synonym/sync", systemApi.SyncSynonyms)
 		apiGroup.GET("/system/synonym/status", systemApi.GetSynonymStatus)
+
+		// 12. 定时任务及网页匹配规则管理 (Phase E1)
+		cronApi := new(api.CronApi)
+		apiGroup.GET("/cron-tasks", cronApi.ListTasks)
+		apiGroup.POST("/cron-tasks", cronApi.CreateTask)
+		apiGroup.PUT("/cron-tasks/:id", cronApi.UpdateTask)
+		apiGroup.DELETE("/cron-tasks/:id", cronApi.DeleteTask)
+		apiGroup.PUT("/cron-tasks/:id/toggle", cronApi.ToggleTask)
+		apiGroup.POST("/cron-tasks/:id/run", cronApi.RunTask)
+		apiGroup.GET("/cron-tasks/:id/logs", cronApi.GetTaskLogs)
+
+		apiGroup.GET("/extractor-rules", cronApi.ListRules)
+		apiGroup.POST("/extractor-rules", cronApi.CreateRule)
+		apiGroup.PUT("/extractor-rules/:id", cronApi.UpdateRule)
+		apiGroup.DELETE("/extractor-rules/:id", cronApi.DeleteRule)
+		apiGroup.POST("/extractor-rules/test", cronApi.TestRule)
+
+		apiGroup.GET("/cron-settings", cronApi.GetSettings)
+		apiGroup.PUT("/cron-settings", cronApi.UpdateSettings)
 	}
 
 	// ====================== 静态资源与 SPA 路由逻辑 ======================

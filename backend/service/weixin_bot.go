@@ -372,6 +372,7 @@ func handleWeixinText(cred models.WeixinBotCredential, userID, text, contextToke
 }
 
 // ReplyText 快捷发送文本回复 (已导出，供 API 调用)
+// 发送成功后自动用响应中的 context_token 续期会话
 func ReplyText(cred models.WeixinBotCredential, toUserID, text, contextToken string) {
 	client := weixin.NewWechatClient(cred.BaseURL, cred.BotToken)
 	clientID := fmt.Sprintf("reply-%d-%d", cred.ID, time.Now().UnixNano())
@@ -383,11 +384,28 @@ func ReplyText(cred models.WeixinBotCredential, toUserID, text, contextToken str
 		},
 	}
 
-	if err := client.SendMessage(context.Background(), toUserID, clientID, contextToken, items); err != nil {
+	resp, err := client.SendMessage(context.Background(), toUserID, clientID, contextToken, items)
+	if err != nil {
 		log.Printf("[Wechat][%s] 发送回复失败: %v", cred.IlinkBotID, err)
-	} else {
-		saveWeixinInteraction(cred.IlinkBotID, toUserID, text, 1, "outgoing")
+		return
 	}
+
+	// 续期：响应中的 context_token 保存到数据库，下次推送可用
+	if resp.ContextToken != "" {
+		var ctx models.WeixinUserContext
+		global.DB.Where("bot_id = ? AND user_id = ?", cred.IlinkBotID, toUserID).First(&ctx)
+		ctx.BotID = cred.IlinkBotID
+		ctx.UserID = toUserID
+		ctx.ContextToken = resp.ContextToken
+		if ctx.ID == 0 {
+			global.DB.Create(&ctx)
+		} else {
+			global.DB.Save(&ctx)
+		}
+		log.Printf("[Wechat][%s] context_token 续期成功 (User: %s)", cred.IlinkBotID, toUserID)
+	}
+
+	saveWeixinInteraction(cred.IlinkBotID, toUserID, text, 1, "outgoing")
 }
 
 // saveWeixinInteraction 持久化互动记录到数据库，供前端会话功能使用

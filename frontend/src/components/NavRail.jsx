@@ -156,7 +156,7 @@ export default function NavRail({
       {/* Bottom Area - On mobile make it part of horizontal row */}
       <div className="flex md:mt-auto px-2 flex-row md:flex-col gap-1 md:gap-4 items-center">
         <button
-          onClick={() => setShowSettings(true)}
+          onClick={() => setShowSettings(prev => !prev)}
           title="设置"
           className={`w-12 h-12 shrink-0 md:w-full md:aspect-square flex items-center justify-center md:rounded-2xl rounded-xl transition-all group text-textTertiary hover:bg-bgHover hover:text-textPrimary`}
         >

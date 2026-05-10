@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"log"
@@ -57,6 +58,10 @@ func main() {
 	database.InitSystem()
 	service.InitWorker()
 	service.InitActiveWeixinBots()
+
+	// 1.1 启动定时任务后台调度轮询器
+	go service.StartCronScheduler(context.Background())
+
 	log.Println("Note-All 后端底层架构组件初始化成功...")
 
 	// 1.5 向量重建已移至设置页面 (POST /api/system/embedding/rebuild)
