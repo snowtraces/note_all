@@ -22,14 +22,7 @@ func SetupRouter() *gin.Engine {
 	))
 	// CORS 中间件
 	r.Use(func(c *gin.Context) {
-		origin := c.GetHeader("Origin")
-		allowedOrigins := []string{"http://localhost:5173", "http://localhost:3344", "http://127.0.0.1:5173", "http://127.0.0.1:3344"}
-		for _, o := range allowedOrigins {
-			if o != "" && o == origin {
-				c.Writer.Header().Set("Access-Control-Allow-Origin", o)
-				break
-			}
-		}
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE, PATCH")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 		if c.Request.Method == "OPTIONS" {
