@@ -8,18 +8,15 @@ import { TableHeader } from '@tiptap/extension-table-header';
 import { TaskList } from '@tiptap/extension-task-list';
 import { TaskItem } from '@tiptap/extension-task-item';
 import { Highlight } from '@tiptap/extension-highlight';
-import { Underline } from '@tiptap/extension-underline';
 import { Typography } from '@tiptap/extension-typography';
 import { Markdown } from 'tiptap-markdown';
 import { Link } from '@tiptap/extension-link';
 
 import './MarkdownEditor.css';
-import { 
-  CustomImage, 
-  CustomCodeBlock, 
-  InlineMathDecorations, 
-  HeadingIdPatch 
-} from './MarkdownEditor';
+import { CustomImage } from './editor/TiptapImage';
+import { CustomCodeBlock } from './editor/TiptapCodeBlock';
+import { InlineMathDecorations } from './editor/InlineMathDecorations';
+import { HeadingIdPatch } from './editor/HeadingIdPatch';
 
 const MarkdownRenderer = React.memo(({ content, className = '' }) => {
   const containerRef = useRef(null);
