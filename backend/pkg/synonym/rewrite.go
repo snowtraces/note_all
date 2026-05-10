@@ -2,21 +2,29 @@ package synonym
 
 import (
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"note_all_backend/global"
 	"note_all_backend/models"
 
-	"github.com/go-ego/gse"
+	"github.com/yanyiwu/gojieba"
 )
 
-var segmenter gse.Segmenter
+var jieba *gojieba.Jieba
 
 func init() {
-	err := segmenter.LoadDict("./libs/gse/zh/s_1.txt", "./libs/gse/zh/t_1.txt")
-	if err != nil {
-		log.Printf("[Synonym] 载入分词字典失败: %v", err)
-	}
+	exePath, _ := os.Executable()
+	dictDir := filepath.Join(filepath.Dir(exePath), "libs", "jieba")
+
+	jieba = gojieba.NewJieba(
+		filepath.Join(dictDir, "jieba.dict.utf8"),
+		filepath.Join(dictDir, "hmm_model.utf8"),
+		filepath.Join(dictDir, "user.dict.utf8"),
+		filepath.Join(dictDir, "idf.utf8"),
+		filepath.Join(dictDir, "stop_words.utf8"),
+	)
 }
 
 // isNoun 判断词性是否为名词 (n, nr, ns, nt, nz 等)
@@ -27,8 +35,8 @@ func isNoun(pos string) bool {
 // RewriteQuery 使用同义词词典重写查询，仅对名词扩展
 func RewriteQuery(query string) []string {
 	// 1. 分词并获取词性
-	segments := segmenter.Cut(query, true)
-	posTags := segmenter.Pos(query, true)
+	segments := jieba.Cut(query, true)
+	posTags := jieba.Tag(query)
 
 	log.Printf("[Synonym] Query: %s, Segments: %v, Pos: %v", query, segments, posTags)
 
@@ -37,7 +45,10 @@ func RewriteQuery(query string) []string {
 	// 2. 构建词性映射
 	posMap := make(map[string]string)
 	for _, tag := range posTags {
-		posMap[tag.Text] = tag.Pos
+		parts := strings.SplitN(tag, "/", 2)
+		if len(parts) == 2 {
+			posMap[parts[0]] = parts[1]
+		}
 	}
 
 	// 3. 只对名词进行同义词扩展

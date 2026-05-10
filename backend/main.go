@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"flag"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"note_all_backend/database"
 	"note_all_backend/global"
@@ -36,14 +38,12 @@ func main() {
 		database.InitSystem()
 		service.InitWorker()
 
-		// 彻底关闭 GORM SQL 日志打印到 stdout，保持控制台整洁
 		if global.DB != nil {
 			global.DB.Logger = global.DB.Logger.LogMode(logger.Silent)
 		}
 
 		log.Println("Note-All 正在以 MCP 服务端模式启动（SSE 传输协议）...")
 
-		// 启动 MCP 服务端协议，开始监听 stdin/stdout 传输流
 		mcp.StartServer()
 		return
 	}
@@ -65,25 +65,44 @@ func main() {
 	schedulerCtx, schedulerCancel := context.WithCancel(context.Background())
 	go service.StartCronScheduler(schedulerCtx)
 
-	// 优雅退出：捕获 SIGINT/SIGTERM，取消调度器
-	go func() {
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-		<-sigCh
-		log.Println("[Main] 收到退出信号，正在关闭调度器...")
-		schedulerCancel()
-	}()
-
-	log.Println("Note-All 后端底层架构组件初始化成功...")
-
-	// 1.5 向量重建已移至设置页面 (POST /api/system/embedding/rebuild)
-
 	// 2. 装载网络层路由 (Gin)
 	r := router.SetupRouter()
 
-	// 3. 开始在 3344 端口驻留监听服务请求
+	srv := &http.Server{
+		Addr:    ":3344",
+		Handler: r,
+	}
+
+	// 3. 优雅退出：捕获 SIGINT/SIGTERM，依次关闭 HTTP server、调度器、微信 Bot
+	go func() {
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+		sig := <-sigCh
+		log.Printf("[Main] 收到退出信号 (%v)，开始优雅关闭...", sig)
+
+		// 关闭 HTTP server (5秒超时等待现有请求完成)
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Printf("[Main] HTTP server 关闭异常: %v", err)
+		}
+
+		// 取消调度器 context
+		schedulerCancel()
+
+		// 停止所有微信 Bot 轮询
+		service.StopAllWeixinBotPollings()
+
+		log.Println("[Main] 所有服务已安全关闭。")
+	}()
+
+	log.Println("Note-All 后端底层架构组件初始化成功...")
 	log.Println("Http 接口层已注册，服务驻留于端口: 3344")
-	if err := r.Run(":3344"); err != nil {
+
+	// 启动 HTTP server (srv.ListenAndServe 会在 Shutdown 被调用后自动退出)
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("接口服务崩溃: %v", err)
 	}
+
+	log.Println("[Main] 服务已停止。")
 }

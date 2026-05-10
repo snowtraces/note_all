@@ -6,7 +6,6 @@ require (
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
 	github.com/PuerkitoBio/goquery v1.9.2
 	github.com/gin-contrib/gzip v1.2.6
-	github.com/go-ego/gse v1.0.2
 	github.com/go-shiori/go-readability v0.0.0-20251205110129-5db1dc9836f0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
@@ -14,6 +13,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.42
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646
 	github.com/robfig/cron/v3 v3.0.1
+	github.com/yanyiwu/gojieba v1.4.7
 	golang.org/x/net v0.51.0
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.1
@@ -49,7 +49,6 @@ require (
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.1 // indirect
-	github.com/vcaesar/cedar v0.30.0 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
 	golang.org/x/arch v0.22.0 // indirect
