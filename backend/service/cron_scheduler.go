@@ -12,6 +12,10 @@ import (
 	"note_all_backend/models"
 )
 
+type contextKey string
+
+const taskNameKey contextKey = "task_name"
+
 // StartCronScheduler 启动常驻定时任务调度轮询引擎 (由 main.go 启动)
 func StartCronScheduler(ctx context.Context) {
 	log.Println("[Scheduler] 核心定时任务调度引擎正在启动...")
@@ -63,6 +67,12 @@ func runPendingTasks(ctx context.Context) {
 	}
 
 	for _, task := range tasks {
+		// 立即计算并持久化下一次运行时间，防止 goroutine 执行期间被下一个 ticker tick 重复拾取
+		nextTime := CalculateNextRunTime(task.ScheduleType, task.ScheduleValue, now)
+		global.DB.Model(&task).Updates(map[string]interface{}{
+			"next_run_time": nextTime,
+		})
+
 		// 每一个任务都在专属协程中异步跑，并进行 Crash 捕获防御，互不干扰
 		go executeSingleTaskWithRecovery(ctx, task)
 	}
@@ -76,7 +86,7 @@ func executeSingleTaskWithRecovery(ctx context.Context, task models.CronTask) {
 		}
 	}()
 
-	log.Printf("[Scheduler] 🎯 触发定时任务 -> ID: %d, Name: [%s]", task.ID, task.Name)
+	log.Printf("[Scheduler] 触发定时任务 -> ID: %d, Name: [%s]", task.ID, task.Name)
 	startTime := time.Now()
 
 	// 1. 初始化写入运行中 (running) 状态日志记录
@@ -98,7 +108,7 @@ func executeSingleTaskWithRecovery(ctx context.Context, task models.CronTask) {
 	if !exists {
 		runErr = fmt.Errorf("系统中未找到注册的任务处理器: %s", task.TaskType)
 	} else {
-		taskCtx := context.WithValue(ctx, "task_name", task.Name)
+		taskCtx := context.WithValue(ctx, taskNameKey, task.Name)
 		summary, runErr = handler.Execute(taskCtx, task.Config)
 	}
 
@@ -107,25 +117,20 @@ func executeSingleTaskWithRecovery(ctx context.Context, task models.CronTask) {
 
 	// 3. 处理执行状态并回填写回日志
 	if runErr != nil {
-		log.Printf("[Scheduler] ❌ 任务运行失败: %s | 错误: %v", task.Name, runErr)
+		log.Printf("[Scheduler] 任务运行失败: %s | 错误: %v", task.Name, runErr)
 		runLog.Status = "failure"
 		runLog.ErrorMessage = runErr.Error()
 		runLog.ResultSummary = "定时执行失败。"
 	} else {
-		log.Printf("[Scheduler] 🟢 任务运行成功: %s | 概要: %s", task.Name, summary)
+		log.Printf("[Scheduler] 任务运行成功: %s | 概要: %s", task.Name, summary)
 		runLog.Status = "success"
 		runLog.ResultSummary = summary
 	}
 
 	global.DB.Save(&runLog)
 
-	// 4. 重算并回填下一次预计运行时间，更新当前任务状态
-	nextTime := CalculateNextRunTime(task.ScheduleType, task.ScheduleValue, endTime)
-
-	global.DB.Model(&task).Updates(map[string]interface{}{
-		"last_run_time": &startTime,
-		"next_run_time": nextTime,
-	})
+	// 4. 回填最后运行时间 (next_run_time 已在 goroutine 启动前设置)
+	global.DB.Model(&task).Update("last_run_time", &startTime)
 
 	// 5. 触发推送，自动在后台发出
 	go SendTaskNotification(task.Name, &runLog, task.Notification)
@@ -142,7 +147,7 @@ func TriggerSingleTaskImmediately(taskID uint) error {
 		ctx := context.Background()
 		startTime := time.Now()
 
-		log.Printf("[Scheduler] ⚡️ 手动触发即时执行 -> ID: %d, Name: [%s]", task.ID, task.Name)
+		log.Printf("[Scheduler] 手动触发即时执行 -> ID: %d, Name: [%s]", task.ID, task.Name)
 
 		runLog := models.CronTaskLog{
 			TaskID:    task.ID,
@@ -158,7 +163,7 @@ func TriggerSingleTaskImmediately(taskID uint) error {
 		if !exists {
 			runErr = fmt.Errorf("未找到任务处理器: %s", task.TaskType)
 		} else {
-			taskCtx := context.WithValue(ctx, "task_name", task.Name)
+			taskCtx := context.WithValue(ctx, taskNameKey, task.Name)
 			summary, runErr = handler.Execute(taskCtx, task.Config)
 		}
 
@@ -209,7 +214,6 @@ func CalculateNextRunTime(scheduleType, val string, lastTime time.Time) *time.Ti
 		}
 		next := lastTime.Add(time.Duration(mins) * time.Minute)
 		if next.Before(now) {
-			// 若计算时间在当下之前，自动快进至最邻近的下个周期，避免回滚触发拥堵
 			next = now.Add(time.Duration(mins) * time.Minute)
 		}
 		return &next
@@ -225,7 +229,7 @@ func CalculateNextRunTime(scheduleType, val string, lastTime time.Time) *time.Ti
 			if err1 == nil && err2 == nil && hour >= 0 && hour < 24 && min >= 0 && min < 60 {
 				next := time.Date(now.Year(), now.Month(), now.Day(), hour, min, 0, 0, now.Location())
 				if next.Before(now) || next.Equal(now) {
-					next = next.Add(24 * time.Hour) // 设定的点今天已过，直接顺延至明天同一时间
+					next = next.Add(24 * time.Hour)
 				}
 				return &next
 			}
@@ -233,6 +237,7 @@ func CalculateNextRunTime(scheduleType, val string, lastTime time.Time) *time.Ti
 	}
 
 	// 降级兜底：默认 24 小时后
+	log.Printf("[Scheduler] 未识别的调度类型 [%s]，默认 24 小时后执行", scheduleType)
 	next := now.Add(24 * time.Hour)
 	return &next
 }

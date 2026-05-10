@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -11,22 +12,43 @@ import (
 	"note_all_backend/global"
 	"note_all_backend/models"
 	"note_all_backend/service"
+	"note_all_backend/utils"
 
 	"github.com/gin-gonic/gin"
 )
+
+// 允许的 task_type 和 schedule_type 值
+var allowedTaskTypes = map[string]bool{"crawler": true}
+var allowedScheduleTypes = map[string]bool{"interval": true, "cron": true, "daily": true}
 
 type CronApi struct{}
 
 // ==================== 1. 定时任务 (CronTask) CRUD ====================
 
-// ListTasks 返回全量定时任务列表
+// ListTasks 返回定时任务列表（支持分页）
 func (a *CronApi) ListTasks(c *gin.Context) {
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "50")
+
+	page, _ := strconv.Atoi(pageStr)
+	limit, _ := strconv.Atoi(limitStr)
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 50
+	}
+	offset := (page - 1) * limit
+
 	var tasks []models.CronTask
-	if err := global.DB.Order("id desc").Find(&tasks).Error; err != nil {
+	var total int64
+
+	global.DB.Model(&models.CronTask{}).Count(&total)
+	if err := global.DB.Order("id desc").Limit(limit).Offset(offset).Find(&tasks).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取定时任务列表失败"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": tasks})
+	c.JSON(http.StatusOK, gin.H{"data": tasks, "total": total})
 }
 
 // CreateTask 创建定时任务
@@ -44,13 +66,39 @@ func (a *CronApi) CreateTask(c *gin.Context) {
 		return
 	}
 
+	// I3: 验证 task_type 是否有注册的处理器
+	if !allowedTaskTypes[body.TaskType] {
+		if _, ok := service.GetTaskHandler(body.TaskType); !ok {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "不支持的任务类型: " + body.TaskType})
+			return
+		}
+	}
+	// I3: 验证 schedule_type 是否合法
+	if !allowedScheduleTypes[body.ScheduleType] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "不支持的调度类型: " + body.ScheduleType + " (支持: interval, cron, daily)"})
+		return
+	}
+	// I20: 验证 Config 和 Notification 是有效 JSON
+	if body.Config != "" {
+		if !json.Valid([]byte(body.Config)) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "任务配置 (config) 必须是合法 JSON"})
+			return
+		}
+	}
+	if body.Notification != "" {
+		if !json.Valid([]byte(body.Notification)) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "通知配置 (notification) 必须是合法 JSON"})
+			return
+		}
+	}
+
 	// 预解析时间戳
 	nextTime := service.CalculateNextRunTime(body.ScheduleType, body.ScheduleValue, time.Now())
 
 	task := models.CronTask{
 		Name:          body.Name,
 		TaskType:      body.TaskType,
-		Status:        "paused", // 默认新建处于暂停状态
+		Status:        "paused",
 		ScheduleType:  body.ScheduleType,
 		ScheduleValue: body.ScheduleValue,
 		Config:        body.Config,
@@ -82,13 +130,30 @@ func (a *CronApi) UpdateTask(c *gin.Context) {
 		return
 	}
 
+	// I3: 验证类型
+	if _, ok := service.GetTaskHandler(body.TaskType); !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "不支持的任务类型: " + body.TaskType})
+		return
+	}
+	if !allowedScheduleTypes[body.ScheduleType] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "不支持的调度类型: " + body.ScheduleType})
+		return
+	}
+	if body.Config != "" && !json.Valid([]byte(body.Config)) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "任务配置 (config) 必须是合法 JSON"})
+		return
+	}
+	if body.Notification != "" && !json.Valid([]byte(body.Notification)) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "通知配置 (notification) 必须是合法 JSON"})
+		return
+	}
+
 	var task models.CronTask
 	if err := global.DB.First(&task, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "任务不存在"})
 		return
 	}
 
-	// 重新计算下一次计划运行时间
 	var nextTime *time.Time
 	if task.Status == "active" {
 		nextTime = service.CalculateNextRunTime(body.ScheduleType, body.ScheduleValue, time.Now())
@@ -111,6 +176,8 @@ func (a *CronApi) UpdateTask(c *gin.Context) {
 		return
 	}
 
+	// I2: 重新读取数据库返回最新数据
+	global.DB.First(&task, task.ID)
 	c.JSON(http.StatusOK, gin.H{"message": "更新定时任务成功", "data": task})
 }
 
@@ -124,14 +191,17 @@ func (a *CronApi) DeleteTask(c *gin.Context) {
 	}
 
 	tx := global.DB.Begin()
-	// 删除任务本身
 	if err := tx.Delete(&task).Error; err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除定时任务失败"})
 		return
 	}
-	// 关联清理日志记录
-	tx.Where("task_id = ?", id).Delete(&models.CronTaskLog{})
+	// I1: 检查日志删除错误
+	if err := tx.Where("task_id = ?", id).Delete(&models.CronTaskLog{}).Error; err != nil {
+		tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除任务关联日志失败"})
+		return
+	}
 	tx.Commit()
 
 	c.JSON(http.StatusOK, gin.H{"message": "删除定时任务成功"})
@@ -150,7 +220,6 @@ func (a *CronApi) ToggleTask(c *gin.Context) {
 	var nextTime *time.Time
 	if task.Status == "paused" {
 		newStatus = "active"
-		// 激活时重新计算触发时间戳
 		nextTime = service.CalculateNextRunTime(task.ScheduleType, task.ScheduleValue, time.Now())
 	}
 
@@ -164,7 +233,9 @@ func (a *CronApi) ToggleTask(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "任务状态已变更", "status": newStatus, "next_run_time": nextTime})
+	// I2: 重新读取返回最新数据
+	global.DB.First(&task, task.ID)
+	c.JSON(http.StatusOK, gin.H{"message": "任务状态已变更", "data": task})
 }
 
 // RunTask 立即手动触发执行一次
@@ -176,9 +247,17 @@ func (a *CronApi) RunTask(c *gin.Context) {
 		return
 	}
 
+	// I26: 检查是否已有 running 日志，防止重复触发
+	var runningLogs []models.CronTaskLog
+	global.DB.Where("task_id = ? AND status = ?", id, "running").Find(&runningLogs)
+	if len(runningLogs) > 0 {
+		c.JSON(http.StatusConflict, gin.H{"error": "任务仍在运行中，请等待完成后再触发"})
+		return
+	}
+
 	err = service.TriggerSingleTaskImmediately(uint(id))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "任务触发失败，请稍后再试"})
 		return
 	}
 
@@ -199,6 +278,10 @@ func (a *CronApi) GetTaskLogs(c *gin.Context) {
 	if limit < 1 {
 		limit = 10
 	}
+	// I25: 上限 100
+	if limit > 100 {
+		limit = 100
+	}
 	offset := (page - 1) * limit
 
 	var logs []models.CronTaskLog
@@ -217,14 +300,30 @@ func (a *CronApi) GetTaskLogs(c *gin.Context) {
 
 // ==================== 2. 自定义抽取规则 (ExtractorRule) CRUD ====================
 
-// ListRules 获取自定义抽取配置规则列表
+// ListRules 获取自定义抽取配置规则列表（支持分页）
 func (a *CronApi) ListRules(c *gin.Context) {
+	pageStr := c.DefaultQuery("page", "1")
+	limitStr := c.DefaultQuery("limit", "50")
+
+	page, _ := strconv.Atoi(pageStr)
+	limit, _ := strconv.Atoi(limitStr)
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 50
+	}
+	offset := (page - 1) * limit
+
 	var rules []models.ExtractorRule
-	if err := global.DB.Order("id desc").Find(&rules).Error; err != nil {
+	var total int64
+
+	global.DB.Model(&models.ExtractorRule{}).Count(&total)
+	if err := global.DB.Order("id desc").Limit(limit).Offset(offset).Find(&rules).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取网页抽取规则列表失败"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": rules})
+	c.JSON(http.StatusOK, gin.H{"data": rules, "total": total})
 }
 
 // CreateRule 新建自定义抽取规则
@@ -296,7 +395,6 @@ func (a *CronApi) UpdateRule(c *gin.Context) {
 		return
 	}
 
-	// 正则有效性检验
 	if _, err := regexp.Compile(body.UrlPattern); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "URL 匹配正则表达式格式不合法"})
 		return
@@ -330,6 +428,8 @@ func (a *CronApi) UpdateRule(c *gin.Context) {
 		return
 	}
 
+	// I2: 重新读取返回最新数据
+	global.DB.First(&rule, rule.ID)
 	c.JSON(http.StatusOK, gin.H{"message": "修改抽取规则成功", "data": rule})
 }
 
@@ -342,7 +442,7 @@ func (a *CronApi) DeleteRule(c *gin.Context) {
 		return
 	}
 
-	if err := global.DB.Unscoped().Delete(&rule).Error; err != nil {
+	if err := global.DB.Delete(&rule).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除失败"})
 		return
 	}
@@ -367,6 +467,12 @@ func (a *CronApi) TestRule(c *gin.Context) {
 		return
 	}
 
+	// SSRF 安全验证
+	if err := utils.IsSafeURL(body.Url); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "URL 安全校验失败: " + err.Error()})
+		return
+	}
+
 	tempRule := models.ExtractorRule{
 		Name:             "规则测试",
 		RuleType:         body.RuleType,
@@ -380,7 +486,9 @@ func (a *CronApi) TestRule(c *gin.Context) {
 
 	title, markdown, err := service.TestExtractorRule(body.Url, &tempRule)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "抓取或抽取测试发生错误: " + err.Error()})
+		// S11: 返回通用错误消息，不暴露内部细节
+		log.Printf("[CronApi] TestRule 错误 (URL: %s): %v", body.Url, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "网页抓取测试失败，请检查 URL 和规则配置"})
 		return
 	}
 
@@ -397,12 +505,13 @@ func (a *CronApi) GetSettings(c *gin.Context) {
 	var setting models.SystemSetting
 	err := global.DB.Where("key = ?", "cron_notifier_settings").First(&setting).Error
 	if err != nil {
-		// 未配置时返回空对象，方便前端渲染表单占位符
 		c.JSON(http.StatusOK, gin.H{"data": gin.H{
 			"smtp_host":     "",
 			"smtp_port":     465,
 			"smtp_username": "",
 			"smtp_password": "",
+			"has_password":  false,
+			"site_url":      "",
 		}})
 		return
 	}
@@ -413,12 +522,18 @@ func (a *CronApi) GetSettings(c *gin.Context) {
 		return
 	}
 
-	// 安全脱敏：隐藏发件密码明文
-	if notifierSettings.SMTPPassword != "" {
-		notifierSettings.SMTPPassword = "*************"
-	}
+	// I19: 安全脱敏：使用 has_password 标志而非固定星号占位符
+	hasPassword := notifierSettings.SMTPPassword != ""
+	notifierSettings.SMTPPassword = ""
 
-	c.JSON(http.StatusOK, gin.H{"data": notifierSettings})
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{
+		"smtp_host":     notifierSettings.SMTPHost,
+		"smtp_port":     notifierSettings.SMTPPort,
+		"smtp_username": notifierSettings.SMTPUsername,
+		"smtp_password": "",
+		"has_password":  hasPassword,
+		"site_url":      notifierSettings.SiteURL,
+	}})
 }
 
 // UpdateSettings 保存或更新全局推送设置
@@ -438,14 +553,18 @@ func (a *CronApi) UpdateSettings(c *gin.Context) {
 	var setting models.SystemSetting
 	err := global.DB.Where("key = ?", "cron_notifier_settings").First(&setting).Error
 
-	realPassword := body.SMTPPassword
+	// I19: 仅在前端提供了非空密码时才更新，否则保留原值
+	realPassword := ""
 	if err == nil {
-		// 对比脱敏字段，保留真实数据库原值
 		var oldSettings service.NotifierSettings
 		_ = json.Unmarshal([]byte(setting.Value), &oldSettings)
-		if body.SMTPPassword == "*************" {
-			realPassword = oldSettings.SMTPPassword
+		if body.SMTPPassword != "" {
+			realPassword = body.SMTPPassword
+		} else {
+			realPassword = oldSettings.SMTPPassword // 保留原密码
 		}
+	} else {
+		realPassword = body.SMTPPassword // 新配置，直接使用提交的密码
 	}
 
 	newSettings := service.NotifierSettings{
@@ -456,7 +575,12 @@ func (a *CronApi) UpdateSettings(c *gin.Context) {
 		SiteURL:      strings.TrimSpace(body.SiteURL),
 	}
 
-	valBytes, _ := json.Marshal(newSettings)
+	// I8: 检查 json.Marshal 错误
+	valBytes, err := json.Marshal(newSettings)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "配置序列化失败"})
+		return
+	}
 
 	setting.Key = "cron_notifier_settings"
 	setting.Value = string(valBytes)

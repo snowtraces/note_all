@@ -87,7 +87,7 @@ func (c *WechatClient) DoRequest(ctx context.Context, method, path string, body 
 	}
 	defer resp.Body.Close()
 
-	respBytes, err := io.ReadAll(resp.Body)
+	respBytes, err := io.ReadAll(io.LimitReader(resp.Body, 5*1024*1024))
 	if err != nil {
 		return nil, err
 	}

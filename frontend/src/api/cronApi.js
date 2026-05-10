@@ -42,12 +42,15 @@ export const toggleCronTask = async (id) => {
     const res = await request(`${API_BASE}/cron-tasks/${id}/toggle`, { method: 'PUT' });
     if (!res.ok) throw new Error('Failed to toggle cron task');
     const json = await res.json();
-    return json;
+    return json.data;
 };
 
 export const runCronTask = async (id) => {
     const res = await request(`${API_BASE}/cron-tasks/${id}/run`, { method: 'POST' });
-    if (!res.ok) throw new Error('Failed to run cron task immediately');
+    if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || '任务触发失败');
+    }
     const json = await res.json();
     return json;
 };
@@ -56,7 +59,7 @@ export const getCronTaskLogs = async (id, page = 1, limit = 10) => {
     const res = await request(`${API_BASE}/cron-tasks/${id}/logs?page=${page}&limit=${limit}`);
     if (!res.ok) throw new Error('Failed to fetch cron task logs');
     const json = await res.json();
-    return json;
+    return { data: json.data, total: json.total };
 };
 
 // ==================== 2. 自定义抽取规则 (Extractor Rules) ====================

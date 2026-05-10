@@ -8,7 +8,7 @@ type WeixinBotCredential struct {
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 	
-	BotToken     string    `gorm:"size:255;not null" json:"bot_token"`      // Bearer Token
+	BotToken     string    `gorm:"size:255;not null" json:"-"`      // Bearer Token
 	BaseURL      string    `gorm:"size:255;not null" json:"base_url"`       // 业务 API 基座地址
 	IlinkBotID   string    `gorm:"size:128;not null;index" json:"ilink_bot_id"` // Bot 账号 ID (...@im.bot)
 	IlinkUserID  string    `gorm:"size:128;not null" json:"ilink_user_id"`  // 授权用户 ID (...@im.wechat)

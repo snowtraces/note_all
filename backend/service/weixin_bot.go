@@ -5,9 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"log"
+		"log"
 	"net/http"
+	"io"
 	"time"
 
 	"note_all_backend/global"
@@ -54,10 +54,10 @@ type WeixinQRCodeResp struct {
 // WeixinStatusResp 轮询状态响应
 type WeixinStatusResp struct {
 	Status      string `json:"status"` // wait, scaned, confirmed, expired
-	BotToken    string `json:"bot_token"`
+	BotToken    string `json:"-"`      // 不向前端暴露
 	IlinkBotID  string `json:"ilink_bot_id"`
 	IlinkUserID string `json:"ilink_user_id"`
-	BaseURL     string `json:"baseurl"`
+	BaseURL     string `json:"-"`      // 不向前端暴露
 }
 
 // GetWeixinQRCode 获取登录二维码
@@ -76,7 +76,7 @@ func GetWeixinQRCode() (*WeixinQRCodeResp, error) {
 	}
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 5*1024*1024))
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("http error: %d, body: %s", resp.StatusCode, string(body))
 	}
@@ -106,7 +106,7 @@ func CheckWeixinQRCodeStatus(qrcode string) (*WeixinStatusResp, error) {
 	}
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 5*1024*1024))
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("http error: %d, body: %s", resp.StatusCode, string(body))
 	}

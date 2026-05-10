@@ -46,10 +46,10 @@ function CronTasksSubTab() {
   }, []);
 
   useEffect(() => {
-    if (activeTask && activeTask.id) {
+    if (activeTask?.id) {
       loadLogs(activeTask.id);
     }
-  }, [activeTask]);
+  }, [activeTask?.id]);
 
   const loadTasks = async () => {
     setLoading(true);
@@ -134,6 +134,13 @@ function CronTasksSubTab() {
     try {
       // 组装配置 JSON
       const urls = urlsStr.split('\n').map(u => u.trim()).filter(u => u !== '');
+      // I17: 基础 URL 格式验证
+      const invalidUrls = urls.filter(u => !/^https?:\/\/.+/i.test(u));
+      if (invalidUrls.length > 0) {
+        alert(`以下链接格式不合法，请使用 http:// 或 https:// 开头的完整链接:\n${invalidUrls.join('\n')}`);
+        setIsSubmitting(false);
+        return;
+      }
       const configJson = JSON.stringify({
         urls,
         rate_limit_ms: parseInt(rateLimit) || 1500
@@ -181,7 +188,13 @@ function CronTasksSubTab() {
     e.stopPropagation();
     try {
       await toggleCronTask(task.id);
-      await loadTasks();
+      const data = await getCronTasks();
+      setTasks(data || []);
+      // I4: 更新详情面板状态
+      if (activeTask?.id === task.id) {
+        const refreshed = (data || []).find(t => t.id === task.id);
+        if (refreshed) handleSelectTask(refreshed);
+      }
     } catch (e) {
       console.error(e);
       alert('状态变更失败');
@@ -487,6 +500,7 @@ function CronSettingsSubTab() {
     smtp_password: '',
     site_url: ''
   });
+  const [hasPassword, setHasPassword] = useState(false);
 
   const EMAIL_PROVIDERS = [
     { name: '自定义 (Custom)', host: '', port: 465 },
@@ -530,11 +544,13 @@ function CronSettingsSubTab() {
     setLoading(true);
     try {
       const data = await getCronSettings();
-      setFormData(data || {
-        smtp_host: '',
-        smtp_port: 465,
-        smtp_username: '',
-        smtp_password: ''
+      setHasPassword(data?.has_password || false);
+      setFormData({
+        smtp_host: data?.smtp_host || '',
+        smtp_port: data?.smtp_port || 465,
+        smtp_username: data?.smtp_username || '',
+        smtp_password: '',
+        site_url: data?.site_url || ''
       });
     } catch (e) {
       console.error(e);
@@ -545,7 +561,12 @@ function CronSettingsSubTab() {
   const handleSave = async () => {
     setIsSubmitting(true);
     try {
-      await updateCronSettings(formData);
+      // I5: 仅在用户实际输入了密码时才发送，否则不发密码字段（后端保留原值）
+      const payload = { ...formData };
+      if (!payload.smtp_password) {
+        delete payload.smtp_password;
+      }
+      await updateCronSettings(payload);
       alert('全局通知触点设置保存成功！');
       await loadSettings();
     } catch (e) {
@@ -632,7 +653,7 @@ function CronSettingsSubTab() {
                 value={formData.smtp_password}
                 onChange={(e) => setFormData(p => ({ ...p, smtp_password: e.target.value }))}
                 className="rounded-xl px-3 py-2 text-xs focus:border-primeAccent/50 focus:outline-none bg-[var(--input-bg)] border border-[var(--glass-border)] text-textPrimary"
-                placeholder="安全加密隐藏"
+                placeholder={hasPassword ? '已设置密码，留空则保留原密码' : '请输入邮箱授权密码'}
               />
             </div>
           </div>

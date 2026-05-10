@@ -6,6 +6,8 @@ import (
 	"flag"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"note_all_backend/database"
 	"note_all_backend/global"
@@ -59,8 +61,18 @@ func main() {
 	service.InitWorker()
 	service.InitActiveWeixinBots()
 
-	// 1.1 启动定时任务后台调度轮询器
-	go service.StartCronScheduler(context.Background())
+	// 1.1 启动定时任务后台调度轮询器 (使用可取消 context，支持优雅退出)
+	schedulerCtx, schedulerCancel := context.WithCancel(context.Background())
+	go service.StartCronScheduler(schedulerCtx)
+
+	// 优雅退出：捕获 SIGINT/SIGTERM，取消调度器
+	go func() {
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+		<-sigCh
+		log.Println("[Main] 收到退出信号，正在关闭调度器...")
+		schedulerCancel()
+	}()
 
 	log.Println("Note-All 后端底层架构组件初始化成功...")
 

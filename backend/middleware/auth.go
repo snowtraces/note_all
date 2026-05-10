@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"log"
 	"note_all_backend/global"
 	"note_all_backend/utils"
 	"strings"
@@ -13,6 +14,7 @@ func AuthRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 如果配置中没有设置密码，则不开启鉴权 (方便初期调试)
 		if global.Config.SysPassword == "" {
+			log.Printf("[Auth] 警告: SysPassword 未配置，所有接口开放访问")
 			c.Next()
 			return
 		}

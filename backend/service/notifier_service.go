@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"html"
 	"net/smtp"
 	"strings"
 	"time"
@@ -81,7 +82,7 @@ func SendTaskNotification(taskName string, runLog *models.CronTaskLog, notifStr 
 		runLog.ResultSummary,
 	)
 	if runLog.ErrorMessage != "" {
-		body += fmt.Sprintf("<p style='color:red;'><b>报错异常日志：</b><pre>%s</pre></p>", runLog.ErrorMessage)
+		body += fmt.Sprintf("<p style='color:red;'><b>报错异常日志：</b><pre>%s</pre></p>", html.EscapeString(runLog.ErrorMessage))
 	}
 
 	// 3. 执行邮件推送
@@ -181,7 +182,6 @@ func SendEmail(host string, port int, username, password, to, subject, body stri
 	// 如果是 465 端口，采用 explicit SSL/TLS
 	if port == 465 {
 		tlsConfig := &tls.Config{
-			InsecureSkipVerify: true,
 			ServerName:         host,
 		}
 		conn, err := tls.Dial("tcp", addr, tlsConfig)
