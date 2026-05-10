@@ -7,6 +7,7 @@
 | 运行时 / 工具 | 版本要求 | 用途 |
 |:---|:---|:---|
 | **Go** | 1.25+ | 后端服务、PC 客户端 |
+| **C++ 编译器** | gcc/g++ | 后端 CGo (go-sqlite3 + gojieba) |
 | **Node.js** | 18+ | 前端、浏览器扩展 |
 | **Python** | 3.10+ | 向量嵌入服务器 (可选但推荐) |
 | **JDK** | 21+ | Android 客户端 |
@@ -31,14 +32,27 @@
    ```bash
    go mod download
    ```
-4. 编译：
+4. 编译（需 C++ 编译器，因为依赖含 C++ 代码的 gojieba）：
    ```bash
-   go build -tags "fts5" -o note_all_backend.exe main.go
+   go build -ldflags="-s -w" -tags "fts5" -o note_all_backend.exe main.go
    ```
-5. 运行：
+5. 运行（jieba 分词词典需位于 `libs/jieba/` 目录）：
    ```bash
    .\note_all_backend.exe
    ```
+
+### ARM64 交叉编译
+
+目标为 Linux ARM64 时需安装交叉编译工具链：
+```bash
+# Debian/Ubuntu
+sudo apt install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+# 编译
+export CGO_ENABLED=1 GOARCH=arm64
+export CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++
+go build -ldflags="-s -w" -tags "fts5" -buildvcs=false -o note_all_backend
+```
 
 ### 2. Web 前端 (React + Vite)
 
