@@ -2,25 +2,11 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useEditor, EditorContent } from '@tiptap/react';
 
-import { StarterKit } from '@tiptap/starter-kit';
-import { Link } from '@tiptap/extension-link';
-import { Table } from '@tiptap/extension-table';
-import { TableRow } from '@tiptap/extension-table-row';
-import { TableCell } from '@tiptap/extension-table-cell';
-import { TableHeader } from '@tiptap/extension-table-header';
-import { TaskList } from '@tiptap/extension-task-list';
-import { TaskItem } from '@tiptap/extension-task-item';
 import { Placeholder } from '@tiptap/extension-placeholder';
-import { Highlight } from '@tiptap/extension-highlight';
-import { Typography } from '@tiptap/extension-typography';
-import { Markdown } from 'tiptap-markdown';
 import GlobalDragHandle from 'tiptap-extension-global-drag-handle';
 
-import { CustomImage } from './editor/TiptapImage';
-import { CustomCodeBlock } from './editor/TiptapCodeBlock';
+import { getCommonExtensions } from './editor/commonExtensions';
 import { AutoWrapSelection } from './editor/AutoWrapSelection';
-import { InlineMathDecorations } from './editor/InlineMathDecorations';
-import { HeadingIdPatch } from './editor/HeadingIdPatch';
 
 import { uploadImage } from '../api/noteApi';
 import SlashCommand, { setOnImageUpload, setOnShowHelp } from './SlashCommandExtension';
@@ -130,39 +116,11 @@ export default function MarkdownEditor({
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({
-        codeBlock: false,
-      }),
-      Markdown.configure({
-        html: true,
-        transformPastedText: true,
-        transformCopiedText: true,
-      }),
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: {
-          class: 'text-primeAccent underline underline-offset-4 decoration-primeAccent/30 hover:decoration-primeAccent transition-all',
-        },
-      }),
-      CustomImage.configure({
-        inline: false,
-        allowBase64: true,
-      }),
-      Table.configure({ resizable: true, HTMLAttributes: { class: 'tiptap-table' } }),
-      TableRow,
-      TableCell,
-      TableHeader,
-      TaskList,
-      TaskItem.configure({ nested: true }),
+      ...getCommonExtensions({ markdownClipboard: true }),
       Placeholder.configure({
         placeholder: '开始书写，Markdown 语法即时渲染...',
       }),
-      Highlight.configure({ multicolor: true }),
-      Typography,
-      CustomCodeBlock,
       AutoWrapSelection,
-      InlineMathDecorations,
-      HeadingIdPatch,
       GlobalDragHandle.configure({
         dragHandleWidth: 28,
         scrollTreshold: 0,
