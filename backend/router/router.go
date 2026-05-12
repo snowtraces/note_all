@@ -134,12 +134,22 @@ func SetupRouter() *gin.Engine {
 
 		// 4. 详细内容查询与更新
 		apiGroup.PATCH("/note/:id/text", noteApi.UpdateText)
+		apiGroup.PATCH("/note/:id/folder", noteApi.UpdateFolder)
 		apiGroup.GET("/note/:id", noteApi.GetNote)
 		apiGroup.PATCH("/note/:id/status", noteApi.UpdateStatus)
 		apiGroup.PATCH("/note/batch/archive", noteApi.BatchArchive)
 		apiGroup.GET("/note/:id/related", noteApi.RelatedNotes)
 		apiGroup.DELETE("/note/:id/hard", noteApi.HardDelete)
 		apiGroup.GET("/trash", noteApi.Trash)
+
+		// 4.5 目录管理
+		apiGroup.GET("/folders", api.GetFolders)
+		apiGroup.POST("/folders", api.CreateFolder)
+		apiGroup.PUT("/folders/:id", api.UpdateFolder)
+		apiGroup.DELETE("/folders/:id", api.DeleteFolder)
+		apiGroup.GET("/folders/tree", api.GetFolderTree)
+		apiGroup.PUT("/folders/subfolder", api.UpdateSubfolder)
+		apiGroup.DELETE("/folders/subfolder", api.DeleteSubfolder)
 
 		// 4. 回收站机制 (逻辑删除与恢复)
 		apiGroup.DELETE("/note/:id", noteApi.SoftDelete)

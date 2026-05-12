@@ -32,6 +32,11 @@ type NoteItem struct {
 	IsArchived  bool   `gorm:"default:false;index" json:"is_archived"`  // [新增] 是否归档
 	UserComment string `gorm:"type:text" json:"user_comment"`           // 用户手动标记的批注信息
 
+	// [新增] 目录分类
+	FolderL1 string `gorm:"size:32;default:'未分类';index" json:"folder_l1"` // 一级目录
+	FolderL2 string `gorm:"size:64;index" json:"folder_l2"`                 // 二级目录
+
+
 	// 关联
 	Tags    []NoteTag  `gorm:"foreignKey:NoteID" json:"tags"`
 	Parents []NoteItem `gorm:"many2many:note_relations;joinForeignKey:NoteID;joinReferences:ParentID" json:"parents"`
@@ -81,13 +86,18 @@ type ChatMessage struct {
 // SetupDBWithFTS 初始化数据库结构，包括建立 FTS5 虚拟表及与基础表联动的触发器
 func SetupDBWithFTS(db *gorm.DB) error {
 	// 1. 自动迁移主表 + 标签关联表 + NoteLink双链表 + 对话表 + 提示词模板表 + 微信相关表 + 分片向量表 + 文件元数据表 + 图片生成表 + 定时任务表
-	if err := db.AutoMigrate(&NoteItem{}, &NoteTag{}, &NoteLink{}, &ChatSession{}, &ChatMessage{}, &PromptTemplate{}, &ShareLink{}, &WeixinBotCredential{}, &WeixinUserContext{}, &WeixinMessage{}, &NoteChunk{}, &NoteChunkEmbedding{}, &FileMetadata{}, &ImageTask{}, &ImageResult{}, &DailyReview{}, &CronTask{}, &CronTaskLog{}, &ExtractorRule{}, &SystemSetting{}); err != nil {
+	if err := db.AutoMigrate(&NoteItem{}, &NoteTag{}, &NoteLink{}, &ChatSession{}, &ChatMessage{}, &PromptTemplate{}, &ShareLink{}, &WeixinBotCredential{}, &WeixinUserContext{}, &WeixinMessage{}, &NoteChunk{}, &NoteChunkEmbedding{}, &FileMetadata{}, &ImageTask{}, &ImageResult{}, &DailyReview{}, &CronTask{}, &CronTaskLog{}, &ExtractorRule{}, &SystemSetting{}, &NoteFolder{}); err != nil {
 		return fmt.Errorf("failed to migrate tables: %v", err)
 	}
 
 	// 1.5 初始化预设模板
 	if err := InitTemplates(db); err != nil {
 		return fmt.Errorf("failed to init templates: %v", err)
+	}
+
+	// 1.6 初始化预设目录
+	if err := InitFolders(db); err != nil {
+		return fmt.Errorf("failed to init folders: %v", err)
 	}
 
 	// 2. 检测并迁移旧版 FTS 表（旧版缺少 ai_title 列时需重建）

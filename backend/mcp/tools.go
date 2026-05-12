@@ -85,7 +85,7 @@ func handleSearchNotes(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 	log.Printf("[MCP Tool] 执行 search_notes: query=%q, limit=%d\n", query, limit)
 
 	// 复用 service 层的混合检索逻辑，底层已包含 is_archived = false 过滤
-	results, err := service.HybridSearch(query, limit)
+	results, err := service.HybridSearch(query, limit, "")
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("检索失败: %v", err)), nil
 	}

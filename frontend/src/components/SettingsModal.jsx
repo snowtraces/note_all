@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Palette, FileText, Wrench, Server, Cpu, BookOpen, Bot, Clock } from 'lucide-react';
+import { X, Palette, FileText, Wrench, Server, Cpu, BookOpen, Bot, Clock, Folder } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
 // 导入模块化后的 8 个选项卡组件
@@ -11,6 +11,7 @@ import VectorTab from './settings/VectorTab';
 import SynonymTab from './settings/SynonymTab';
 import WeixinTab from './settings/WeixinTab';
 import CronTab from './settings/CronTab';
+import FolderTab from './settings/FolderTab';
 
 // 定义选项卡元数据
 const TABS = [
@@ -22,6 +23,7 @@ const TABS = [
   { id: 'synonym', label: '同义词联想库', icon: BookOpen, description: '哈工大同义词林扩展版同步机制' },
   { id: 'weixin', label: '微信助手 Bot', icon: Bot, description: '微信个人号助手状态、扫码与对话' },
   { id: 'cron', label: '定时计划任务', icon: Clock, description: '管理周期爬虫与邮箱/微信推送' },
+  { id: 'folders', label: '知识目录树', icon: Folder, description: '管理自定义知识一级分类与排序' },
 ];
 
 export default function SettingsModal({ onClose, initialTab }) {
@@ -121,6 +123,7 @@ export default function SettingsModal({ onClose, initialTab }) {
             {activeTab === 'synonym' && <SynonymTab />}
             {activeTab === 'weixin' && <WeixinTab />}
             {activeTab === 'cron' && <CronTab />}
+            {activeTab === 'folders' && <FolderTab />}
           </div>
         </div>
       </div>

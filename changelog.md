@@ -1,6 +1,12 @@
 # Changelog
 
 ## [Unreleased]
+- **双层级知识目录分类与高质感大纲配置面板 (Dual-Tier Catalog Classification & Premium Taxonomy Settings Panel) [Phase D2]**:
+  - **后端双层级合并算法**: 在 `NoteFolder` 存储结构中新增 `Subfolders` 文本列，以 JSON 格式持久化用户预先规划的无数据空二级目录。重构了 `GetFolderTree` 树级级联算法，将用户手动配置大纲与数据库文档实际打标动态衍生的二级分类合并去重展现，彻底满足 Taxonomy 先行规划的需求。
+  - **RESTful 二级子树管理**: 新增 `PUT /api/folders/subfolder` 与 `DELETE /api/folders/subfolder` 接口，支持对二级分类名称的联动级联更新及空载分类的清零删除。
+  - **多维度安全防护红线**: 在前端及后端引入“无损防删锁”，针对包含文档数据（`count > 0`）的一、二级分类进行安全阻断拦截并弹出引导式警告提示，保护用户知识财产。
+  - **人机工学卡片化配置 Tab UI**: 彻底重构了 `FolderTab.jsx`。将局促紧缩的微型行距重载为大方的左右分栏结构（左配置与规则面板 2/5，右分类卡片集群 3/5）；将每个一级分类树高保真封装进带有圆角及精致边框的独立微卡片中，拉开舒适的呼吸级行间距（`gap-8`、`space-y-4`）；操作图标默认常驻展示且增加 hover 态扩圈微动效。
+  - **侧边栏级联适配与排版防抖**: 针对 Sidebar 树分支的深度拉伸，在 CSS 中部署 `scrollbarGutter: 'stable'`，消除滚动条显隐产生的页面横向抖动。采用全局原生事件 `folders-updated` 自适应热刷新侧边栏与配置页数据流，消除组件深度耦合。
 - **定时任务、自动化精准抓取与全局安全推送系统 (Scheduled Tasks, Custom Web Scraping & Multi-Channel Secure Notifications) [Phase E1]**:
   - **常驻周期调度守护引擎 (Cron Scheduler Core)**: 实现了 1 分钟精度的高效 Ticker 常驻后台守护协程，支持两类主流时间计划配置：⏱️ 基于分钟级的时间周期频率间隔（如 `"1440"` 代表 24 小时）、📅 基于每日固定时间点（如 `"09:30"`）的无锁化智能重算。后台轮询过程自带隔离式的崩溃防护（`recover`）与 Panic 日志持久化，防止异常断网或解析失败时主服务终止。
   - **双模式网页精准提取爬虫 (Selector-Based Precision Ingestion & Fallback)**: 构建了 `WebCrawlerTaskHandler` 网页爬虫。支持提取多个链接、域名级频率限制延迟机制（任务级配置 `rate_limit_ms` 以 `time.Sleep` 睡眠间隔），完美阻断反爬封锁。支持基于 URL 正则表达式自动匹配，在匹配成功时由 `goquery` 通过自定义的 Title/Body DOM CSS 筛选并剔除 `ExcludeSelectors` 的无用干扰元素，最后使用 `html-to-markdown` 渲染出干净正文；在未匹配成功时，自动无损智能降级（Fallback）至系统原生的 Jina Reader/Readability 双提取通道并无缝入列 LLM 异步打标摘要 RAG 流水线。

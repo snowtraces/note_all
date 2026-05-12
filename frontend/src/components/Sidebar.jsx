@@ -2,7 +2,11 @@ import {
   Beaker,
   BrainCircuit,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   Files,
+  FolderTree,
+  List,
   MessageSquare,
   Network,
   PenLine,
@@ -28,6 +32,8 @@ export default function Sidebar({
   setShowTrash,
   query,
   setQuery,
+  selectedFolder,
+  setSelectedFolder,
   handleSearch,
   loading,
   results,
@@ -55,6 +61,34 @@ export default function Sidebar({
   const dropdownRef = useRef(null);
   const textareaRef = useRef(null);
   const sidebarRef = useRef(null);
+
+  const [folderTree, setFolderTree] = useState([]);
+  const [loadingFolders, setLoadingFolders] = useState(false);
+  const [listViewMode, setListViewMode] = useState('list');
+  const [expandedFolders, setExpandedFolders] = useState({});
+
+  const toggleFolder = (folderName) => {
+    setExpandedFolders(prev => ({
+      ...prev,
+      [folderName]: !prev[folderName]
+    }));
+  };
+
+  useEffect(() => {
+    const fetchTree = () => {
+      import('../api/folderApi').then(({ getFolderTree }) => {
+        setLoadingFolders(true);
+        getFolderTree().then(tree => {
+          setFolderTree(tree || []);
+        }).catch(console.error).finally(() => setLoadingFolders(false));
+      });
+    };
+
+    fetchTree();
+
+    window.addEventListener('folders-updated', fetchTree);
+    return () => window.removeEventListener('folders-updated', fetchTree);
+  }, []);
 
   // 新增文档状态
   const [textSubmitting, setTextSubmitting] = useState(false);
@@ -186,6 +220,32 @@ export default function Sidebar({
             <span className="text-[9px] md:text-[10px] font-mono text-textMuted uppercase tracking-widest bg-sidebar px-2 py-0.5 rounded-full border border-borderSubtle">
               {results.length} FRAGMENTS
             </span>
+            {viewMode === 'notes' && !showTrash && (
+              <div className="flex items-center gap-1 ml-1.5">
+                <button
+                  onClick={() => { setListViewMode('list'); setSelectedFolder(''); }}
+                  title="列表视图"
+                  className={`p-0.5 rounded transition-all duration-200 border ${
+                    listViewMode === 'list' 
+                      ? 'bg-primeAccent/10 text-primeAccent border-primeAccent/20 shadow-sm' 
+                      : 'text-textMuted hover:text-textPrimary hover:bg-bgHover border-transparent'
+                  }`}
+                >
+                  <List size={11} />
+                </button>
+                <button
+                  onClick={() => { setListViewMode('folder'); setSelectedFolder(''); }}
+                  title="分类视图"
+                  className={`p-0.5 rounded transition-all duration-200 border ${
+                    listViewMode === 'folder' 
+                      ? 'bg-primeAccent/10 text-primeAccent border-primeAccent/20 shadow-sm' 
+                      : 'text-textMuted hover:text-textPrimary hover:bg-bgHover border-transparent'
+                  }`}
+                >
+                  <FolderTree size={11} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -236,7 +296,7 @@ export default function Sidebar({
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar px-4 md:px-5 py-4 flex flex-col gap-3 relative">
+      <div className="flex-1 overflow-y-auto custom-scrollbar px-4 md:px-5 py-4 flex flex-col gap-3 relative" style={{ scrollbarGutter: 'stable' }}>
         {viewMode === 'notes' ? (
           <>
             {loading && results.length === 0 && (
@@ -250,52 +310,136 @@ export default function Sidebar({
                 无相关记忆碎片
               </div>
             )}
-            {results.map((item) => {
-              const isSelected = selectedItem?.id === item.id;
-              return (
-                <div
-                  key={item.id}
-                  onClick={() => setSelectedItem(item)}
-                  className={`p-4 rounded-xl transition-all duration-300 flex flex-col min-w-0 border-l-[3px] cursor-pointer ${isSelected
-                    ? 'bg-primeAccent/10 border-l-primeAccent/60 border border-transparent shadow-lg shadow-primeAccent/5'
-                    : 'bg-accent-subtle border-l-[3px] rounded-xl hover:bg-card hover:border-l-primeAccent/30 border border-borderSubtle text-textSecondary'
-                    } group`}
-                >
-                  <div className="flex justify-between items-start mb-2 relative">
-                    <div className="flex flex-wrap gap-1.5 max-h-[44px] overflow-hidden">
-                      {renderTags(item.ai_tags, item.id, isSelected)}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {item.parents && item.parents.length > 0 && (
-                        <Zap size={10} className="text-primeAccent fill-primeAccent/20 animate-pulse" title="合成生成的知识笔记" />
-                      )}
-                      <div className="text-textMuted text-[10px] font-mono flex-shrink-0 flex items-center gap-1">
-                        {item.status === 'done' && <CheckCircle2 size={10} className="text-green-500/60" />}
-                        {item.created_at || item.CreatedAt
-                          ? new Date(item.created_at || item.CreatedAt).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
-                          : '刚刚'}
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleLabItem(item.id);
-                        }}
-                        title={labBasket?.includes(item.id) ? "从实验室移除" : "加入实验室素材"}
-                        className={`p-1.5 rounded-lg transition-all ${labBasket?.includes(item.id)
-                          ? 'bg-primeAccent text-black scale-110 shadow shadow-primeAccent/40'
-                          : 'bg-sidebar text-textSecondary/20 hover:text-primeAccent hover:bg-primeAccent/10 opacity-40 group-hover:opacity-100'
-                          }`}
+            
+            {listViewMode === 'folder' && !loading ? (
+              <div className="flex flex-col gap-1.5 mt-1">
+                {(folderTree.length > 0 ? folderTree : []).map((f) => {
+                  const l1Items = results.filter(item => (item.folder_l1 || '未分类') === f.name);
+                  
+                  const itemsByL2 = l1Items.reduce((acc, item) => {
+                    const l2 = item.folder_l2 || '未分类';
+                    if (!acc[l2]) acc[l2] = [];
+                    acc[l2].push(item);
+                    return acc;
+                  }, {});
+
+                  const l2Names = Array.from(new Set([
+                    ...(f.children || []).map(c => c.name),
+                    ...Object.keys(itemsByL2)
+                  ])).filter(name => name !== '');
+
+                  const isExpanded = !!expandedFolders[f.name];
+
+
+                  return (
+                    <div key={f.name} className="flex flex-col border-b border-borderSubtle/5 pb-1 last:border-b-0">
+                      <div 
+                        className="flex items-center gap-2 cursor-pointer hover:bg-bgHover py-1 px-1.5 rounded-md transition-colors group"
+                        onClick={() => toggleFolder(f.name)}
                       >
-                        <Beaker size={12} />
-                      </button>
+                        <span className="text-primeAccent/60 group-hover:text-primeAccent transition-colors">
+                          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        </span>
+                        <span className="text-sm">{f.icon || '📁'}</span>
+                        <h3 className="text-[13px] font-bold text-textPrimary group-hover:text-primeAccent transition-colors">{f.name}</h3>
+                        <span className="text-[10px] text-textMuted font-mono ml-auto bg-sidebar px-2 py-0.5 rounded-full border border-borderSubtle">
+                          {f.count || l1Items.length}
+                        </span>
+                      </div>
+                      
+                      {isExpanded && (
+                        <div className="flex flex-col gap-2 pl-5 mt-1 pb-1">
+                          {l2Names.map(l2Name => {
+                            const items = itemsByL2[l2Name] || [];
+                            const globalL2 = (f.children || []).find(c => c.name === l2Name);
+                            const displayCount = globalL2 ? globalL2.count : items.length;
+
+                            return (
+                              <div key={l2Name} className="flex flex-col gap-0.5 border-l border-borderSubtle/40 pl-2.5 relative">
+                                <div className="absolute top-2 -left-[1px] w-1.5 h-px bg-borderSubtle/40"></div>
+                                <div className="flex justify-between items-center pb-0.5">
+                                  <h4 className="text-[11px] font-semibold text-textMuted uppercase tracking-widest">{l2Name}</h4>
+                                  <span className="text-[9px] font-mono text-textTertiary mr-1">{displayCount}</span>
+                                </div>
+                                <div className="flex flex-col gap-0.5">
+                                  {items.length > 0 ? (
+                                    items.map(item => {
+                                      const isSelected = selectedItem?.id === item.id;
+                                      return (
+                                        <button
+                                          key={item.id}
+                                          onClick={() => setSelectedItem(item)}
+                                          className={`text-left text-[12px] px-2 py-1 rounded-md transition-all truncate border border-transparent ${
+                                            isSelected 
+                                              ? 'bg-primeAccent/10 text-primeAccent font-bold border-primeAccent/30 shadow-sm' 
+                                              : 'text-textSecondary hover:bg-bgHover hover:text-textPrimary hover:border-borderSubtle/40'
+                                          }`}
+                                        >
+                                          {item.original_name || item.OriginalName || item.ai_title || item.AiTitle || "无标题片段"}
+                                        </button>
+                                      );
+                                    })
+                                  ) : (
+                                    <div className="text-[10px] text-textTertiary italic pl-2 py-0.5">当前筛选下无匹配碎片</div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              results.map((item) => {
+                const isSelected = selectedItem?.id === item.id;
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => setSelectedItem(item)}
+                    className={`p-4 rounded-xl transition-all duration-300 flex flex-col min-w-0 border-l-[3px] cursor-pointer ${isSelected
+                      ? 'bg-primeAccent/10 border-l-primeAccent/60 border border-transparent shadow-lg shadow-primeAccent/5'
+                      : 'bg-accent-subtle border-l-[3px] rounded-xl hover:bg-card hover:border-l-primeAccent/30 border border-borderSubtle text-textSecondary'
+                      } group`}
+                  >
+                    <div className="flex justify-between items-start mb-2 relative">
+                      <div className="flex flex-wrap gap-1.5 max-h-[44px] overflow-hidden">
+                        {renderTags(item.ai_tags, item.id, isSelected)}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {item.parents && item.parents.length > 0 && (
+                          <Zap size={10} className="text-primeAccent fill-primeAccent/20 animate-pulse" title="合成生成的知识笔记" />
+                        )}
+                        <div className="text-textMuted text-[10px] font-mono flex-shrink-0 flex items-center gap-1">
+                          {item.status === 'done' && <CheckCircle2 size={10} className="text-green-500/60" />}
+                          {item.created_at || item.CreatedAt
+                            ? new Date(item.created_at || item.CreatedAt).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+                            : '刚刚'}
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleLabItem(item.id);
+                          }}
+                          title={labBasket?.includes(item.id) ? "从实验室移除" : "加入实验室素材"}
+                          className={`p-1.5 rounded-lg transition-all ${labBasket?.includes(item.id)
+                            ? 'bg-primeAccent text-black scale-110 shadow shadow-primeAccent/40'
+                            : 'bg-sidebar text-textSecondary/20 hover:text-primeAccent hover:bg-primeAccent/10 opacity-40 group-hover:opacity-100'
+                            }`}
+                        >
+                          <Beaker size={12} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="text-textSecondary text-[13px] leading-relaxed font-normal line-clamp-3">
+                      {item.ai_summary || "暂无相关摘要..."}
                     </div>
                   </div>
-                  <div className="text-textSecondary text-[13px] leading-relaxed font-normal line-clamp-3">
-                    {item.ai_summary || "暂无相关摘要..."}
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </>
         ) : viewMode === 'chats' ? (
           <>

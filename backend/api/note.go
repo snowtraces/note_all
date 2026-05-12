@@ -208,12 +208,22 @@ func (a *NoteApi) Search(c *gin.Context) {
 		}
 	}
 
+	folder := c.Query("folder")
+
 	if strings.TrimSpace(keyword) == "" {
 		// 无参数搜索时，默认返回最近更新的 20 条已分析笔记
 		var notes []models.NoteItem
-		// 必须 Preload Tags，否则前端 renderTags 会报错或显示无标签
-		global.DB.Preload("Tags").Where("status IN ? AND is_archived = ?", []string{"analyzed", "done"}, false).
-			Order("updated_at DESC").Limit(20).Find(&notes)
+		dbQuery := global.DB.Preload("Tags").Where("status IN ? AND is_archived = ?", []string{"analyzed", "done"}, false)
+		
+		if folder != "" {
+			parts := strings.SplitN(folder, "/", 2)
+			dbQuery = dbQuery.Where("folder_l1 = ?", parts[0])
+			if len(parts) > 1 {
+				dbQuery = dbQuery.Where("folder_l2 = ?", parts[1])
+			}
+		}
+
+		dbQuery.Order("updated_at DESC").Limit(20).Find(&notes)
 
 		results := make([]service.SearchResult, 0)
 		for _, n := range notes {
@@ -226,7 +236,7 @@ func (a *NoteApi) Search(c *gin.Context) {
 		return
 	}
 
-	results, err := service.HybridSearch(keyword, 20)
+	results, err := service.HybridSearch(keyword, 20, folder)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "检索失败: " + err.Error()})
 		return
@@ -384,6 +394,33 @@ func generateSnippet(text, keyword string, snippetLen int) string {
 	}
 
 	return res
+}
+
+// UpdateFolder 手动修改笔记所属目录
+func (a *NoteApi) UpdateFolder(c *gin.Context) {
+	id := c.Param("id")
+	var req struct {
+		FolderL1 string `json:"folder_l1" binding:"required"`
+		FolderL2 string `json:"folder_l2"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数无效"})
+		return
+	}
+
+	updates := map[string]interface{}{
+		"folder_l1": req.FolderL1,
+		"folder_l2": req.FolderL2,
+	}
+
+	if err := global.DB.Model(&models.NoteItem{}).Where("id = ?", id).Updates(updates).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新目录失败: " + err.Error()})
+		return
+	}
+
+	global.SSEBus.Publish("refresh")
+	c.JSON(http.StatusOK, gin.H{"message": "目录已更新"})
 }
 
 // GetTags 获取全部标签（按使用次数降序）

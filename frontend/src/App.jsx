@@ -26,6 +26,7 @@ import { checkAuth } from './api/authApi';
 // 内层组件，在 ToastProvider 内部使用 useToast
 function AppContent() {
   const [query, setQuery] = useState('');
+  const [selectedFolder, setSelectedFolder] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -84,7 +85,7 @@ function AppContent() {
       if (eventConfig) {
         // 已定义的事件：执行动作 + 显示 toast
         if (eventConfig.action === 'refresh_list') {
-          executeSearch(query);
+          executeSearch(query, selectedFolder);
         } else if (eventConfig.action === 'image_gen_refresh') {
           window.dispatchEvent(new Event('IMAGE_GEN_REFRESH'));
         } else if (eventConfig.action === 'review_ready') {
@@ -108,7 +109,7 @@ function AppContent() {
   // 1. 当首次登录成功时，执行全量初始化 (数据拉取与视图复位)
   useEffect(() => {
     if (!isLoggedIn) return;
-    executeSearch(query);
+    executeSearch(query, selectedFolder);
     setSelectedItem(null);
     setChatHistory([]);
     setCurrentSessionId(0);
@@ -121,11 +122,11 @@ function AppContent() {
     if (showTrash) {
       loadTrashData();
     } else {
-      executeSearch(query);
+      executeSearch(query, selectedFolder);
     }
     // 切换数据源时清空已选中的详情项（安全做法），但不再重置 ViewMode 与聊天历史
     setSelectedItem(null);
-  }, [showTrash, query]);
+  }, [showTrash, query, selectedFolder]);
 
   // 全局键盘事件监听
   useEffect(() => {
@@ -163,11 +164,11 @@ function AppContent() {
     setLoading(false);
   };
 
-  const executeSearch = async (q) => {
+  const executeSearch = async (q, f = '') => {
     if (showTrash) return;
     setLoading(true);
     try {
-      const data = await searchNotes(q);
+      const data = await searchNotes(q, f);
       setResults(data);
     } catch (e) {
       console.error(e);
@@ -227,7 +228,7 @@ function AppContent() {
       await deleteNote(id, hard);
       setSelectedItem(null);
       if (showTrash) loadTrashData();
-      else executeSearch(query);
+      else executeSearch(query, selectedFolder);
     } catch (e) {
       console.error(e);
     }
@@ -254,8 +255,8 @@ function AppContent() {
     try {
       await uploadNote(formData);
       // 延迟重试刷新搜索结果以等待后端处理
-      setTimeout(() => executeSearch(query), 3000);
-      setTimeout(() => executeSearch(query), 12000);
+      setTimeout(() => executeSearch(query, selectedFolder), 3000);
+      setTimeout(() => executeSearch(query, selectedFolder), 12000);
     } catch (e) {
       alert("上传崩溃...");
       console.error(e);
@@ -269,7 +270,7 @@ function AppContent() {
     try {
       const newNote = await createTextNote("");
       setSelectedItem(newNote);
-      executeSearch(query);
+      executeSearch(query, selectedFolder);
     } catch (e) {
       alert('新增文档失败...');
       console.error(e);
@@ -335,10 +336,10 @@ function AppContent() {
       if (showTrash) {
         loadTrashData();
       } else {
-        executeSearch(query);
+        executeSearch(query, selectedFolder);
         if (reanalyze) {
-          setTimeout(() => executeSearch(query), 3000);
-          setTimeout(() => executeSearch(query), 12000);
+          setTimeout(() => executeSearch(query, selectedFolder), 3000);
+          setTimeout(() => executeSearch(query, selectedFolder), 12000);
         }
       }
     } catch (e) {
@@ -354,7 +355,7 @@ function AppContent() {
       if (showTrash) {
         loadTrashData();
       } else {
-        executeSearch(query);
+        executeSearch(query, selectedFolder);
       }
     } catch (e) {
       alert('状态更新失败...');
@@ -425,7 +426,9 @@ function AppContent() {
             setShowTrash={setShowTrash}
             query={query}
             setQuery={setQuery}
-            handleSearch={executeSearch}
+            selectedFolder={selectedFolder}
+            setSelectedFolder={setSelectedFolder}
+            handleSearch={(q) => executeSearch(q, selectedFolder)}
             loading={loading}
             results={results}
             selectedItem={selectedItem}
@@ -488,7 +491,7 @@ function AppContent() {
                   }
                   setLabBasket([]);
                   setViewMode('notes');
-                  executeSearch(query);
+                  executeSearch(query, selectedFolder);
                 }}
              />
           </div>

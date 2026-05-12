@@ -67,6 +67,41 @@ func syncLinks(nID uint, text string) {
 	}
 }
 
+// buildAvailableFoldersStr 获取所有非特殊的一级目录并用逗号拼接
+func buildAvailableFoldersStr() string {
+	var folders []models.NoteFolder
+	global.DB.Where("is_special = ? AND deleted_at IS NULL", false).Order("sort_order ASC").Find(&folders)
+	
+	names := make([]string, 0, len(folders))
+	for _, f := range folders {
+		names = append(names, f.Name)
+	}
+	if len(names) == 0 {
+		return "其他"
+	}
+	return strings.Join(names, ", ")
+}
+
+// parseFolderStr 解析大模型返回的 "一级目录/二级目录" 格式
+func parseFolderStr(folder string) (string, string) {
+	if folder == "" {
+		return "其他", ""
+	}
+	parts := strings.Split(folder, "/")
+	if len(parts) >= 2 {
+		l1 := strings.TrimSpace(parts[0])
+		l2 := strings.TrimSpace(parts[1])
+		// 二级目录长度截断到12个中文字符(粗略按24字节算)
+		if len([]rune(l2)) > 12 {
+			l2 = string([]rune(l2)[:12])
+		}
+		return l1, l2
+	}
+	// 只有一个目录
+	return strings.TrimSpace(folder), ""
+}
+
+
 // performFullAnalysis 封装了 OCR -> VLM 兜底 -> LLM 提炼的全链路逻辑
 func performFullAnalysis(nID uint, templateID uint) {
 	log.Printf("[AI全链路作业] 开始为数据包 (ID:%d) 启动识别与提炼...\n", nID)
@@ -81,6 +116,7 @@ func performFullAnalysis(nID uint, templateID uint) {
 	title := ""
 	summary := ""
 	tags := ""
+	folder := ""
 
 	// 1. 如果是图片且目前没有实质文本内容，尝试识别（OCR -> VLM）
 	if strings.HasPrefix(note.FileType, "image/") && strings.TrimSpace(markdownText) == "" {
@@ -107,12 +143,14 @@ func performFullAnalysis(nID uint, templateID uint) {
 		} else {
 			// 1.2 OCR 无结果或报错，触发 VLM 兜底
 			log.Printf("[AI 作业] OCR 无文字或失败 (err: %v)，尝试 VLM 视觉兜底, 记录ID %d", err, nID)
-			desc, titleStr, summaryStr, tagsStr, vlmErr := pkg.DescribeImageVlm(fileBlob, note.FileType)
+			availableFolders := buildAvailableFoldersStr()
+			desc, titleStr, summaryStr, tagsStr, folderStr, vlmErr := pkg.DescribeImageVlm(fileBlob, note.FileType, availableFolders)
 			if vlmErr == nil && desc != "" {
 				markdownText = desc
 				title = titleStr
 				summary = summaryStr
 				tags = tagsStr
+				folder = folderStr
 				log.Printf("[AI 作业] VLM 视觉感知成功, 记录ID %d (Summary: %s)", nID, summary)
 			} else {
 				log.Printf("[AI 作业] VLM 识别亦失败: %v", vlmErr)
@@ -130,7 +168,8 @@ func performFullAnalysis(nID uint, templateID uint) {
 		}
 
 		if strings.TrimSpace(markdownText) != "" {
-			llmTitle, s, t, err := pkg.ExtractSummaryAndTags(markdownText, targetTpl.SystemPrompt)
+			availableFolders := buildAvailableFoldersStr()
+			llmTitle, s, t, f, err := pkg.ExtractSummaryAndTags(markdownText, targetTpl.SystemPrompt, availableFolders)
 			if err != nil {
 				log.Printf("[AI 作业] LLM 提炼失败: %v", err)
 				summary = markdownText // 原文兜底
@@ -138,10 +177,12 @@ func performFullAnalysis(nID uint, templateID uint) {
 					summary = string([]rune(summary)[:60]) + "..."
 				}
 				tags = "ai-fail"
+				folder = "其他"
 			} else {
 				title = llmTitle
 				summary = s
 				tags = t
+				folder = f
 			}
 		} else {
 			if summary == "" {
@@ -153,11 +194,20 @@ func performFullAnalysis(nID uint, templateID uint) {
 		}
 	}
 
+	folderL1, folderL2 := parseFolderStr(folder)
+	
+	// 特殊目录强行覆盖逻辑
+	if strings.HasPrefix(note.FileType, "image/") {
+		folderL1 = "照片"
+	}
+
 	if err := global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Updates(map[string]interface{}{
 		"ocr_text":   markdownText,
 		"ai_title":   title,
 		"ai_summary": summary,
 		"ai_tags":    tags,
+		"folder_l1":  folderL1,
+		"folder_l2":  folderL2,
 		"status":     "analyzed",
 	}).Error; err != nil {
 		log.Printf("[AI 异常] 记录ID %d 分析结果写入失败: %v", nID, err)
@@ -389,7 +439,8 @@ func CreateNoteFromText(text string, providedName string) (*models.NoteItem, err
 		}
 
 		activeTpl, _ := models.GetActiveTemplate(global.DB)
-		title, summary, tags, err := pkg.ExtractSummaryAndTags(llmInput, activeTpl.SystemPrompt)
+		availableFolders := buildAvailableFoldersStr()
+		title, summary, tags, folder, err := pkg.ExtractSummaryAndTags(llmInput, activeTpl.SystemPrompt, availableFolders)
 		if err != nil {
 			log.Printf("[大模型提炼失败降级] 记录ID %d: %v", nID, err)
 			title = ""
@@ -399,13 +450,18 @@ func CreateNoteFromText(text string, providedName string) (*models.NoteItem, err
 				summary = string([]rune(summary)[:60]) + "..."
 			}
 			tags = "ai-fail"
+			folder = "其他"
 		}
+
+		folderL1, folderL2 := parseFolderStr(folder)
 
 		if err := global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Updates(map[string]interface{}{
 			"ai_title":   title,
 			"ocr_text":   rawText, // DB 存入必须是原封不动的完整抓取全本与图片占位，便于 RAG
 			"ai_summary": summary,
 			"ai_tags":    tags,
+			"folder_l1":  folderL1,
+			"folder_l2":  folderL2,
 			"status":     "analyzed",
 		}).Error; err != nil {
 			log.Printf("[URL剪藏异常] 记录ID %d 分析结果写入失败: %v", nID, err)
@@ -466,18 +522,28 @@ func UpdateNoteText(id string, text string, reanalyze bool) error {
 		log.Printf("[重新提炼作业] 开始为数据包 (ID:%s) 唤起 LLM 更新提炼...\n", itemID)
 
 		activeTpl, _ := models.GetActiveTemplate(global.DB)
-		title, summary, tags, err := pkg.ExtractSummaryAndTags(rawText, activeTpl.SystemPrompt)
+		availableFolders := buildAvailableFoldersStr()
+		title, summary, tags, folder, err := pkg.ExtractSummaryAndTags(rawText, activeTpl.SystemPrompt, availableFolders)
 		if err != nil {
 			log.Printf("[重新提炼大模型失败降级] 记录ID %s: %v", itemID, err)
 			title = ""
 			summary = rawText
 			tags = "ai-fail"
+			folder = "其他"
+		}
+
+		folderL1, folderL2 := parseFolderStr(folder)
+		
+		if strings.HasPrefix(note.FileType, "image/") {
+			folderL1 = "照片"
 		}
 
 		if err := global.DB.Model(&models.NoteItem{}).Where("id = ?", itemID).Updates(map[string]interface{}{
 			"ai_title":   title,
 			"ai_summary": summary,
 			"ai_tags":    tags,
+			"folder_l1":  folderL1,
+			"folder_l2":  folderL2,
 			"status":     "analyzed",
 		}).Error; err != nil {
 			log.Printf("[重新提炼异常] 记录ID %s 结果写入失败: %v", itemID, err)
@@ -526,7 +592,7 @@ func GetSerendipityReview(page int) (string, int64, []models.NoteItem, error) {
 	}
 
 	if total == 0 {
-		return "暂无待处理的碎片。太棒了！你的收件箱已经清空。", total, items, nil
+		return "暂无待处理的碎片。太棒了！你的列表已经清空。", total, items, nil
 	}
 
 	msg := fmt.Sprintf("发现 %d 条待处理的灵感碎片，建议立即检阅并将其转化为常驻记忆：", total)

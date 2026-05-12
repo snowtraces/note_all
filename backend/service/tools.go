@@ -103,7 +103,7 @@ func (te *ToolExecutor) executeSearch(call ToolCall) ToolResult {
 	}
 
 	// 使用分片级混合检索（返回文档 + 命中分片）
-	results, hitChunks, err := BatchHybridSearchWithChunks([]string{query}, 20)
+	results, hitChunks, err := BatchHybridSearchWithChunks([]string{query}, 20, "")
 	if err != nil {
 		log.Printf("[ToolExecutor] 检索失败: %v", err)
 		return ToolResult{Output: "检索失败: " + err.Error()}

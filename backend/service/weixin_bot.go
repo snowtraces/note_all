@@ -311,7 +311,7 @@ func processWeixinMessage(cred models.WeixinBotCredential, msg weixin.WeixinMess
 					}
 
 					// 发送通知
-					ReplyText(cred, msg.FromUserID, fmt.Sprintf("🎨 媒体素材已自动存入收件箱 (ID:%d)，正在为您准备智能摘要与标签...", note.ID), msg.ContextToken)
+					ReplyText(cred, msg.FromUserID, fmt.Sprintf("🎨 媒体素材已自动存入系统 (ID:%d)，正在为您准备智能摘要与标签...", note.ID), msg.ContextToken)
 
 					// 唤起 LLM 全链路分析
 					nID := note.ID
@@ -367,7 +367,7 @@ func handleWeixinText(cred models.WeixinBotCredential, userID, text, contextToke
 				ReplyText(cred, userID, "❌ 笔记录入失败: "+err.Error(), contextToken)
 				return
 			}
-			resText := fmt.Sprintf("✅ 笔记已存入收件箱 (ID:%d)。\nAI 正在尝试提炼摘要与标签...", note.ID)
+			resText := fmt.Sprintf("✅ 笔记已存入系统 (ID:%d)。\nAI 正在尝试提炼摘要与标签...", note.ID)
 			ReplyText(cred, userID, resText, contextToken)
 		}()
 	}

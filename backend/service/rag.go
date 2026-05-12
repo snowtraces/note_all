@@ -133,12 +133,12 @@ func BackfillNoteChunks() error {
 }
 
 // HybridSearch 单关键词混合检索
-func HybridSearch(query string, limit int) ([]SearchResult, error) {
-	return BatchHybridSearch([]string{query}, limit)
+func HybridSearch(query string, limit int, folderFilter string) ([]SearchResult, error) {
+	return BatchHybridSearch([]string{query}, limit, folderFilter)
 }
 
 // BatchHybridSearch 批量混合检索，合并多关键词查询
-func BatchHybridSearch(queries []string, limit int) ([]SearchResult, error) {
+func BatchHybridSearch(queries []string, limit int, folderFilter string) ([]SearchResult, error) {
 	// 1. 分片级向量检索 (只对第一个 query)
 	vectorScores := make(map[uint]float32)
 	if len(queries) > 0 {
@@ -254,7 +254,16 @@ func BatchHybridSearch(queries []string, limit int) ([]SearchResult, error) {
 
 	// 5. 获取笔记详情
 	var notes []models.NoteItem
-	global.DB.Where("id IN ? AND deleted_at IS NULL AND is_archived = ?", ids, false).Find(&notes)
+	dbQuery := global.DB.Where("id IN ? AND deleted_at IS NULL AND is_archived = ?", ids, false)
+	
+	if folderFilter != "" {
+		parts := strings.SplitN(folderFilter, "/", 2)
+		dbQuery = dbQuery.Where("folder_l1 = ?", parts[0])
+		if len(parts) > 1 {
+			dbQuery = dbQuery.Where("folder_l2 = ?", parts[1])
+		}
+	}
+	dbQuery.Find(&notes)
 
 	// 6. 计算评分
 	results := make([]SearchResult, 0)
@@ -565,7 +574,7 @@ func RAGAskWithHistory(query string, history []ConversationMessage) (string, []S
 	}
 
 	// 使用分片级混合检索
-	hits, hitChunks, err := BatchHybridSearchWithChunks(expandedQueries, 20)
+	hits, hitChunks, err := BatchHybridSearchWithChunks(expandedQueries, 20, "")
 	if err != nil {
 		log.Printf("[RAG] [错误] 检索失败: %v", err)
 	}
@@ -640,7 +649,7 @@ func RAGAskWithHistory(query string, history []ConversationMessage) (string, []S
 }
 
 // BatchHybridSearchWithChunks 分片级混合检索，返回文档结果和命中的分片
-func BatchHybridSearchWithChunks(queries []string, limit int) ([]SearchResult, map[uint][]ChunkSearchResult, error) {
+func BatchHybridSearchWithChunks(queries []string, limit int, folderFilter string) ([]SearchResult, map[uint][]ChunkSearchResult, error) {
 	// 1. 分片级向量检索
 	vectorScores := make(map[uint]float32)
 	hitChunks := make(map[uint][]ChunkSearchResult)
@@ -762,7 +771,16 @@ func BatchHybridSearchWithChunks(queries []string, limit int) ([]SearchResult, m
 
 	// 5. 获取笔记详情
 	var notes []models.NoteItem
-	global.DB.Where("id IN ? AND deleted_at IS NULL AND is_archived = ?", ids, false).Find(&notes)
+	dbQuery := global.DB.Where("id IN ? AND deleted_at IS NULL AND is_archived = ?", ids, false)
+	
+	if folderFilter != "" {
+		parts := strings.SplitN(folderFilter, "/", 2)
+		dbQuery = dbQuery.Where("folder_l1 = ?", parts[0])
+		if len(parts) > 1 {
+			dbQuery = dbQuery.Where("folder_l2 = ?", parts[1])
+		}
+	}
+	dbQuery.Find(&notes)
 
 	// 6. 计算评分
 	results := make([]SearchResult, 0)
