@@ -375,7 +375,16 @@ func (a *Agent) executeToolCalls(state *QueryState) ([]ToolResult, []ToolCallInf
 	hasError := false
 
 	for i, call := range state.ActiveToolCalls {
-		// 特殊逻辑：如果是保存笔记工具，且前面有执行结果，尝试继承内容
+		// 1. 工具调用去重检查
+		if isDuplicateCall(call, state.ExecutedCalls) {
+			log.Printf("[Agent] [警告] 检测到重复工具调用: %s, 参数: %v。跳过执行以防止死循环。", call.Tool, call.Parameters)
+			results = append(results, ToolResult{Output: fmt.Sprintf("错误：检测到重复工具调用 (%s)。请不要反复尝试相同的操作，尝试换个思路或提供更多信息。", call.Tool)})
+			infos = append(infos, ToolCallInfo{Tool: string(call.Tool)})
+			hasError = true // 标记为错误以触发熔断
+			continue
+		}
+
+		// 2. 特殊逻辑：如果是保存笔记工具，且前面有执行结果，尝试继承内容
 		if call.Tool == ToolSaveNote && i > 0 && results[i-1].Output != "" {
 			if call.Parameters == nil {
 				call.Parameters = make(map[string]interface{})
@@ -395,6 +404,9 @@ func (a *Agent) executeToolCalls(state *QueryState) ([]ToolResult, []ToolCallInf
 		results = append(results, result)
 		infos = append(infos, info)
 
+		// 记录已执行的工具调用
+		state.ExecutedCalls = append(state.ExecutedCalls, call)
+
 		// 检查是否执行失败
 		if strings.Contains(result.Output, "失败") {
 			log.Printf("[Agent] [警告] 工具[%d] 执行失败: %s", i+1, result.Output)
@@ -405,6 +417,21 @@ func (a *Agent) executeToolCalls(state *QueryState) ([]ToolResult, []ToolCallInf
 	}
 
 	return results, infos, hasError
+}
+
+// isDuplicateCall 检查工具调用是否重复
+func isDuplicateCall(call ToolCall, history []ToolCall) bool {
+	for _, h := range history {
+		if h.Tool == call.Tool {
+			// 比较参数 JSON 是否一致
+			newParams, _ := json.Marshal(call.Parameters)
+			oldParams, _ := json.Marshal(h.Parameters)
+			if string(newParams) == string(oldParams) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // summarizeParams 生成参数摘要（避免过长）
@@ -847,7 +874,7 @@ func cleanQueryForSearch(query string) string {
 
 // isQuestion 简单判断是否为疑问句
 func isQuestion(query string) bool {
-	query = strings.ToLower(query)
+	query = strings.ToLower(strings.TrimSpace(query))
 	questionMarkers := []string{"怎么", "如何", "什么", "吗", "呢", "能否", "为什么", "how", "what", "can", "why", "help"}
 	for _, marker := range questionMarkers {
 		if strings.Contains(query, marker) {

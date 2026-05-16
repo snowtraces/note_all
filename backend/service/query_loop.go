@@ -45,6 +45,7 @@ type QueryState struct {
 	ActiveToolCalls      []ToolCall             // 待执行工具调用
 	LastOutput           string                 // 上次输出（用于续写）
 	ToolResults          []ToolResult           // 累积的工具结果（含文档数据）
+	ExecutedCalls        []ToolCall             // 已执行的工具调用记录（用于去重）
 }
 
 // NewQueryState 创建初始状态
