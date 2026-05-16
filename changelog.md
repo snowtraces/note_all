@@ -1,6 +1,11 @@
 # Changelog
 
 ## [Unreleased]
+- **页面详情与列表 AI 展示优化 (AI Display Optimization in Detail & List)**:
+  - **详情页 AI 占位显性化**: 调整了 `Detail.jsx` 的渲染逻辑，现在即使笔记尚未生成 AI 标题或摘要，AI 智能区块也会始终保持显示，提供了更一致的 UI 结构并集成了模板选择与重处理入口。
+  - **动态摘要占位语**: 在详情页中，根据笔记处理状态提供动态占位文字（如“AI 正在提取摘要...”或“暂无 AI 摘要记录”）。
+  - **侧边栏列表标题回显**: 修改了 `Sidebar.jsx`，在笔记缺少 AI 摘要时，卡片区域会自动显示该笔记的原始标题（Original Name），替代了之前的静态占位符“暂无相关摘要...”，提升了列表的可识别度。
+
 - **定时任务管道工作流引擎 (Pipeline Workflow Engine) [Phase E2]**:
   - **管道执行引擎**: 新增 `pipeline_executor.go`，实现最多 4 步的顺序管道执行，支持步骤间数据流转、超时控制（45s/步）和循环引用校验。
   - **动作处理器**: 实现 `web_crawl`（网页爬虫）和 `ai_process`（AI 处理）两种 ActionHandler，支持 `{{input}}` 占位符模板和 30K 字符截断保护。

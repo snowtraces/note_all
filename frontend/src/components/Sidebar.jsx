@@ -434,7 +434,7 @@ export default function Sidebar({
                       </div>
                     </div>
                     <div className="text-textSecondary text-[13px] leading-relaxed font-normal line-clamp-3">
-                      {item.ai_summary || "暂无相关摘要..."}
+                      {item.ai_summary || item.original_name || item.ai_title || "暂无摘要记录"}
                     </div>
                   </div>
                 );
