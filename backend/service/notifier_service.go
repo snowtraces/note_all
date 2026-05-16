@@ -110,7 +110,13 @@ func SendTaskNotification(taskName string, runLog *models.CronTaskLog, notifStr 
 	if notifierSettings.SiteURL != "" {
 		siteURL := strings.TrimRight(notifierSettings.SiteURL, "/")
 		var notes []models.NoteItem
-		if global.DB.Where("created_at BETWEEN ? AND ?", runLog.StartTime, runLog.EndTime).Find(&notes).Error == nil && len(notes) > 0 {
+		if runLog.CreatedNoteIDs == "" {
+			return
+		}
+
+		// 仅使用精准绑定的 ID 列表进行查询
+		ids := strings.Split(runLog.CreatedNoteIDs, ",")
+		if global.DB.Where("id IN ?", ids).Find(&notes).Error == nil && len(notes) > 0 {
 			for _, note := range notes {
 				link, err := GenerateShareLink(note.ID, 0)
 				if err == nil {

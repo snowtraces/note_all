@@ -110,8 +110,12 @@ func executeSingleTaskWithRecovery(ctx context.Context, task models.CronTask) {
 	if parseErr == nil && len(steps) > 0 {
 		// 管道模式
 		taskCtx := context.WithValue(ctx, taskNameKey, task.Name)
-		results, pipeErr := ExecutePipeline(taskCtx, task.Name, steps)
+		results, noteID, pipeErr := ExecutePipeline(taskCtx, task.Name, steps)
 		runErr = pipeErr
+
+		if noteID > 0 {
+			runLog.CreatedNoteIDs = fmt.Sprintf("%d", noteID)
+		}
 
 		// 序列化步骤结果
 		if len(results) > 0 {
@@ -198,8 +202,12 @@ func TriggerSingleTaskImmediately(taskID uint) error {
 		steps, parseErr := ParseSteps(task.Steps)
 		if parseErr == nil && len(steps) > 0 {
 			taskCtx := context.WithValue(ctx, taskNameKey, task.Name)
-			results, pipeErr := ExecutePipeline(taskCtx, task.Name, steps)
+			results, noteID, pipeErr := ExecutePipeline(taskCtx, task.Name, steps)
 			runErr = pipeErr
+
+			if noteID > 0 {
+				runLog.CreatedNoteIDs = fmt.Sprintf("%d", noteID)
+			}
 
 			if len(results) > 0 {
 				sanitized := make([]StepResult, len(results))

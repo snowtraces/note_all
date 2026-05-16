@@ -263,11 +263,11 @@ func scrapeWithCustomRule(client *http.Client, targetUrl string, rule *models.Ex
 }
 
 func saveScrapedNote(title, markdownContent, targetUrl string) error {
-	// 防止重复入库 - 同 URL 24小时内不重复创建
+	// 防止重复入库 - 同 URL 1min 内不重复创建
 	var existing models.NoteItem
-	cutoff := time.Now().Add(-24 * time.Hour)
+	cutoff := time.Now().Add(-1 * time.Minute)
 	if global.DB.Where("original_url = ? AND created_at > ?", targetUrl, cutoff).First(&existing).Error == nil {
-		log.Printf("[CrawlerTask] 该 URL 24小时内已入库 (ID:%d)，跳过重复创建: %s", existing.ID, targetUrl)
+		log.Printf("[CrawlerTask] 该 URL 1min 内已入库 (ID:%d)，跳过重复创建: %s", existing.ID, targetUrl)
 		return nil
 	}
 

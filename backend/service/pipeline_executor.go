@@ -64,10 +64,10 @@ func GetActionHandler(actionType string) (ActionHandler, bool) {
 
 // ==================== 管道执行引擎 ====================
 
-// ExecutePipeline 执行管道，返回所有步骤结果
-func ExecutePipeline(ctx context.Context, taskName string, steps []StepDefinition) ([]StepResult, error) {
+// ExecutePipeline 执行管道，返回所有步骤结果以及最终生成的笔记 ID (如果有)
+func ExecutePipeline(ctx context.Context, taskName string, steps []StepDefinition) ([]StepResult, uint, error) {
 	if len(steps) == 0 {
-		return nil, fmt.Errorf("管道步骤为空")
+		return nil, 0, fmt.Errorf("管道步骤为空")
 	}
 
 	results := make([]StepResult, 0, len(steps))
@@ -76,7 +76,7 @@ func ExecutePipeline(ctx context.Context, taskName string, steps []StepDefinitio
 	for _, step := range steps {
 		select {
 		case <-ctx.Done():
-			return results, ctx.Err()
+			return results, 0, ctx.Err()
 		default:
 		}
 
@@ -94,7 +94,7 @@ func ExecutePipeline(ctx context.Context, taskName string, steps []StepDefinitio
 				Error:      fmt.Sprintf("输入解析失败: %v", err),
 			}
 			results = append(results, result)
-			return results, fmt.Errorf("步骤 %d 输入解析失败: %v", step.Step, err)
+			return results, 0, fmt.Errorf("步骤 %d 输入解析失败: %v", step.Step, err)
 		}
 
 		// 2. 获取并执行 ActionHandler
@@ -108,7 +108,7 @@ func ExecutePipeline(ctx context.Context, taskName string, steps []StepDefinitio
 				Error:      fmt.Sprintf("未注册的动作类型: %s", step.Action),
 			}
 			results = append(results, result)
-			return results, fmt.Errorf("步骤 %d 未注册的动作类型: %s", step.Step, step.Action)
+			return results, 0, fmt.Errorf("步骤 %d 未注册的动作类型: %s", step.Step, step.Action)
 		}
 
 		// 3. 使用超时 context 执行
@@ -128,7 +128,7 @@ func ExecutePipeline(ctx context.Context, taskName string, steps []StepDefinitio
 				Error:      execErr.Error(),
 			}
 			results = append(results, result)
-			return results, fmt.Errorf("步骤 %d 执行失败: %v", step.Step, execErr)
+			return results, 0, fmt.Errorf("步骤 %d 执行失败: %v", step.Step, execErr)
 		}
 
 		// 4. 记录成功结果
@@ -151,14 +151,15 @@ func ExecutePipeline(ctx context.Context, taskName string, steps []StepDefinitio
 	}
 
 	// 5. 最终步骤输出保存为笔记
+	var noteID uint
 	if len(results) > 0 {
 		lastResult := results[len(results)-1]
 		if lastResult.Status == "success" && lastResult.Output != "" {
-			go savePipelineResultAsNote(taskName, lastResult.Output)
+			noteID = savePipelineResultAsNote(taskName, lastResult.Output)
 		}
 	}
 
-	return results, nil
+	return results, noteID, nil
 }
 
 // resolveInput 解析步骤输入
@@ -197,8 +198,8 @@ func resolveInput(step StepDefinition, outputs map[int]string) (string, error) {
 	}
 }
 
-// savePipelineResultAsNote 将管道最终输出保存为笔记
-func savePipelineResultAsNote(taskName string, content string) {
+// savePipelineResultAsNote 将管道最终输出保存为笔记，返回笔记 ID
+func savePipelineResultAsNote(taskName string, content string) uint {
 	nowStr := time.Now().Format("2006-01-02 15:04")
 	title := fmt.Sprintf("%s_%s", taskName, nowStr)
 
@@ -206,7 +207,7 @@ func savePipelineResultAsNote(taskName string, content string) {
 	storageID, err := global.Storage.Save(secureName, strings.NewReader(content))
 	if err != nil {
 		log.Printf("[Pipeline] 保存管道结果笔记失败 (存储): %v", err)
-		return
+		return 0
 	}
 
 	note := models.NoteItem{
@@ -222,7 +223,7 @@ func savePipelineResultAsNote(taskName string, content string) {
 
 	if err := global.DB.Create(&note).Error; err != nil {
 		log.Printf("[Pipeline] 保存管道结果笔记失败 (DB): %v", err)
-		return
+		return 0
 	}
 
 	log.Printf("[Pipeline] 管道结果已保存为笔记 (ID:%d, 分类: 任务/%s, 标题: %s)", note.ID, taskName, title)
@@ -262,6 +263,8 @@ func savePipelineResultAsNote(taskName string, content string) {
 		UpdateNoteChunks(nID)
 		global.SSEBus.Publish("refresh")
 	}
+
+	return note.ID
 }
 
 // ValidateSteps 校验管道步骤定义

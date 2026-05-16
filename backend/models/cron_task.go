@@ -46,6 +46,7 @@ type CronTaskLog struct {
 	ResultSummary string    `gorm:"type:text" json:"result_summary"` // 结果摘要
 	ErrorMessage  string    `gorm:"type:text" json:"error_message"`  // 详细错误日志
 	StepResults   string    `gorm:"type:text" json:"step_results"`   // 管道每步执行详情 (JSON 数组)
+	CreatedNoteIDs string    `gorm:"type:text" json:"created_note_ids"` // 本次执行生成的笔记 ID 列表 (逗号分隔)
 }
 
 // ExtractorRule 自定义网页 CSS 正则抽取配置表
