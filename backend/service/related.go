@@ -1,14 +1,11 @@
 package service
 
 import (
-	"errors"
 	"log"
 	"sort"
 
 	"note_all_backend/global"
 	"note_all_backend/models"
-
-	"gorm.io/gorm"
 )
 
 // GetRelatedUnified 统一相关笔记查询：向量优先，标签补充，去重合并
@@ -66,18 +63,20 @@ func getRelatedByVector(noteID uint, limit int) ([]models.NoteItem, error) {
 	}
 
 	// 获取当前笔记第一个 chunk 的 embedding
-	var firstEmbedding models.NoteChunkEmbedding
+	var embeddings []models.NoteChunkEmbedding
 	err := global.DB.Table("note_chunk_embeddings").
 		Joins("JOIN note_chunks ON note_chunks.id = note_chunk_embeddings.chunk_id").
 		Where("note_chunks.note_id = ?", noteID).
 		Order("note_chunks.chunk_index ASC").
-		First(&firstEmbedding).Error
+		Limit(1).
+		Find(&embeddings).Error
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return []models.NoteItem{}, nil
-		}
 		return nil, err
 	}
+	if len(embeddings) == 0 {
+		return []models.NoteItem{}, nil
+	}
+	firstEmbedding := embeddings[0]
 
 	// 使用 vector_full_scan 检索相似分片
 	type vecResult struct {

@@ -156,6 +156,7 @@
   - 向量检索 SQL 增加 `deleted_at IS NULL` 过滤，避免命中已删除笔记。
   - 笔记详情查询增加删除状态过滤。
   - 动态权重：纯 Tag 命中时自动提高 TagScore 权重，避免被其他分数淹没。
+  - **Bug 修复**: 在 GetRelatedByVector 中使用 `Limit(1).Find` 替代 `First` 消除不存在向量时的 `record not found` 日志报错，净化了控制台输出。
 - **向量索引数据一致性**:
   - 笔记逻辑删除 (`SoftDelete`) 时同步清理向量索引。
   - 笔记物理删除 (`HardDelete`) 时同步清理向量索引。
