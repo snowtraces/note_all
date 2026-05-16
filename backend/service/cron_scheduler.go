@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -100,27 +101,61 @@ func executeSingleTaskWithRecovery(ctx context.Context, task models.CronTask) {
 		return
 	}
 
-	// 2. 根据任务类型获取注册的 TaskHandler 并启动执行
-	handler, exists := GetTaskHandler(task.TaskType)
+	// 2. 执行任务：优先管道模式，降级旧版 TaskHandler
 	var summary string
 	var runErr error
+	var stepResultsJSON string
 
-	if !exists {
-		runErr = fmt.Errorf("系统中未找到注册的任务处理器: %s", task.TaskType)
-	} else {
+	steps, parseErr := ParseSteps(task.Steps)
+	if parseErr == nil && len(steps) > 0 {
+		// 管道模式
 		taskCtx := context.WithValue(ctx, taskNameKey, task.Name)
-		summary, runErr = handler.Execute(taskCtx, task.Config)
+		results, pipeErr := ExecutePipeline(taskCtx, task.Name, steps)
+		runErr = pipeErr
+
+		// 序列化步骤结果
+		if len(results) > 0 {
+			// 清除 output 全文（只保留 preview），避免日志表膨胀
+			sanitized := make([]StepResult, len(results))
+			copy(sanitized, results)
+			for i := range sanitized {
+				sanitized[i].Output = ""
+			}
+			if b, err := json.Marshal(sanitized); err == nil {
+				stepResultsJSON = string(b)
+			}
+
+			lastResult := results[len(results)-1]
+			if lastResult.Status == "success" {
+				summary = fmt.Sprintf("管道执行成功 (%d 步)。最终输出: %s", len(results), lastResult.OutputPreview)
+			} else {
+				summary = fmt.Sprintf("管道在步骤 %d 失败", lastResult.Step)
+			}
+		}
+	} else {
+		// 旧版兼容：使用 TaskHandler
+		handler, exists := GetTaskHandler(task.TaskType)
+		if !exists {
+			runErr = fmt.Errorf("系统中未找到注册的任务处理器: %s", task.TaskType)
+		} else {
+			taskCtx := context.WithValue(ctx, taskNameKey, task.Name)
+			summary, runErr = handler.Execute(taskCtx, task.Config)
+		}
 	}
 
 	endTime := time.Now()
 	runLog.EndTime = endTime
+	runLog.StepResults = stepResultsJSON
 
 	// 3. 处理执行状态并回填写回日志
 	if runErr != nil {
 		log.Printf("[Scheduler] 任务运行失败: %s | 错误: %v", task.Name, runErr)
 		runLog.Status = "failure"
 		runLog.ErrorMessage = runErr.Error()
-		runLog.ResultSummary = "定时执行失败。"
+		if summary == "" {
+			summary = "定时执行失败。"
+		}
+		runLog.ResultSummary = summary
 	} else {
 		log.Printf("[Scheduler] 任务运行成功: %s | 概要: %s", task.Name, summary)
 		runLog.Status = "success"
@@ -156,24 +191,54 @@ func TriggerSingleTaskImmediately(taskID uint) error {
 		}
 		global.DB.Create(&runLog)
 
-		handler, exists := GetTaskHandler(task.TaskType)
 		var summary string
 		var runErr error
+		var stepResultsJSON string
 
-		if !exists {
-			runErr = fmt.Errorf("未找到任务处理器: %s", task.TaskType)
-		} else {
+		steps, parseErr := ParseSteps(task.Steps)
+		if parseErr == nil && len(steps) > 0 {
 			taskCtx := context.WithValue(ctx, taskNameKey, task.Name)
-			summary, runErr = handler.Execute(taskCtx, task.Config)
+			results, pipeErr := ExecutePipeline(taskCtx, task.Name, steps)
+			runErr = pipeErr
+
+			if len(results) > 0 {
+				sanitized := make([]StepResult, len(results))
+				copy(sanitized, results)
+				for i := range sanitized {
+					sanitized[i].Output = ""
+				}
+				if b, err := json.Marshal(sanitized); err == nil {
+					stepResultsJSON = string(b)
+				}
+
+				lastResult := results[len(results)-1]
+				if lastResult.Status == "success" {
+					summary = fmt.Sprintf("管道执行成功 (%d 步)。最终输出: %s", len(results), lastResult.OutputPreview)
+				} else {
+					summary = fmt.Sprintf("管道在步骤 %d 失败", lastResult.Step)
+				}
+			}
+		} else {
+			handler, exists := GetTaskHandler(task.TaskType)
+			if !exists {
+				runErr = fmt.Errorf("未找到任务处理器: %s", task.TaskType)
+			} else {
+				taskCtx := context.WithValue(ctx, taskNameKey, task.Name)
+				summary, runErr = handler.Execute(taskCtx, task.Config)
+			}
 		}
 
 		endTime := time.Now()
 		runLog.EndTime = endTime
+		runLog.StepResults = stepResultsJSON
 
 		if runErr != nil {
 			runLog.Status = "failure"
 			runLog.ErrorMessage = runErr.Error()
-			runLog.ResultSummary = "手动执行失败。"
+			if summary == "" {
+				summary = "手动执行失败。"
+			}
+			runLog.ResultSummary = summary
 		} else {
 			runLog.Status = "success"
 			runLog.ResultSummary = summary

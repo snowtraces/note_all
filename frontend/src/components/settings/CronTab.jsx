@@ -23,464 +23,229 @@ function CronTasksSubTab() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [showLogsModal, setShowLogsModal] = useState(false);
-
-  // 表单状态
-  const [formData, setFormData] = useState({
-    name: '',
-    task_type: 'crawler',
-    schedule_type: 'cron',
-    schedule_value: '0 9 * * *',
-    config: '{"urls":[],"rate_limit_ms":1500}',
-    notification: '{"push_wechat_bot":false,"push_email":false,"email_to":""}'
-  });
-
-  // 解析出来的子参数
-  const [urlsStr, setUrlsStr] = useState('');
-  const [rateLimit, setRateLimit] = useState(1500);
+  const [formData, setFormData] = useState({ name: '', schedule_type: 'cron', schedule_value: '0 9 * * *' });
+  const [steps, setSteps] = useState([{ step: 1, name: '爬取页面', action: 'web_crawl', input: { source: 'fixed', config: { urls: [], rate_limit_ms: 1500 } }, config: {} }]);
   const [pushEmail, setPushEmail] = useState(false);
   const [emailTo, setEmailTo] = useState('');
   const [pushWechat, setPushWechat] = useState(false);
 
-  useEffect(() => {
-    loadTasks();
-  }, []);
+  useEffect(() => { loadTasks(); }, []);
+  useEffect(() => { if (activeTask?.id) loadLogs(activeTask.id); }, [activeTask?.id]);
 
-  useEffect(() => {
-    if (activeTask?.id) {
-      loadLogs(activeTask.id);
-    }
-  }, [activeTask?.id]);
+  const loadTasks = async () => { setLoading(true); try { setTasks(await getCronTasks() || []); } catch(e) { console.error(e); } setLoading(false); };
+  const loadLogs = async (id) => { setLogsLoading(true); try { const r = await getCronTaskLogs(id); setLogs(r.data || []); } catch(e) { console.error(e); } setLogsLoading(false); };
 
-  const loadTasks = async () => {
-    setLoading(true);
+  const parseStepsFromTask = (task) => {
+    try { const s = JSON.parse(task.steps || '[]'); if (s.length > 0) return s; } catch(e) {}
     try {
-      const data = await getCronTasks();
-      setTasks(data || []);
-    } catch (e) {
-      console.error(e);
-    }
-    setLoading(false);
-  };
-
-  const loadLogs = async (taskId) => {
-    setLogsLoading(true);
-    try {
-      const res = await getCronTaskLogs(taskId);
-      setLogs(res.data || []);
-    } catch (e) {
-      console.error(e);
-    }
-    setLogsLoading(false);
+      const cfg = JSON.parse(task.config || '{}');
+      return [{ step: 1, name: '爬取页面', action: 'web_crawl', input: { source: 'fixed', config: { urls: cfg.urls || [], rate_limit_ms: cfg.rate_limit_ms || 1500 } }, config: {} }];
+    } catch(e) {}
+    return [{ step: 1, name: '步骤1', action: 'web_crawl', input: { source: 'fixed', config: { urls: [], rate_limit_ms: 1500 } }, config: {} }];
   };
 
   const handleSelectTask = (task) => {
     setActiveTask(task);
-    setFormData({
-      name: task.name,
-      task_type: task.task_type,
-      schedule_type: task.schedule_type,
-      schedule_value: task.schedule_value,
-      config: task.config,
-      notification: task.notification
-    });
-
-    // 解析配置
-    try {
-      const cfg = JSON.parse(task.config || '{}');
-      setUrlsStr((cfg.urls || []).join('\n'));
-      setRateLimit(cfg.rate_limit_ms || 1500);
-    } catch (e) {
-      setUrlsStr('');
-      setRateLimit(1500);
-    }
-
-    try {
-      const notif = JSON.parse(task.notification || '{}');
-      setPushEmail(!!notif.push_email);
-      setEmailTo(notif.email_to || '');
-      setPushWechat(!!notif.push_wechat_bot);
-    } catch (e) {
-      setPushEmail(false);
-      setEmailTo('');
-      setPushWechat(false);
-    }
+    setFormData({ name: task.name, schedule_type: task.schedule_type, schedule_value: task.schedule_value });
+    setSteps(parseStepsFromTask(task));
+    try { const n = JSON.parse(task.notification || '{}'); setPushEmail(!!n.push_email); setEmailTo(n.email_to||''); setPushWechat(!!n.push_wechat_bot); } catch(e) { setPushEmail(false); setEmailTo(''); setPushWechat(false); }
   };
 
   const handleNewTask = () => {
     setActiveTask({});
-    setFormData({
-      name: '',
-      task_type: 'crawler',
-      schedule_type: 'cron',
-      schedule_value: '0 9 * * *',
-      config: '{"urls":[],"rate_limit_ms":1500}',
-      notification: '{"push_wechat_bot":false,"push_email":false,"email_to":""}'
-    });
-    setUrlsStr('');
-    setRateLimit(1500);
-    setPushEmail(false);
-    setEmailTo('');
-    setPushWechat(false);
-    setLogs([]);
+    setFormData({ name: '', schedule_type: 'cron', schedule_value: '0 9 * * *' });
+    setSteps([{ step: 1, name: '步骤1', action: 'web_crawl', input: { source: 'fixed', config: { urls: [], rate_limit_ms: 1500 } }, config: {} }]);
+    setPushEmail(false); setEmailTo(''); setPushWechat(false); setLogs([]);
   };
 
   const handleSave = async () => {
-    if (!formData.name.trim()) {
-      alert('任务名称不能为空');
-      return;
-    }
-
+    if (!formData.name.trim()) { alert('任务名称不能为空'); return; }
     setIsSubmitting(true);
     try {
-      // 组装配置 JSON
-      const urls = urlsStr.split('\n').map(u => u.trim()).filter(u => u !== '');
-      // I17: 基础 URL 格式验证
-      const invalidUrls = urls.filter(u => !/^https?:\/\/.+/i.test(u));
-      if (invalidUrls.length > 0) {
-        alert(`以下链接格式不合法，请使用 http:// 或 https:// 开头的完整链接:\n${invalidUrls.join('\n')}`);
-        setIsSubmitting(false);
-        return;
-      }
-      const configJson = JSON.stringify({
-        urls,
-        rate_limit_ms: parseInt(rateLimit) || 1500
-      });
-
-      const notificationJson = JSON.stringify({
-        push_email: pushEmail,
-        email_to: emailTo.trim(),
-        push_wechat_bot: pushWechat
-      });
-
-      const postData = {
-        ...formData,
-        config: configJson,
-        notification: notificationJson
-      };
-
-      if (activeTask && activeTask.id) {
-        await updateCronTask(activeTask.id, postData);
-      } else {
-        await createCronTask(postData);
-      }
-      setActiveTask(null);
-      await loadTasks();
-    } catch (e) {
-      console.error(e);
-      alert('保存任务失败');
-    }
+      const stepsJson = JSON.stringify(steps.map((s, i) => ({ ...s, step: i + 1 })));
+      const notifJson = JSON.stringify({ push_email: pushEmail, email_to: emailTo.trim(), push_wechat_bot: pushWechat });
+      const postData = { name: formData.name, schedule_type: formData.schedule_type, schedule_value: formData.schedule_value, steps: stepsJson, notification: notifJson };
+      if (activeTask?.id) await updateCronTask(activeTask.id, postData);
+      else await createCronTask(postData);
+      setActiveTask(null); await loadTasks();
+    } catch(e) { console.error(e); alert('保存失败'); }
     setIsSubmitting(false);
   };
 
-  const handleDelete = async (task) => {
-    if (!window.confirm(`确定要彻底删除定时任务 [${task.name}] 吗？对应的运行日志也将一并清除。`)) return;
-    try {
-      await deleteCronTask(task.id);
-      setActiveTask(null);
-      await loadTasks();
-    } catch (e) {
-      console.error(e);
-      alert('删除失败');
-    }
-  };
+  const handleDelete = async (task) => { if (!confirm(`确定删除 [${task.name}]？`)) return; try { await deleteCronTask(task.id); setActiveTask(null); await loadTasks(); } catch(e) { alert('删除失败'); } };
+  const handleToggle = async (task, e) => { e.stopPropagation(); try { await toggleCronTask(task.id); const d = await getCronTasks(); setTasks(d||[]); if (activeTask?.id===task.id) { const r=(d||[]).find(t=>t.id===task.id); if(r) handleSelectTask(r); } } catch(err) { alert('状态变更失败'); } };
+  const handleRun = async (task) => { setIsRunning(true); try { await runCronTask(task.id); alert('已下发执行'); setTimeout(()=>loadLogs(task.id),3000); } catch(err) { alert('触发失败'); } setIsRunning(false); };
 
-  const handleToggleStatus = async (task, e) => {
-    e.stopPropagation();
-    try {
-      await toggleCronTask(task.id);
-      const data = await getCronTasks();
-      setTasks(data || []);
-      // I4: 更新详情面板状态
-      if (activeTask?.id === task.id) {
-        const refreshed = (data || []).find(t => t.id === task.id);
-        if (refreshed) handleSelectTask(refreshed);
-      }
-    } catch (e) {
-      console.error(e);
-      alert('状态变更失败');
-    }
-  };
+  const updateStep = (idx, field, value) => { const s = [...steps]; s[idx] = { ...s[idx], [field]: value }; setSteps(s); };
+  const updateStepInputConfig = (idx, key, val) => { const s = [...steps]; s[idx] = { ...s[idx], input: { ...s[idx].input, config: { ...(s[idx].input.config||{}), [key]: val } } }; setSteps(s); };
+  const updateStepConfig = (idx, key, val) => { const s = [...steps]; s[idx] = { ...s[idx], config: { ...(s[idx].config||{}), [key]: val } }; setSteps(s); };
+  const updateStepInput = (idx, updates) => { const s = [...steps]; s[idx] = { ...s[idx], input: { ...s[idx].input, ...updates } }; setSteps(s); };
 
-  const handleRunImmediately = async (task) => {
-    setIsRunning(true);
-    try {
-      await runCronTask(task.id);
-      alert('任务已在后台下发执行，请稍后刷新日志。');
-      setTimeout(() => loadLogs(task.id), 3000);
-    } catch (e) {
-      console.error(e);
-      alert('手动触发失败');
+  const addStep = () => {
+    if (steps.length >= 4) { alert('最多 4 个步骤'); return; }
+    setSteps([...steps, { step: steps.length+1, name: `步骤${steps.length+1}`, action: 'ai_process', input: { source: 'step', step_ref: steps.length }, config: { prompt: '请分析以下内容：\n{{input}}' } }]);
+  };
+  const removeStep = (idx) => { if (steps.length <= 1) return; setSteps(steps.filter((_,i)=>i!==idx).map((st,i)=>({...st, step:i+1}))); };
+
+  const onActionChange = (idx, action) => {
+    const s = [...steps];
+    if (action === 'web_crawl') {
+      s[idx] = { ...s[idx], action, input: { source: idx===0?'fixed':'step', config: { urls: [], rate_limit_ms: 1500 }, step_ref: idx }, config: {} };
+    } else {
+      s[idx] = { ...s[idx], action, input: { source: idx===0?'fixed':'step', step_ref: idx, config: {} }, config: { prompt: '请分析以下内容：\n{{input}}' } };
     }
-    setIsRunning(false);
+    setSteps(s);
   };
 
   return (
     <div className="flex flex-1 overflow-hidden h-full">
-      {/* 侧边栏列表 */}
+      {/* 侧边列表 */}
       <div style={{ backgroundColor: 'var(--bg-sidebar)' }} className="w-1/3 border-r border-borderSubtle flex flex-col p-4 gap-3 overflow-y-auto custom-scrollbar">
         <div className="text-[11px] font-mono uppercase tracking-widest pl-2 mb-1 flex justify-between items-center text-textTertiary">
           <span>计划列表</span>
-          <button onClick={handleNewTask} className="text-primeAccent hover:text-primeAccent/70 flex items-center gap-1 bg-primeAccent/10 px-2 py-1.5 rounded transition-colors text-xs font-semibold">
-            <Plus size={12} /> 新建任务
-          </button>
+          <button onClick={handleNewTask} className="text-primeAccent hover:text-primeAccent/70 flex items-center gap-1 bg-primeAccent/10 px-2 py-1.5 rounded transition-colors text-xs font-semibold"><Plus size={12} /> 新建</button>
         </div>
-
-        {loading ? (
-          <div className="text-center text-sm py-10 animate-pulse text-textTertiary">加载中...</div>
-        ) : tasks.length === 0 ? (
-          <div className="text-center text-xs py-10 text-textTertiary">暂无定时任务，点击右上方新建。</div>
-        ) : tasks.map(t => (
-          <div
-            key={t.id}
-            onClick={() => handleSelectTask(t)}
-            className={`group p-3 rounded-xl border cursor-pointer transition-all flex flex-col gap-2 relative ${activeTask?.id === t.id ? 'bg-bgHover border-borderSubtle' : 'bg-bgSubtle border-borderSubtle hover:bg-bgHover'}`}
-          >
-            <div className="flex items-center justify-between pr-20">
-              <div className="font-semibold text-sm truncate text-textPrimary">{t.name}</div>
-            </div>
-
-            <div className="absolute right-3 top-3 flex items-center gap-1.5">
-              <button
-                onClick={(e) => handleToggleStatus(t, e)}
-                className={`text-[9px] font-bold px-2 py-0.5 rounded-full transition-all flex items-center gap-1 ${t.status === 'active' ? 'bg-green-500/20 text-green-500' : 'bg-bgHover text-textSecondary'}`}
-              >
-                <div className={`w-1 h-1 rounded-full ${t.status === 'active' ? 'bg-green-500' : 'bg-textMuted/50'}`}></div>
-                {t.status === 'active' ? '运行中' : '已暂停'}
+        {loading ? <div className="text-center text-sm py-10 animate-pulse text-textTertiary">加载中...</div>
+        : tasks.length === 0 ? <div className="text-center text-xs py-10 text-textTertiary">暂无定时任务</div>
+        : tasks.map(t => (
+          <div key={t.id} onClick={() => handleSelectTask(t)} className={`group p-3 rounded-xl border cursor-pointer transition-all flex flex-col gap-2 relative ${activeTask?.id===t.id?'bg-bgHover border-borderSubtle':'bg-bgSubtle border-borderSubtle hover:bg-bgHover'}`}>
+            <div className="flex items-center justify-between pr-20"><div className="font-semibold text-sm truncate text-textPrimary">{t.name}</div></div>
+            <div className="absolute right-3 top-3">
+              <button onClick={(e)=>handleToggle(t,e)} className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${t.status==='active'?'bg-green-500/20 text-green-500':'bg-bgHover text-textSecondary'}`}>
+                <div className={`w-1 h-1 rounded-full ${t.status==='active'?'bg-green-500':'bg-textMuted/50'}`}></div>{t.status==='active'?'运行中':'已暂停'}
               </button>
             </div>
-
-            <div className="text-[11px] text-textTertiary font-mono flex flex-col gap-0.5">
-              <div>执行类型: {t.task_type === 'crawler' ? '🌍 网页抓取' : t.task_type}</div>
-              <div>下一次预计: {t.next_run_time ? new Date(t.next_run_time).toLocaleString() : '暂无'}</div>
-            </div>
+            <div className="text-[11px] text-textTertiary font-mono">下次: {t.next_run_time ? new Date(t.next_run_time).toLocaleString() : '暂无'}</div>
           </div>
         ))}
       </div>
 
-      {/* 详情及编辑面板 */}
+      {/* 编辑面板 */}
       <div style={{ backgroundColor: 'var(--bg-modal)' }} className="flex-1 p-6 flex flex-col overflow-y-auto custom-scrollbar">
         {activeTask !== null ? (
           <div className="flex flex-col gap-5 h-full">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-semibold text-textPrimary">{activeTask.id ? '编辑任务' : '创建新定时任务'}</h3>
+              <h3 className="text-base font-semibold text-textPrimary">{activeTask.id ? '编辑任务' : '创建新任务'}</h3>
               {activeTask.id && (
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowLogsModal(true)}
-                    className="text-textSecondary hover:text-primeAccent flex items-center gap-1 text-xs font-semibold bg-bgSubtle border border-borderSubtle px-3 py-1.5 rounded-lg transition-colors"
-                  >
-                    <FileText size={12} /> 查看执行日志
+                  <button onClick={()=>setShowLogsModal(true)} className="text-textSecondary hover:text-primeAccent flex items-center gap-1 text-xs font-semibold bg-bgSubtle border border-borderSubtle px-3 py-1.5 rounded-lg"><FileText size={12}/> 日志</button>
+                  <button disabled={isRunning} onClick={()=>handleRun(activeTask)} className="text-primeAccent flex items-center gap-1 text-xs font-semibold bg-primeAccent/10 px-3 py-1.5 rounded-lg">
+                    {isRunning?<RefreshCw size={12} className="animate-spin"/>:<Zap size={12}/>} 执行
                   </button>
-                  <button
-                    disabled={isRunning}
-                    onClick={() => handleRunImmediately(activeTask)}
-                    className="text-primeAccent hover:text-primeAccent/80 flex items-center gap-1 text-xs font-semibold bg-primeAccent/10 px-3 py-1.5 rounded-lg transition-colors"
-                  >
-                    {isRunning ? <RefreshCw size={12} className="animate-spin" /> : <Zap size={12} />} 立即执行一次
-                  </button>
-                  <button
-                    onClick={() => handleDelete(activeTask)}
-                    className="text-red-400 hover:text-red-300 flex items-center gap-1 text-xs font-semibold bg-red-400/10 px-3 py-1.5 rounded-lg transition-colors"
-                  >
-                    <Trash2 size={12} /> 删除任务
-                  </button>
+                  <button onClick={()=>handleDelete(activeTask)} className="text-red-400 flex items-center gap-1 text-xs font-semibold bg-red-400/10 px-3 py-1.5 rounded-lg"><Trash2 size={12}/> 删除</button>
                 </div>
               )}
             </div>
 
             {/* 基础信息 */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5 col-span-2 md:col-span-1">
+              <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-textTertiary">任务名称</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData(p => ({ ...p, name: e.target.value }))}
-                  className="rounded-xl px-3 py-2 text-xs focus:border-primeAccent/50 focus:outline-none bg-[var(--input-bg)] border border-[var(--glass-border)] text-textPrimary"
-                  placeholder="如：每日热点资讯抓取"
-                />
+                <input type="text" value={formData.name} onChange={e=>setFormData(p=>({...p,name:e.target.value}))} className="rounded-xl px-3 py-2 text-xs focus:outline-none bg-[var(--input-bg)] border border-[var(--glass-border)] text-textPrimary" placeholder="每日热点分析"/>
               </div>
-
-              <div className="flex flex-col gap-1.5 col-span-2 md:col-span-1">
-                <label className="text-xs font-medium text-textTertiary">任务类别</label>
-                <select
-                  value={formData.task_type}
-                  onChange={(e) => setFormData(p => ({ ...p, task_type: e.target.value }))}
-                  className="rounded-xl px-3 py-2 text-xs focus:border-primeAccent/50 focus:outline-none bg-[var(--input-bg)] border border-[var(--glass-border)] text-textPrimary"
-                >
-                  <option value="crawler">🌍 网页精准爬虫/剪藏</option>
-                </select>
-              </div>
-            </div>
-
-            {/* 调度设置 */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1.5 col-span-2 md:col-span-1">
+              <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-textTertiary">调度模式</label>
-                <select
-                  value={formData.schedule_type}
-                  onChange={(e) => setFormData(p => ({ ...p, schedule_type: e.target.value }))}
-                  className="rounded-xl px-3 py-2 text-xs focus:border-primeAccent/50 focus:outline-none bg-[var(--input-bg)] border border-[var(--glass-border)] text-textPrimary"
-                >
-                  <option value="cron">📆 Cron 表达式</option>
-                  <option value="interval">⏱️ 周期时间间隔 (分钟)</option>
-                  <option value="daily">📅 每日固定时间点 (HH:MM)</option>
+                <select value={formData.schedule_type} onChange={e=>setFormData(p=>({...p,schedule_type:e.target.value}))} className="rounded-xl px-3 py-2 text-xs focus:outline-none bg-[var(--input-bg)] border border-[var(--glass-border)] text-textPrimary">
+                  <option value="cron">📆 Cron</option><option value="interval">⏱️ 间隔(分)</option><option value="daily">📅 每日</option>
                 </select>
               </div>
-
-              <div className="flex flex-col gap-1.5 col-span-2 md:col-span-1">
-                <label className="text-xs font-medium text-textTertiary">调度设定值</label>
-                <input
-                  type="text"
-                  value={formData.schedule_value}
-                  onChange={(e) => setFormData(p => ({ ...p, schedule_value: e.target.value }))}
-                  className="rounded-xl px-3 py-2 text-xs focus:border-primeAccent/50 focus:outline-none bg-[var(--input-bg)] border border-[var(--glass-border)] text-textPrimary"
-                  placeholder={
-                    formData.schedule_type === 'cron'
-                      ? '如: 0 9 * * * (每天上午9点)'
-                      : formData.schedule_type === 'interval'
-                      ? '如: 1440'
-                      : '如: 09:30'
-                  }
-                />
-              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-textTertiary">调度值</label>
+              <input type="text" value={formData.schedule_value} onChange={e=>setFormData(p=>({...p,schedule_value:e.target.value}))} className="rounded-xl px-3 py-2 text-xs focus:outline-none bg-[var(--input-bg)] border border-[var(--glass-border)] text-textPrimary" placeholder={formData.schedule_type==='cron'?'0 9 * * *':'1440'}/>
             </div>
 
-            {/* 爬虫专属设置 */}
-            {formData.task_type === 'crawler' && (
-              <div className="flex flex-col gap-3 p-4 rounded-xl bg-bgSubtle border border-borderSubtle">
-                <div className="text-xs font-semibold text-textSecondary flex justify-between items-center">
-                  <span>🌍 网页精准抽取配置参数</span>
-                  <span className="text-[10px] text-textTertiary font-normal">系统会自动基于抽取规则进行正则匹配提取</span>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-medium text-textTertiary">采集目标 URL 链接列表 (每行一个)</label>
-                  <textarea
-                    value={urlsStr}
-                    onChange={(e) => setUrlsStr(e.target.value)}
-                    className="rounded-xl px-3 py-2 text-xs font-mono resize-none h-24 focus:border-primeAccent/50 focus:outline-none bg-[var(--input-bg)] border border-[var(--glass-border)] text-textPrimary custom-scrollbar"
-                    placeholder="https://example.com/article/1"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-medium text-textTertiary">单域名友好爬取频率延迟限制 (毫秒)</label>
-                  <input
-                    type="number"
-                    value={rateLimit}
-                    onChange={(e) => setRateLimit(e.target.value)}
-                    className="rounded-xl px-3 py-2 text-xs focus:border-primeAccent/50 focus:outline-none bg-[var(--input-bg)] border border-[var(--glass-border)] text-textPrimary"
-                    placeholder="默认 1500"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* 通知推送设置 */}
+            {/* 管道节点 */}
             <div className="flex flex-col gap-3 p-4 rounded-xl bg-bgSubtle border border-borderSubtle">
-              <div className="text-xs font-semibold text-textSecondary">📢 任务执行结果推送触点设定</div>
-              
-              <div className="flex flex-col gap-3">
-                {/* 邮件配置 */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="pushEmail"
-                      checked={pushEmail}
-                      onChange={(e) => setPushEmail(e.target.checked)}
-                      className="rounded border-[var(--glass-border)] bg-[var(--input-bg)] focus:ring-0"
-                    />
-                    <label htmlFor="pushEmail" className="text-xs font-medium text-textSecondary cursor-pointer">发信推送 (SMTP)</label>
+              <div className="text-xs font-semibold text-textSecondary flex justify-between"><span>⚡ 管道节点 ({steps.length}/4)</span>
+                {steps.length<4 && <button onClick={addStep} className="text-primeAccent flex items-center gap-1 text-[11px] font-semibold"><Plus size={11}/> 添加</button>}
+              </div>
+              {steps.map((st, idx) => (
+                <div key={idx} className="flex flex-col gap-2.5 p-3 rounded-lg border border-borderSubtle bg-[var(--bg-modal)] relative">
+                  {idx>0 && <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-textMuted text-[10px]">↓</div>}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-primeAccent bg-primeAccent/10 px-1.5 py-0.5 rounded">#{idx+1}</span>
+                      <input type="text" value={st.name} onChange={e=>updateStep(idx,'name',e.target.value)} className="rounded px-2 py-1 text-xs bg-transparent border-b border-borderSubtle focus:outline-none text-textPrimary w-32"/>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <select value={st.action} onChange={e=>onActionChange(idx,e.target.value)} className="rounded px-2 py-1 text-[11px] bg-[var(--input-bg)] border border-[var(--glass-border)] text-textPrimary">
+                        <option value="web_crawl">🌍 网页爬虫</option><option value="ai_process">🤖 AI 处理</option>
+                      </select>
+                      {steps.length>1 && <button onClick={()=>removeStep(idx)} className="text-red-400"><X size={13}/></button>}
+                    </div>
                   </div>
-                  {pushEmail && (
-                    <input
-                      type="email"
-                      value={emailTo}
-                      onChange={(e) => setEmailTo(e.target.value)}
-                      placeholder="收件邮箱地址..."
-                      className="rounded-xl px-3 py-1.5 text-xs w-60 focus:border-primeAccent/50 focus:outline-none bg-[var(--input-bg)] border border-[var(--glass-border)] text-textPrimary"
-                    />
+                  {idx>0 && st.action!=='web_crawl' && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-[10px] text-textTertiary">输入:</label>
+                      <select value={st.input.step_ref||idx} onChange={e=>updateStepInput(idx,{source:'step',step_ref:parseInt(e.target.value)})} className="rounded px-2 py-1 text-[11px] bg-[var(--input-bg)] border border-[var(--glass-border)] text-textPrimary">
+                        {Array.from({length:idx},(_,i)=><option key={i} value={i+1}>Step {i+1} 输出</option>)}
+                      </select>
+                    </div>
+                  )}
+                  {st.action==='web_crawl' && (
+                    <div className="flex flex-col gap-2">
+                      <textarea value={(st.input.config?.urls||[]).join('\n')} onChange={e=>updateStepInputConfig(idx,'urls',e.target.value.split('\n').map(u=>u.trim()).filter(Boolean))} className="rounded-lg px-3 py-2 text-xs font-mono resize-none h-20 focus:outline-none bg-[var(--input-bg)] border border-[var(--glass-border)] text-textPrimary" placeholder="每行一个 URL"/>
+                      <div className="flex items-center gap-2"><label className="text-[10px] text-textTertiary">频率(ms):</label>
+                        <input type="number" value={st.input.config?.rate_limit_ms||1500} onChange={e=>updateStepInputConfig(idx,'rate_limit_ms',parseInt(e.target.value)||1500)} className="rounded px-2 py-1 text-xs w-24 bg-[var(--input-bg)] border border-[var(--glass-border)] text-textPrimary"/>
+                      </div>
+                    </div>
+                  )}
+                  {st.action==='ai_process' && (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] text-textTertiary">{'提示词 (用 {{input}} 引用输入)'}</label>
+                      <textarea value={st.config?.prompt||''} onChange={e=>updateStepConfig(idx,'prompt',e.target.value)} className="rounded-lg px-3 py-2 text-xs font-mono resize-none h-24 focus:outline-none bg-[var(--input-bg)] border border-[var(--glass-border)] text-textPrimary" placeholder={'请分析以下内容：\n{{input}}'}/>
+                    </div>
                   )}
                 </div>
-
-                {/* 微信配置 */}
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="pushWechat"
-                    checked={pushWechat}
-                    onChange={(e) => setPushWechat(e.target.checked)}
-                    className="rounded border-[var(--glass-border)] bg-[var(--input-bg)] focus:ring-0"
-                  />
-                  <label htmlFor="pushWechat" className="text-xs font-medium text-textSecondary cursor-pointer">微信渠道推送 (将通过您的扫码已激活个人微信 Bot 直接直送)</label>
-                </div>
-              </div>
+              ))}
             </div>
 
-            {/* 保存动作 */}
-            <div className="flex justify-end gap-3 shrink-0">
-              <button
-                disabled={isSubmitting}
-                onClick={handleSave}
-                className="px-4 py-2 rounded-xl bg-primeAccent text-white font-semibold text-xs hover:bg-primeAccent/80 transition-all disabled:opacity-30 flex items-center gap-1.5"
-              >
-                {isSubmitting ? <RefreshCw size={12} className="animate-spin" /> : <Check size={12} />}
-                保存配置
+            {/* 推送配置 */}
+            <div className="flex flex-col gap-3 p-4 rounded-xl bg-bgSubtle border border-borderSubtle">
+              <div className="text-xs font-semibold text-textSecondary">📢 推送</div>
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 text-xs text-textSecondary cursor-pointer"><input type="checkbox" checked={pushEmail} onChange={e=>setPushEmail(e.target.checked)} className="rounded"/>邮件</label>
+                {pushEmail && <input type="email" value={emailTo} onChange={e=>setEmailTo(e.target.value)} placeholder="收件邮箱" className="rounded-xl px-3 py-1.5 text-xs w-60 bg-[var(--input-bg)] border border-[var(--glass-border)] text-textPrimary"/>}
+              </div>
+              <label className="flex items-center gap-2 text-xs text-textSecondary cursor-pointer"><input type="checkbox" checked={pushWechat} onChange={e=>setPushWechat(e.target.checked)} className="rounded"/>微信</label>
+            </div>
+
+            <div className="flex justify-end shrink-0">
+              <button disabled={isSubmitting} onClick={handleSave} className="px-4 py-2 rounded-xl bg-primeAccent text-white font-semibold text-xs hover:bg-primeAccent/80 disabled:opacity-30 flex items-center gap-1.5">
+                {isSubmitting?<RefreshCw size={12} className="animate-spin"/>:<Check size={12}/>} 保存
               </button>
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-center">
-            <Clock size={40} className="mb-4 text-textMuted" />
-            <p className="text-sm text-textSecondary font-medium">选择或新建一个定时计划</p>
-            <p className="text-xs mt-1 text-textMuted">在左侧列表点击，或按"新建"来创建日常抓取和收集任务。</p>
-          </div>
+          <div className="flex-1 flex flex-col items-center justify-center"><Clock size={40} className="mb-4 text-textMuted"/><p className="text-sm text-textSecondary">选择或新建定时计划</p></div>
         )}
       </div>
 
-      {/* 执行日志弹窗 */}
+      {/* 日志弹窗 */}
       {showLogsModal && activeTask?.id && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setShowLogsModal(false)}>
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="relative w-[520px] max-w-[90vw] max-h-[80vh] rounded-2xl border border-borderSubtle shadow-xl flex flex-col overflow-hidden"
-            style={{ backgroundColor: 'var(--bg-modal)' }}
-          >
+        <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={()=>setShowLogsModal(false)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"/>
+          <div onClick={e=>e.stopPropagation()} className="relative w-[520px] max-w-[90vw] max-h-[80vh] rounded-2xl border border-borderSubtle shadow-xl flex flex-col overflow-hidden" style={{backgroundColor:'var(--bg-modal)'}}>
             <div className="shrink-0 px-5 py-3.5 flex items-center justify-between border-b border-borderSubtle">
-              <div className="flex items-center gap-2 text-sm font-semibold text-textPrimary">
-                <Clock size={15} /> {activeTask.name} — 执行日志简报
-              </div>
-              <button onClick={() => setShowLogsModal(false)} className="text-textTertiary hover:text-textPrimary transition-colors">
-                <X size={16} />
-              </button>
+              <span className="text-sm font-semibold text-textPrimary">{activeTask.name} — 执行日志</span>
+              <button onClick={()=>setShowLogsModal(false)} className="text-textTertiary hover:text-textPrimary"><X size={16}/></button>
             </div>
-
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-2.5 custom-scrollbar">
-              {logsLoading ? (
-                <div className="text-center text-xs py-10 animate-pulse text-textTertiary">日志加载中...</div>
-              ) : logs.length === 0 ? (
-                <div className="text-center text-xs py-10 text-textTertiary">暂无历史执行报告。</div>
-              ) : (
-                logs.map(log => (
-                  <div key={log.id} className="p-3 rounded-xl border border-borderSubtle bg-bgSubtle flex flex-col gap-1.5 text-[11px] leading-relaxed">
-                    <div className="flex justify-between items-center">
-                      <span className="font-mono text-textTertiary">{new Date(log.start_time).toLocaleString()}</span>
-                      <span className={`font-bold px-1.5 py-0.5 rounded ${log.status === 'success' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                        {log.status === 'success' ? 'SUCCESS' : 'FAILURE'}
-                      </span>
-                    </div>
-                    <div className="text-textSecondary font-medium">执行成效：{log.result_summary}</div>
-                    {log.error_message && (
-                      <div className="p-2 rounded bg-red-500/5 text-red-400 font-mono text-[10px] break-all whitespace-pre-wrap">
-                        异常日志：{log.error_message}
-                      </div>
-                    )}
+              {logsLoading ? <div className="text-center text-xs py-10 text-textTertiary">加载中...</div>
+              : logs.length===0 ? <div className="text-center text-xs py-10 text-textTertiary">暂无日志</div>
+              : logs.map(log=>(
+                <div key={log.id} className="p-3 rounded-xl border border-borderSubtle bg-bgSubtle flex flex-col gap-1.5 text-[11px]">
+                  <div className="flex justify-between"><span className="font-mono text-textTertiary">{new Date(log.start_time).toLocaleString()}</span>
+                    <span className={`font-bold px-1.5 py-0.5 rounded ${log.status==='success'?'bg-green-500/10 text-green-500':'bg-red-500/10 text-red-500'}`}>{log.status==='success'?'SUCCESS':'FAILURE'}</span>
                   </div>
-                ))
-              )}
+                  <div className="text-textSecondary">{log.result_summary}</div>
+                  {log.step_results && (() => { try { return JSON.parse(log.step_results).map((s,i)=>(
+                    <div key={i} className={`text-[10px] px-2 py-1 rounded ${s.status==='success'?'bg-green-500/5 text-green-400':'bg-red-500/5 text-red-400'}`}>
+                      Step {s.step} [{s.action}] {s.status} ({s.duration_ms}ms)
+                    </div>)); } catch(err) { return null; } })()}
+                  {log.error_message && <div className="p-2 rounded bg-red-500/5 text-red-400 font-mono text-[10px] whitespace-pre-wrap">{log.error_message}</div>}
+                </div>))}
             </div>
           </div>
         </div>

@@ -14,16 +14,19 @@ type CronTask struct {
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 
 	Name     string `gorm:"size:128;not null" json:"name"`
-	TaskType string `gorm:"size:64;not null" json:"task_type"` // crawler (网页抓取), rss (RSS解析), email_reader (邮件拉取)
+	TaskType string `gorm:"size:64" json:"task_type"` // [已废弃] 旧版单一任务类型，迁移后不再使用
 	Status   string `gorm:"size:32;default:'paused';index" json:"status"` // active (启用), paused (暂停)
 
 	// 调度方案
 	ScheduleType  string `gorm:"size:32;default:'interval'" json:"schedule_type"` // interval (分钟间隔), cron (Cron表达式)
 	ScheduleValue string `gorm:"size:128;not null" json:"schedule_value"`         // "1440" (分钟数) 或 "0 9 * * *" (每天早9点)
 
-	// 任务具体配置（存储 JSON 字符串）
-	// 例如：{"urls": ["http://..."], "auto_extract": true, "rate_limit_ms": 1500}
+	// [已废弃] 旧版扁平配置，迁移后不再使用
 	Config string `gorm:"type:text" json:"config"`
+
+	// 管道节点配置 (JSON 数组字符串，最多 4 步)
+	// 示例: [{"step":1,"name":"爬取","action":"web_crawl","input":{...}}, ...]
+	Steps string `gorm:"type:text" json:"steps"`
 
 	// 推送设置（存储 JSON 字符串）
 	// 例如：{"push_wechat_bot": true, "push_email": true, "email_to": "test@test.com"}
@@ -42,6 +45,7 @@ type CronTaskLog struct {
 	Status        string    `gorm:"size:32;index" json:"status"`   // success (成功), failure (失败), running (运行中)
 	ResultSummary string    `gorm:"type:text" json:"result_summary"` // 结果摘要
 	ErrorMessage  string    `gorm:"type:text" json:"error_message"`  // 详细错误日志
+	StepResults   string    `gorm:"type:text" json:"step_results"`   // 管道每步执行详情 (JSON 数组)
 }
 
 // ExtractorRule 自定义网页 CSS 正则抽取配置表

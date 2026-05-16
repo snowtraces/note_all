@@ -17,8 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// 允许的 task_type 和 schedule_type 值
-var allowedTaskTypes = map[string]bool{"crawler": true}
+// 允许的 schedule_type 值
 var allowedScheduleTypes = map[string]bool{"interval": true, "cron": true, "daily": true}
 
 type CronApi struct{}
@@ -55,10 +54,9 @@ func (a *CronApi) ListTasks(c *gin.Context) {
 func (a *CronApi) CreateTask(c *gin.Context) {
 	var body struct {
 		Name          string `json:"name" binding:"required"`
-		TaskType      string `json:"task_type" binding:"required"`
 		ScheduleType  string `json:"schedule_type" binding:"required"`
 		ScheduleValue string `json:"schedule_value" binding:"required"`
-		Config        string `json:"config"`
+		Steps         string `json:"steps" binding:"required"`
 		Notification  string `json:"notification"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -66,42 +64,36 @@ func (a *CronApi) CreateTask(c *gin.Context) {
 		return
 	}
 
-	// I3: 验证 task_type 是否有注册的处理器
-	if !allowedTaskTypes[body.TaskType] {
-		if _, ok := service.GetTaskHandler(body.TaskType); !ok {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "不支持的任务类型: " + body.TaskType})
-			return
-		}
-	}
-	// I3: 验证 schedule_type 是否合法
+	// 验证 schedule_type
 	if !allowedScheduleTypes[body.ScheduleType] {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "不支持的调度类型: " + body.ScheduleType + " (支持: interval, cron, daily)"})
 		return
 	}
-	// I20: 验证 Config 和 Notification 是有效 JSON
-	if body.Config != "" {
-		if !json.Valid([]byte(body.Config)) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "任务配置 (config) 必须是合法 JSON"})
-			return
-		}
+
+	// 验证管道步骤
+	steps, err := service.ParseSteps(body.Steps)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "管道步骤格式错误: " + err.Error()})
+		return
 	}
-	if body.Notification != "" {
-		if !json.Valid([]byte(body.Notification)) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "通知配置 (notification) 必须是合法 JSON"})
-			return
-		}
+	if err := service.ValidateSteps(steps); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 
-	// 预解析时间戳
+	if body.Notification != "" && !json.Valid([]byte(body.Notification)) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "通知配置 (notification) 必须是合法 JSON"})
+		return
+	}
+
 	nextTime := service.CalculateNextRunTime(body.ScheduleType, body.ScheduleValue, time.Now())
 
 	task := models.CronTask{
 		Name:          body.Name,
-		TaskType:      body.TaskType,
 		Status:        "paused",
 		ScheduleType:  body.ScheduleType,
 		ScheduleValue: body.ScheduleValue,
-		Config:        body.Config,
+		Steps:         body.Steps,
 		Notification:  body.Notification,
 		NextRunTime:   nextTime,
 	}
@@ -119,10 +111,9 @@ func (a *CronApi) UpdateTask(c *gin.Context) {
 	id := c.Param("id")
 	var body struct {
 		Name          string `json:"name" binding:"required"`
-		TaskType      string `json:"task_type" binding:"required"`
 		ScheduleType  string `json:"schedule_type" binding:"required"`
 		ScheduleValue string `json:"schedule_value" binding:"required"`
-		Config        string `json:"config"`
+		Steps         string `json:"steps" binding:"required"`
 		Notification  string `json:"notification"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -130,19 +121,22 @@ func (a *CronApi) UpdateTask(c *gin.Context) {
 		return
 	}
 
-	// I3: 验证类型
-	if _, ok := service.GetTaskHandler(body.TaskType); !ok {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "不支持的任务类型: " + body.TaskType})
-		return
-	}
 	if !allowedScheduleTypes[body.ScheduleType] {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "不支持的调度类型: " + body.ScheduleType})
 		return
 	}
-	if body.Config != "" && !json.Valid([]byte(body.Config)) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "任务配置 (config) 必须是合法 JSON"})
+
+	// 验证管道步骤
+	steps, err := service.ParseSteps(body.Steps)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "管道步骤格式错误: " + err.Error()})
 		return
 	}
+	if err := service.ValidateSteps(steps); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	if body.Notification != "" && !json.Valid([]byte(body.Notification)) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "通知配置 (notification) 必须是合法 JSON"})
 		return
@@ -163,10 +157,9 @@ func (a *CronApi) UpdateTask(c *gin.Context) {
 
 	updates := map[string]interface{}{
 		"name":           body.Name,
-		"task_type":      body.TaskType,
 		"schedule_type":  body.ScheduleType,
 		"schedule_value": body.ScheduleValue,
-		"config":         body.Config,
+		"steps":          body.Steps,
 		"notification":   body.Notification,
 		"next_run_time":  nextTime,
 	}
@@ -176,7 +169,6 @@ func (a *CronApi) UpdateTask(c *gin.Context) {
 		return
 	}
 
-	// I2: 重新读取数据库返回最新数据
 	global.DB.First(&task, task.ID)
 	c.JSON(http.StatusOK, gin.H{"message": "更新定时任务成功", "data": task})
 }
