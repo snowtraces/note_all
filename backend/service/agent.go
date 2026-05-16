@@ -14,12 +14,12 @@ import (
 
 // AgentResponse Agent 响应结构
 type AgentResponse struct {
-	Content      string          `json:"content"`      // 最终回复
-	SessionID    uint            `json:"session_id"`   // 会话 ID
-	References   []ReferenceItem `json:"references"`   // 引用文档
-	Intent       string          `json:"intent"`       // 意图类型
-	Confidence   float32         `json:"confidence"`   // 意图置信度
-	ToolCalls    []ToolCallInfo  `json:"tool_calls"`   // 工具调用过程
+	Content    string          `json:"content"`    // 最终回复
+	SessionID  uint            `json:"session_id"` // 会话 ID
+	References []ReferenceItem `json:"references"` // 引用文档
+	Intent     string          `json:"intent"`     // 意图类型
+	Confidence float32         `json:"confidence"` // 意图置信度
+	ToolCalls  []ToolCallInfo  `json:"tool_calls"` // 工具调用过程
 }
 
 // ReferenceItem 文档级引用
@@ -32,10 +32,10 @@ type ReferenceItem struct {
 
 // Agent 核心组件
 type Agent struct {
-	sessionManager  *SessionManager
-	intentAnalyzer  *IntentAnalyzer
-	queryRewriter   *QueryRewriter
-	toolExecutor    *ToolExecutor
+	sessionManager *SessionManager
+	intentAnalyzer *IntentAnalyzer
+	queryRewriter  *QueryRewriter
+	toolExecutor   *ToolExecutor
 }
 
 // defaultAgent 全局单例 Agent
@@ -44,10 +44,10 @@ var defaultAgent = NewAgent()
 // NewAgent 创建 Agent
 func NewAgent() *Agent {
 	return &Agent{
-		sessionManager:  NewSessionManager(),
-		intentAnalyzer:  NewIntentAnalyzer(),
-		queryRewriter:   NewQueryRewriter(),
-		toolExecutor:    NewToolExecutor(),
+		sessionManager: NewSessionManager(),
+		intentAnalyzer: NewIntentAnalyzer(),
+		queryRewriter:  NewQueryRewriter(),
+		toolExecutor:   NewToolExecutor(),
 	}
 }
 
@@ -58,13 +58,20 @@ func (a *Agent) BuildSystemPrompt() string {
 	// 1. 基础协议与 ReAct 规范 (Global Protocol)
 	sb.WriteString("=== CORE PROTOCOL ===\n")
 	sb.WriteString("1. Use the **ReAct** pattern for complex tasks (DO NOT TRANSLATE THESE KEYWORDS):\n")
-	sb.WriteString("   - Thought: [Describe your reasoning process in Chinese]\n")
+	sb.WriteString("   - Thought: [Describe your reasoning process and plan in Chinese]\n")
 	sb.WriteString("   - Action: ToolName({\"key\": \"value\"})\n")
+	sb.WriteString("   - IMPORTANT: For actions requiring persistence (e.g., saving a note), you **MUST** call the corresponding tool (e.g., `save_note`). Never state that you have saved or performed a persistent action unless you have received a success message from the tool.\n")
+	sb.WriteString("   - IMPORTANT: DO NOT include any factual information or \"Final Answer\" content in the same message as an Action. You must wait for the tool result before providing the final answer.\n")
 	sb.WriteString("   - Wait for the tool result before providing the final answer.\n")
 	sb.WriteString("   IMPORTANT: Always use English keyword 'Action:' and 'Thought:', and keep tool names and parameters in the specified format. Do not use XML tags or other formats.\n")
 	sb.WriteString("   Example Action: search({\"query\": \"AI development\"})\n\n")
 	sb.WriteString("2. Use [[Title]] format for internal links to other notes.\n")
 	sb.WriteString("3. Respond in a helpful, concise, and professional tone.\n\n")
+	sb.WriteString("=== RECORD PROTOCOL ===\n")
+	sb.WriteString("If the user wants to 'save', 'record', or 'remember' something from the current conversation:\n")
+	sb.WriteString("1. **Summarize** the key points discussed so far.\n")
+	sb.WriteString("2. **Title** it appropriately (e.g., Topic_Year-Month-Day).\n")
+	sb.WriteString("3. **Action**: Call `save_note` tool immediately. DO NOT perform unnecessary searches for duplicates unless explicitly asked.\n\n")
 
 	// 2. 身份与记忆 (Memory & Identity)
 	memory := GetMemoryManager()
@@ -90,6 +97,8 @@ func AgentAsk(sessionID uint, query string) (*AgentResponse, error) {
 func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 	log.Printf("[Agent] ========== 开始处理 ==========")
 	log.Printf("[Agent] 会话ID: %d, 用户输入: %q", sessionID, query)
+
+	originalQuery := query // 保存原始输入，用于后续持久化历史
 
 	// 1.1 构建全局系统提示词 (包含协议、技能和记忆)
 	systemPrompt := a.BuildSystemPrompt()
@@ -157,6 +166,18 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 		session.Messages = []ConversationMessage{}
 		state = NewQueryState(session.ID, session.Messages, session.Context)
 		initialToolCalls = []ToolCall{{Tool: ToolSearch, Parameters: map[string]interface{}{"query": query}}}
+	case IntentRecord:
+		// 记录意图安全检查：如果是疑问句（如“怎么保存”、“如何记笔记”），不触发自动保存，转为 RAG 回答
+		if isQuestion(query) {
+			log.Printf("[Agent] 记录意图检测到疑问特征，转为 RAG 回答")
+			initialToolCalls = []ToolCall{{Tool: ToolSearch, Parameters: map[string]interface{}{"query": query}}}
+		} else {
+			// 确认为“记录指令”：强制转为“总结+保存”多步任务
+			initialToolCalls = []ToolCall{
+				{Tool: ToolGenerate, Parameters: map[string]interface{}{"query": "请基于当前对话内容，整理出一份结构清晰、专业、详细的 Markdown 笔记，包含核心要点、代码片段或方案建议。"}},
+				{Tool: ToolSaveNote, Parameters: map[string]interface{}{"title": "整理笔记_" + time.Now().Format("2006-01-02")}},
+			}
+		}
 	default:
 		// 新话题：使用 RAG 流程
 		initialToolCalls = []ToolCall{{Tool: ToolSearch, Parameters: map[string]interface{}{"query": query}}}
@@ -194,7 +215,7 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 	}
 
 	// 6. 执行 QueryLoop（多轮循环）
-	maxIterations := 10 // 防止无限循环
+	maxIterations := 5 // 防止无限循环
 	iterations := 0
 
 loop:
@@ -204,7 +225,7 @@ loop:
 
 		// 如果有待执行的工具调用，先执行工具
 		if len(state.ActiveToolCalls) > 0 {
-			toolResults, infos := a.executeToolCalls(state)
+			toolResults, infos, hasError := a.executeToolCalls(state)
 			toolCallInfos = append(toolCallInfos, infos...)
 			allToolResults = append(allToolResults, toolResults...) // 收集结果
 
@@ -220,11 +241,19 @@ loop:
 				})
 			}
 
+			// 如果执行失败，立即中断并返回
+			if hasError {
+				log.Printf("[Agent] 工具执行存在错误，中断流程并返回")
+				finalResponse = a.buildResponse(toolResults, toolCallInfos, intent, state.SessionID)
+				break loop
+			}
+
 			// 清空已执行的工具调用
 			state.ActiveToolCalls = nil
 			state.TurnCount++
 
-			// 继续循环，让 LLM 处理工具结果
+			// 继续循环，让 LLM 处理工具结果（下一轮不需要再次发送原始 query）
+			query = ""
 			continue
 		}
 
@@ -264,7 +293,8 @@ loop:
 			continue
 
 		case TransitionContinue:
-			// 继续循环
+			// 继续循环，下一轮不需要再次发送原始 query（历史记录中已包含）
+			query = ""
 			continue
 
 		case TransitionInterrupt:
@@ -298,10 +328,10 @@ loop:
 
 	// 10. 保存对话历史
 	newSessionID, err := a.sessionManager.SaveTurn(session.ID, ConversationMessage{
-		Role:       "user",
-		Content:    query,
-		Intent:     string(intent.Type),
-		Timestamp:  time.Now(),
+		Role:      "user",
+		Content:   originalQuery,
+		Intent:    string(intent.Type),
+		Timestamp: time.Now(),
 	})
 	if err != nil {
 		log.Printf("[Agent] 保存用户消息失败: %v", err)
@@ -338,12 +368,28 @@ loop:
 }
 
 // executeToolCalls 执行工具调用序列
-func (a *Agent) executeToolCalls(state *QueryState) ([]ToolResult, []ToolCallInfo) {
+func (a *Agent) executeToolCalls(state *QueryState) ([]ToolResult, []ToolCallInfo, bool) {
 	log.Printf("[Agent] 执行工具调用序列: %d 个工具", len(state.ActiveToolCalls))
 	results := make([]ToolResult, 0)
 	infos := make([]ToolCallInfo, 0)
+	hasError := false
 
 	for i, call := range state.ActiveToolCalls {
+		// 特殊逻辑：如果是保存笔记工具，且前面有执行结果，尝试继承内容
+		if call.Tool == ToolSaveNote && i > 0 && results[i-1].Output != "" {
+			if call.Parameters == nil {
+				call.Parameters = make(map[string]interface{})
+			}
+			// 如果 content 为空，则取上一步的输出
+			if content, ok := call.Parameters["content"].(string); !ok || content == "" {
+				call.Parameters["content"] = results[i-1].Output
+			}
+			// 如果 title 为空，给一个默认值
+			if title, ok := call.Parameters["title"].(string); !ok || title == "" {
+				call.Parameters["title"] = "整理笔记_" + time.Now().Format("2006-01-02")
+			}
+		}
+
 		log.Printf("[Agent] 工具[%d]: %s, 参数摘要: %v", i+1, call.Tool, summarizeParams(call.Parameters))
 		result, info := a.toolExecutor.ExecuteWithTiming(i+1, call)
 		results = append(results, result)
@@ -352,12 +398,13 @@ func (a *Agent) executeToolCalls(state *QueryState) ([]ToolResult, []ToolCallInf
 		// 检查是否执行失败
 		if strings.Contains(result.Output, "失败") {
 			log.Printf("[Agent] [警告] 工具[%d] 执行失败: %s", i+1, result.Output)
+			hasError = true
 			break
 		}
 		log.Printf("[Agent] 工具[%d] 完成: 耗时%dms, 输出摘要: %q", i+1, info.Duration, truncateOutput(result.Output, 50))
 	}
 
-	return results, infos
+	return results, infos, hasError
 }
 
 // summarizeParams 生成参数摘要（避免过长）
@@ -413,6 +460,13 @@ func (a *Agent) executeMultiStep(subTasks []SubTask, session *ConversationSessio
 		}
 
 		// 执行工具
+		if call.Tool == ToolSaveNote && i > 0 && results[i-1].Output != "" {
+			call.Parameters["content"] = results[i-1].Output
+			if call.Parameters["title"] == nil || call.Parameters["title"] == "" {
+				call.Parameters["title"] = "整理笔记_" + time.Now().Format("2006-01-02")
+			}
+		}
+
 		result, info := a.toolExecutor.ExecuteWithTiming(i+1, call)
 		results = append(results, result)
 		infos = append(infos, info)
@@ -443,7 +497,7 @@ func (a *Agent) executeFollowUp(query string, session *ConversationSession, inte
 		log.Printf("[Agent] 追问模式：使用 %d 个关注文档", len(rewrite.FocusDocuments))
 
 		call := ToolCall{
-			Tool:       ToolSummarize,
+			Tool: ToolSummarize,
 			Parameters: map[string]interface{}{
 				"documents": rewrite.FocusDocuments,
 				"prompt":    query,
@@ -460,7 +514,7 @@ func (a *Agent) executeFollowUp(query string, session *ConversationSession, inte
 	// 如果有多个检索词，使用批量检索
 	if len(rewrite.ExpandedTerms) > 1 {
 		call := ToolCall{
-			Tool:       ToolSearch,
+			Tool: ToolSearch,
 			Parameters: map[string]interface{}{
 				"queries": rewrite.ExpandedTerms,
 			},
@@ -593,6 +647,8 @@ func mapSubIntentToTool(intent IntentType) Tool {
 		return ToolCompare
 	case IntentGenerate:
 		return ToolGenerate
+	case IntentRecord:
+		return ToolSaveNote
 	default:
 		return ToolSearch
 	}
@@ -734,58 +790,67 @@ func cleanQueryForSearch(query string) string {
 		return strings.TrimSpace(result)
 	}
 
-	// 使用词性标注提取核心词
+	// 使用词性标注提取核心词，并尝试保留原始连接结构
 	tags := jieba.Tag(query)
-	var keywords []string
 	
 	// 定义干扰词性
 	ignorePOS := map[string]bool{
-		"uj": true, // 的
-		"ul": true, // 了
-		"p":  true, // 介词 (在, 从)
-		"r":  true, // 代词 (我, 你, 这, 哪)
-		"m":  true, // 数词
-		"q":  true, // 量词
-		"c":  true, // 连词
-		"d":  true, // 副词 (很, 非常, 一下)
-		"f":  true, // 方位词/时间副词 (最近, 上面)
-		"u":  true, // 助词
-		"w":  true, // 标点
+		"uj": true, "ul": true, "p": true, "r": true, "m": true, "q": true, 
+		"c": true, "d": true, "f": true, "u": true, "w": true,
 	}
 
-	// 强制移除的常见动词和形容词（干扰搜索）
+	// 强制移除的常见动词和形容词
 	stopWords := map[string]bool{
 		"查找": true, "搜索": true, "查询": true, "显示": true, "找": true, "看": true, "输出": true,
 		"最近": true, "一下": true, "帮我": true, "请": true, "有没有": true,
 	}
 
+	var sb strings.Builder
+	lastWasFiltered := false
+	
 	for _, tag := range tags {
 		parts := strings.Split(tag, "/")
-		if len(parts) != 2 {
-			continue
-		}
+		if len(parts) != 2 { continue }
 		word := parts[0]
 		pos := parts[1]
 
-		// 过滤干扰词性、干扰动词
-		// 注意：保留 x (未知词)，因为很多专有名词如 "东财" 会被识别为 x
+		// 过滤
 		if ignorePOS[pos] || stopWords[word] {
+			lastWasFiltered = true
 			continue
 		}
-		
-		// 额外的标点符号检查 (针对 x 类型中的标点)
+
+		// 额外的标点符号检查
 		if pos == "x" && regexp.MustCompile(`[^\w\x{4e00}-\x{9fa5}]`).MatchString(word) {
+			lastWasFiltered = true
 			continue
 		}
 
-		keywords = append(keywords, word)
+		// 如果前一个被过滤了，且当前不是第一个词，加个空格分隔（避免歧义）
+		if lastWasFiltered && sb.Len() > 0 {
+			sb.WriteString(" ")
+		}
+		sb.WriteString(word)
+		lastWasFiltered = false
 	}
 
-	if len(keywords) == 0 {
-		return query // 兜底：如果过滤光了，返回原词
+	result := strings.TrimSpace(sb.String())
+	if result == "" {
+		return query // 兜底
 	}
 
-	result := strings.Join(keywords, " ")
 	log.Printf("[Agent] Query 清洗: %q -> %q", query, result)
 	return result
+}
+
+// isQuestion 简单判断是否为疑问句
+func isQuestion(query string) bool {
+	query = strings.ToLower(query)
+	questionMarkers := []string{"怎么", "如何", "什么", "吗", "呢", "能否", "为什么", "how", "what", "can", "why", "help"}
+	for _, marker := range questionMarkers {
+		if strings.Contains(query, marker) {
+			return true
+		}
+	}
+	return strings.HasSuffix(query, "?") || strings.HasSuffix(query, "？")
 }

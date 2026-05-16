@@ -754,14 +754,25 @@ func BatchHybridSearchWithChunks(queries []string, limit int, folderFilter strin
 	if len(ftsQueries) > 0 {
 		jieba := synonym.GetJieba()
 		allFtsTerms := make([]string, 0)
+		// 常用干扰词过滤（停用词）
+		stopWords := map[string]bool{
+			"查找": true, "一下": true, "最近": true, "搜索": true, "查询": true,
+			"获取": true, "展示": true, "看看": true, "关于": true, "那个": true,
+			"哪些": true, "什么": true, "如何": true, "怎么": true, "的": true,
+			"了": true, "在": true, "是": true, "我": true, "你": true,
+		}
+
 		for _, q := range ftsQueries {
+			// 原词匹配
 			allFtsTerms = append(allFtsTerms, "\""+q+"\"")
 			if jieba != nil {
 				segments := jieba.Cut(q, true)
 				for _, seg := range segments {
-					if len([]rune(seg)) >= 2 {
-						allFtsTerms = append(allFtsTerms, "\""+seg+"\"")
+					seg = strings.TrimSpace(seg)
+					if len([]rune(seg)) < 2 || stopWords[seg] {
+						continue
 					}
+					allFtsTerms = append(allFtsTerms, "\""+seg+"\"")
 				}
 			}
 		}

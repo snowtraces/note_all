@@ -66,7 +66,13 @@ var DefaultToolPermissions = map[Tool]ToolPermission{
 		Tool:          ToolGenerate,
 		RiskLevel:     RiskHigh,
 		DefaultResult: PermissionAsk,
-		Description:   "生成内容：可能生成不当内容，高风险",
+		Description:   "生成内容：可能生成不当内容，中风险",
+	},
+	ToolSaveNote: {
+		Tool:          ToolSaveNote,
+		RiskLevel:     RiskMedium,
+		DefaultResult: PermissionAllow,
+		Description:   "保存笔记：持久化操作，中风险",
 	},
 }
 

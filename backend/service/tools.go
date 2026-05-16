@@ -100,13 +100,34 @@ func (te *ToolExecutor) Execute(call ToolCall) ToolResult {
 
 // executeSearch 执行检索（返回分片结果，避免完整大文档）
 func (te *ToolExecutor) executeSearch(call ToolCall) ToolResult {
-	query, _ := call.Parameters["query"].(string)
-	if query == "" {
-		return ToolResult{Output: "检索查询为空"}
+	var finalQueries []string
+
+	// 1. 尝试获取 queries 列表 (来自 Agent 预处理)
+	if qs, ok := call.Parameters["queries"].([]interface{}); ok {
+		for _, q := range qs {
+			if s, ok := q.(string); ok {
+				finalQueries = append(finalQueries, s)
+			}
+		}
+	} else if qs, ok := call.Parameters["queries"].([]string); ok {
+		finalQueries = qs
 	}
 
+	// 2. 如果没有 queries，则处理单个 query 字符串
+	if len(finalQueries) == 0 {
+		query, _ := call.Parameters["query"].(string)
+		if query == "" {
+			return ToolResult{Output: "检索查询为空"}
+		}
+		// 清洗查询词
+		cleanQuery := cleanQueryForSearch(query)
+		finalQueries = []string{cleanQuery}
+	}
+
+	log.Printf("[ToolExecutor] 检索查询: %v", finalQueries)
+
 	// 使用分片级混合检索（限制为 8 个结果）
-	results, hitChunks, err := BatchHybridSearchWithChunks([]string{query}, 8, "")
+	results, hitChunks, err := BatchHybridSearchWithChunks(finalQueries, 8, "")
 	if err != nil {
 		log.Printf("[ToolExecutor] 检索失败: %v", err)
 		return ToolResult{Output: "检索失败: " + err.Error()}
@@ -128,7 +149,7 @@ func (te *ToolExecutor) executeSearch(call ToolCall) ToolResult {
 		Output:    output,
 		Documents: results,
 		HitChunks: hitChunks,
-		Metadata:  map[string]interface{}{"query": query, "count": len(results)},
+		Metadata:  map[string]interface{}{"queries": finalQueries, "count": len(results)},
 	}
 }
 
@@ -398,6 +419,8 @@ func (te *ToolExecutor) executeSaveNote(call ToolCall) ToolResult {
 	title, _ := call.Parameters["title"].(string)
 	content, _ := call.Parameters["content"].(string)
 	tags, _ := call.Parameters["tags"].(string)
+
+	log.Printf("[ToolExecutor] executeSaveNote: title=%q, contentLen=%d", title, len(content))
 
 	if content == "" {
 		return ToolResult{Output: "保存失败：内容不能为空"}

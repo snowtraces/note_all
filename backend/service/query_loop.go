@@ -472,15 +472,85 @@ func detectToolCalls(output string) []ToolCall {
 
 			log.Printf("[QueryLoop] 检测到工具调用意图: %s, 参数: %s", toolNameStr, paramJSON)
 
+			// 容错处理：如果不是 JSON，尝试寻找其中包含的 JSON 块
+			if paramJSON != "" && !strings.HasPrefix(paramJSON, "{") {
+				reJSON := regexp.MustCompile(`\{[\s\S]*\}`)
+				if jsonMatch := reJSON.FindString(paramJSON); jsonMatch != "" {
+					paramJSON = jsonMatch
+				}
+			}
+
 			var params map[string]interface{}
 			if paramJSON == "" || paramJSON == "{}" {
 				params = make(map[string]interface{})
 			} else {
 				if err := json.Unmarshal([]byte(paramJSON), &params); err != nil {
-					// 容错处理：如果不是 JSON，但看起来像是一个纯文本参数（如在 <tag> 中）
-					// 我们尝试将其包装为 {"query": "..."}
-					log.Printf("[QueryLoop] 参数非 JSON 格式，尝试自动包装: %q", paramJSON)
-					params = map[string]interface{}{"query": paramJSON}
+					// 容错处理：如果依然解析失败，但看起来像是由于非贪婪匹配截断导致的
+					// 我们尝试在整个 output 中寻找从匹配点开始到最后一个 ) 的内容
+					log.Printf("[QueryLoop] JSON 解析失败: %v, 尝试扩大范围解析...", err)
+					
+					// 如果解析失败，且内容包含 { 但不平衡，尝试寻找完整的 JSON 块
+					if strings.Contains(paramJSON, "{") {
+						// 寻找当前工具名后的第一个 {
+						toolStart := strings.Index(output, toolNameStr)
+						if toolStart != -1 {
+							remaining := output[toolStart:]
+							jsonStart := strings.Index(remaining, "{")
+							if jsonStart != -1 {
+								// 使用括号计数寻找匹配的 }
+								count := 0
+								found := false
+								jsonEnd := -1
+								for i := jsonStart; i < len(remaining); i++ {
+									if remaining[i] == '{' {
+										count++
+									} else if remaining[i] == '}' {
+										count--
+										if count == 0 {
+											jsonEnd = i + 1
+											found = true
+											break
+										}
+									}
+								}
+								
+								if found {
+									extendedJSON := strings.TrimSpace(remaining[jsonStart:jsonEnd])
+									if err2 := json.Unmarshal([]byte(extendedJSON), &params); err2 == nil {
+										log.Printf("[QueryLoop] 括号计数解析成功!")
+										paramJSON = extendedJSON
+									}
+								}
+							}
+						}
+					}
+
+					// 如果还是失败，尝试寻找最后一个 ) 或 > 作为边界（容错旧模式）
+					if params == nil {
+						toolStart := strings.Index(output, toolNameStr)
+						if toolStart != -1 {
+							remaining := output[toolStart:]
+							bracketStart := strings.IndexAny(remaining, "(<")
+							bracketEnd := strings.LastIndexAny(remaining, ")>")
+							if bracketStart != -1 && bracketEnd != -1 && bracketEnd > bracketStart {
+								potentialJSON := strings.TrimSpace(remaining[bracketStart+1 : bracketEnd])
+								potentialJSON = strings.TrimPrefix(potentialJSON, "```json")
+								potentialJSON = strings.TrimPrefix(potentialJSON, "```")
+								potentialJSON = strings.TrimSuffix(potentialJSON, "```")
+								potentialJSON = strings.TrimSpace(potentialJSON)
+								if err3 := json.Unmarshal([]byte(potentialJSON), &params); err3 == nil {
+									log.Printf("[QueryLoop] 边界匹配解析成功!")
+									paramJSON = potentialJSON
+								}
+							}
+						}
+					}
+
+					// 如果最终还是失败，且不是 save_note，则执行兜底包装
+					if params == nil {
+						log.Printf("[QueryLoop] 参数非 JSON 格式且无法自动修复，尝试自动包装为 query: %q", paramJSON)
+						params = map[string]interface{}{"query": paramJSON}
+					}
 				}
 			}
 
@@ -517,7 +587,14 @@ func handleToolUse(state *QueryState, llmResult LLMResult, query string) QueryLo
 		}
 	}
 
-	// 将工具结果加入消息（使用 user 角色 + 前缀，兼容 API）
+	// 1. 将 LLM 的输出（包含 Thought 和 Action）加入消息历史
+	state.Messages = append(state.Messages, ConversationMessage{
+		Role:      "assistant",
+		Content:   llmResult.Output,
+		Timestamp: time.Now(),
+	})
+
+	// 2. 将工具结果加入消息（使用 user 角色 + 前缀，兼容 API）
 	for _, result := range toolResults {
 		toolResultMsg := ConversationMessage{
 			Role:      "user",
@@ -529,6 +606,18 @@ func handleToolUse(state *QueryState, llmResult LLMResult, query string) QueryLo
 
 	state.ActiveToolCalls = nil
 	state.TurnCount++
+
+	// 检查是否有工具执行失败，如果失败则停止循环
+	for _, result := range toolResults {
+		if strings.Contains(result.Output, "失败") {
+			log.Printf("[QueryLoop] 检测到工具执行失败，停止循环并输出错误")
+			return QueryLoopResult{
+				Response:   nil, // 由 Agent.Ask 构建最终响应
+				Transition: TransitionStop,
+				Error:      nil,
+			}
+		}
+	}
 
 	// 继续循环，请求 LLM 处理工具结果
 	return QueryLoopResult{

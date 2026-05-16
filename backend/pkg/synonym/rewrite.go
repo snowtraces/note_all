@@ -84,26 +84,34 @@ func RewriteQuery(query string) []string {
 	// 如果查询太长（比如超过 30 个字符），我们就不生成全句副本了，因为全句 FTS 匹配概率本来就很低
 	isLongQuery := len([]rune(query)) > 30
 	var finalResults []string
-	
+
 	if !isLongQuery {
 		finalResults = append(finalResults, query)
 		// 添加前 2 个名词的替换版本
 		count := 0
 		for _, cand := range candidates {
-			if count >= 2 { break }
+			if count >= 2 {
+				break
+			}
 			for _, s := range cand.synonyms {
-				if s == cand.original { continue }
+				if s == cand.original {
+					continue
+				}
 				finalResults = append(finalResults, strings.Replace(query, cand.original, s, 1))
 				count++
-				if count >= 2 { break }
+				if count >= 2 {
+					break
+				}
 			}
 		}
 	}
 
 	// 5. 提取并添加所有核心关键词（无论查询长短，关键词都是最有用的）
 	for _, seg := range segments {
-		if len([]rune(seg)) < 2 { continue }
-		
+		if len([]rune(seg)) < 2 {
+			continue
+		}
+
 		pos := posMap[seg]
 		// 只要是名词或动词（排除常见的语气助词和停用词）
 		if isNoun(pos) || strings.HasPrefix(pos, "v") {
@@ -112,7 +120,7 @@ func RewriteQuery(query string) []string {
 				continue
 			}
 			finalResults = append(finalResults, seg)
-			
+
 			// 如果是名词，也加上它的同义词
 			if isNoun(pos) {
 				syns := GetSynonyms(seg)

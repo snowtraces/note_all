@@ -104,8 +104,10 @@ func (s *LegacyToolSkill) Description() string {
 		return "基于参考内容生成新的报告或文本"
 	case ToolAnalyze:
 		return "分析文档间的关联关系"
+	case ToolSaveNote:
+		return "将当前对话的总结或指定内容保存为永久笔记"
 	}
-	return "旧版工具"
+	return "基础能力工具"
 }
 func (s *LegacyToolSkill) Usage() string {
 	switch s.toolName {
