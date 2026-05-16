@@ -12,8 +12,8 @@
   - **DB Schema**: CronTask 新增 `Steps` JSON 字段存储管道定义，CronTaskLog 新增 `StepResults` JSON 记录每步执行详情。
   - **API 层适配**: CreateTask/UpdateTask 接口改为接收 `steps` 字段，新增管道步骤的解析与校验逻辑。
   - **调度器双模兼容**: 调度器优先解析 Steps 执行管道，旧任务自动降级至 TaskHandler 兼容模式。
-  - **笔记自动保存**: 管道最终输出直接保存至 `任务/{任务名称}` 目录，Status 设为 `done`，仅触发向量分片而不走 AI 归类分析。
-  - **前端管道编辑器**: 重写 CronTasksSubTab，支持可视化节点增删、动作类型切换、输入来源绑定和步骤结果日志展示。
+  - **笔记自动保存与 AI 提炼**: 管道最终输出直接保存至 `任务/{任务名称}` 目录，Status 设为 `done`；异步触发 AI 提炼，自动生成并保存 **AI 标题、摘要及标签**，同时锁定目录分类防止 AI 重新归类，确保知识库组织有序。
+  - **前端管道编辑器**: 重载 CronTasksSubTab，支持可视化多节点配置、输入来源绑定（Fixed/Step Reference）以及步骤级执行日志审计。
 - **后端 (多模型配置解耦与 DeepSeek 集成)**:
   - **VLM/LLM 配置分离**: 重构了 `AppConfig` 结构体，支持为视觉大模型 (VLM) 独立配置 `vlm_api_url` 和 `vlm_api_token`，实现了视觉与文本模型在不同供应商间的灵活组合。
   - **智能回退机制**: 在 `DescribeImageVlm` 中实现了配置回退逻辑，当未提供 VLM 专用配置时自动延用基础 LLM 配置，确保系统在基础配置下的开箱即用性。

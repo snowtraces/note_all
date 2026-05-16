@@ -10,6 +10,7 @@ import (
 
 	"note_all_backend/global"
 	"note_all_backend/models"
+	"note_all_backend/pkg"
 )
 
 // ==================== 数据结构 ====================
@@ -26,7 +27,7 @@ type StepDefinition struct {
 // StepInput 步骤输入配置
 type StepInput struct {
 	Source  string                 `json:"source"`   // "fixed" 或 "step"
-	StepRef int                   `json:"step_ref"`  // 引用步骤号 (source=step 时)
+	StepRef int                    `json:"step_ref"` // 引用步骤号 (source=step 时)
 	Config  map[string]interface{} `json:"config"`   // 固定输入配置 (source=fixed 时)
 }
 
@@ -226,9 +227,37 @@ func savePipelineResultAsNote(taskName string, content string) {
 
 	log.Printf("[Pipeline] 管道结果已保存为笔记 (ID:%d, 分类: 任务/%s, 标题: %s)", note.ID, taskName, title)
 
-	// 仅触发向量生成（目录已确定，不需要 AI 归类分析）
+	// 触发 AI 摘要、标签提取及向量生成
 	nID := note.ID
 	global.WorkerChan <- func() {
+		log.Printf("[Pipeline] 开始为管道结果笔记 (ID:%d) 提炼摘要和标签...", nID)
+
+		// 获取分析模板
+		targetTpl, _ := models.GetActiveTemplate(global.DB)
+		availableFolders := buildAvailableFoldersStr()
+
+		// 调用 LLM 提炼
+		aiTitle, summary, tags, _, err := pkg.ExtractSummaryAndTags(content, targetTpl.SystemPrompt, availableFolders)
+		if err != nil {
+			log.Printf("[Pipeline] AI 提炼失败: %v", err)
+			summary = content
+			if len([]rune(summary)) > 60 {
+				summary = string([]rune(summary)[:60]) + "..."
+			}
+			tags = "ai-fail"
+			aiTitle = ""
+		}
+
+		// 更新笔记（注意：这里绝不覆盖 folder_l1 和 folder_l2）
+		global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Updates(map[string]interface{}{
+			"ai_title":   aiTitle,
+			"ai_summary": summary,
+			"ai_tags":    tags,
+		})
+
+		// 同步标签关联表
+		syncTags(nID, tags)
+
 		log.Printf("[Pipeline] 开始为管道结果笔记 (ID:%d) 生成向量...", nID)
 		UpdateNoteChunks(nID)
 		global.SSEBus.Publish("refresh")
