@@ -792,10 +792,10 @@ func cleanQueryForSearch(query string) string {
 
 	// 使用词性标注提取核心词，并尝试保留原始连接结构
 	tags := jieba.Tag(query)
-	
+
 	// 定义干扰词性
 	ignorePOS := map[string]bool{
-		"uj": true, "ul": true, "p": true, "r": true, "m": true, "q": true, 
+		"uj": true, "ul": true, "p": true, "r": true, "m": true, "q": true,
 		"c": true, "d": true, "f": true, "u": true, "w": true,
 	}
 
@@ -807,10 +807,12 @@ func cleanQueryForSearch(query string) string {
 
 	var sb strings.Builder
 	lastWasFiltered := false
-	
+
 	for _, tag := range tags {
 		parts := strings.Split(tag, "/")
-		if len(parts) != 2 { continue }
+		if len(parts) != 2 {
+			continue
+		}
 		word := parts[0]
 		pos := parts[1]
 
