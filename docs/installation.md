@@ -98,11 +98,13 @@ go build -ldflags="-s -w" -tags "fts5" -buildvcs=false -o note_all_backend
 
 ```json
 {
-  "llm_provider": "openai",
-  "openai_api_key": "你的 API Key",
-  "openai_base_url": "https://api.openai.com/v1",
-  "embedding_provider": "local",
-  "model_name": "gpt-4o-mini"
+  "llm_api_url": "https://api.deepseek.com/chat/completions",
+  "llm_api_token": "你的 API Key",
+  "llm_model_id": "deepseek-v4-flash",
+  "vlm_api_url": "https://aistudio.baidu.com/llm/lmapi/v3/chat/completions",
+  "vlm_api_token": "你的 VLM Token",
+  "vlm_model_id": "ernie-4.5-vl-28b-a3b-thinking",
+  "embedding_api_url": "http://127.0.0.1:8001/v1/embeddings"
 }
 ```
 

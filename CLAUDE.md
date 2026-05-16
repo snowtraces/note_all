@@ -14,7 +14,6 @@
 | `docs/` | 综合文档（使用说明、安装指南、API 参考） |
 | `ROADMAP.md` | 研发路线图 |
 | `CONTRIBUTING.md` | 贡献指南 |
-| `changelog.md` | 变更日志 |
 | `readme.md` | 项目说明 |
 
 ## 技术栈

@@ -8,6 +8,7 @@
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" />
     <img src="https://img.shields.io/badge/Frontend-React%2018-61DAFB?logo=react" alt="React" />
     <img src="https://img.shields.io/badge/Backend-Golang-00ADD8?logo=go" alt="Golang" />
+    <img src="https://img.shields.io/badge/AI-DeepSeek%20%7C%20ERNIE-ff69b4" alt="AI Models" />
     <img src="https://img.shields.io/badge/Android-Jetpack%20Compose-3DDC84?logo=android" alt="Android" />
     <img src="https://img.shields.io/badge/Bot-WeChat%20iLink-07C160?logo=wechat" alt="WeChat Bot" />
     <img src="https://img.shields.io/badge/Platform-Web%20%7C%20Windows%20%7C%20Android-lightgrey" alt="Platform" />
@@ -72,9 +73,10 @@
 | **RAG 语义问答** | 基于全库知识的深度对话 |
 | **智能引证** | AI 回答实时溯源，确保真实可靠 |
 | **混合检索引擎** | #标签联想、OCR 文本、AI 摘要并行 |
-| **全功能渲染** | KaTeX 公式、GFM 表格一网打尽 |
+| **全功能渲染** | KaTeX 公式、GFM 表格、Prism 代码高亮 |
 | **智能记忆拼图** | AI 串联随机碎片激发灵感 |
-| **隐式双链** | 基于标签自动发现并串联知识点 |
+| **显式双链** | 支持 `[[标题]]` 语法，建立笔记间硬关联 |
+| **隐式关联** | 基于标签与向量相似度自动发现并串联知识点 |
 | **知识溯源 (Lineage)** | 合成笔记自动记录来源，支持一键跳回 |
 
 ---
@@ -107,11 +109,11 @@ graph LR
 
 | 模块 | 技术栈 | 说明 |
 |:---|:---|:---|
-| **服务端** | Golang + SQLite (FTS5) | 极致轻量，单文件运行，屏蔽所有重型中间件 |
-| **Web 前端** | React 18 + TailwindCSS | 长短轮询探针达成局部无感刷新 |
+| **服务端** | Golang + SQLite (FTS5) + Vector | 极致轻量，单文件运行，内置语义向量检索 |
+| **Web 前端** | React 18 + Vite + TailwindCSS | SSE (Server-Sent Events) 达成全系统实时同步 |
 | **PC 客户端** | Golang (Win32 API) | 纯血托盘程序，注册系统级原子热键 |
 | **Android 客户端** | Kotlin + Jetpack Compose | 深度收编系统 Share Sheet 流量入口 |
-| **AI 萃取中台** | PaddleOCR + ERNIE | 本地 OCR + 云端 LLM（支持 OpenAI API 兼容接口） |
+| **AI 萃取中台** | DeepSeek + PaddleOCR + ERNIE | 多模型联动：DeepSeek 逻辑提炼 + 百度 VLM 视觉感官 |
 | **知识炼金引擎** | 自研 | 跨笔记全量上下文计算，支持多对多父子关联溯源 |
 
 </details>
@@ -124,7 +126,7 @@ graph LR
 |:---|:---|
 | [🚀 快速开始](docs/installation.md) | 环境要求、依赖编译与运行指南 |
 | [💡 用户指南](docs/usage.md) | Android/PC/Web/微信等多端使用技巧 |
-| [🏗️ 技术架构](docs/architecture.md) | RAG 检索设计、Agent 状态机、系统拓扑 |
+| [🏗️ 技术架构](docs/design/architecture.md) | RAG 检索设计、Agent 状态机、系统拓扑 |
 | [🤖 Agent 设计](docs/design/agent.md) | 多轮对话 Agent 架构与实现细节 |
 | [🔌 API 参考](docs/api-reference.md) | 后端服务 RESTful API 接口定义 |
 | [🤝 贡献指南](CONTRIBUTING.md) | 如何参与项目开发与提交代码 |
@@ -148,7 +150,7 @@ Note All 将碎片化知识管理分为三个标准阶段：
 ### 🔍 3. 极速消费 (Consume)
 *   **RAG 问答**：基于全库知识的语义对话，支持智能引证溯源。
 *   **多轮 Agent**：理解上下文指代词，支持复杂的多步检索任务。
-*   **可视化图谱**：通过标签关联发现知识间的隐性连接。
+*   **可视化图谱**：通过标签与双链关联发现知识间的连接，支持幽灵节点预览。
 
 ---
 
