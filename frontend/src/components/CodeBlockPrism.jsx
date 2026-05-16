@@ -78,7 +78,7 @@ function getDecorations({ doc, name }) {
     const language = node.attrs.language || 'plain';
     
     // Normalize language name for Prism
-    let langName = language;
+    let langName = language.toLowerCase();
     if (langName === 'js') langName = 'javascript';
     if (langName === 'ts') langName = 'typescript';
     if (langName === 'sh') langName = 'bash';

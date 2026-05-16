@@ -28,7 +28,7 @@ const MERMAID_TEMPLATES = [
 
 const CodeBlockComponent = ({ node, updateAttributes, editor, getPos }) => {
   const isEditable = editor?.isEditable;
-  const language = node.attrs.language || 'plain';
+  const language = (node.attrs.language || 'plain').toLowerCase();
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [langSearch, setLangSearch] = useState('');
   const [pickerPos, setPickerPos] = useState({ top: 0, left: 0 });
