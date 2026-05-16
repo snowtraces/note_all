@@ -3,11 +3,13 @@ package service
 import (
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 	"time"
 
 	"note_all_backend/global"
 	"note_all_backend/models"
+	"note_all_backend/pkg/synonym"
 )
 
 // AgentResponse Agent 响应结构
@@ -49,6 +51,36 @@ func NewAgent() *Agent {
 	}
 }
 
+// BuildSystemPrompt 构建全局系统提示词
+func (a *Agent) BuildSystemPrompt() string {
+	var sb strings.Builder
+
+	// 1. 基础协议与 ReAct 规范 (Global Protocol)
+	sb.WriteString("=== CORE PROTOCOL ===\n")
+	sb.WriteString("1. Use the **ReAct** pattern for complex tasks (DO NOT TRANSLATE THESE KEYWORDS):\n")
+	sb.WriteString("   - Thought: [Describe your reasoning process in Chinese]\n")
+	sb.WriteString("   - Action: ToolName({\"key\": \"value\"})\n")
+	sb.WriteString("   - Wait for the tool result before providing the final answer.\n")
+	sb.WriteString("   IMPORTANT: Always use English keyword 'Action:' and 'Thought:', and keep tool names and parameters in the specified format. Do not use XML tags or other formats.\n")
+	sb.WriteString("   Example Action: search({\"query\": \"AI development\"})\n\n")
+	sb.WriteString("2. Use [[Title]] format for internal links to other notes.\n")
+	sb.WriteString("3. Respond in a helpful, concise, and professional tone.\n\n")
+
+	// 2. 身份与记忆 (Memory & Identity)
+	memory := GetMemoryManager()
+	sb.WriteString(memory.GetMemoryPrompt())
+	sb.WriteString("\n")
+
+	// 3. 技能列表 (Capabilities)
+	sb.WriteString("=== AVAILABLE SKILLS ===\n")
+	registry := GetSkillRegistry()
+	for _, skill := range registry.List() {
+		sb.WriteString(fmt.Sprintf("- %s: %s (Usage: %s)\n", skill.Name(), skill.Description(), skill.Usage()))
+	}
+
+	return sb.String()
+}
+
 // AgentAsk Agent 主入口（使用单例）
 func AgentAsk(sessionID uint, query string) (*AgentResponse, error) {
 	return defaultAgent.Ask(sessionID, query)
@@ -58,6 +90,10 @@ func AgentAsk(sessionID uint, query string) (*AgentResponse, error) {
 func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 	log.Printf("[Agent] ========== 开始处理 ==========")
 	log.Printf("[Agent] 会话ID: %d, 用户输入: %q", sessionID, query)
+
+	// 1.1 构建全局系统提示词 (包含协议、技能和记忆)
+	systemPrompt := a.BuildSystemPrompt()
+	log.Printf("[Agent] 已加载全局系统提示词（含协议、技能与持久化记忆）")
 
 	// 1. 加载会话历史
 	session, err := a.sessionManager.LoadSession(sessionID)
@@ -97,13 +133,13 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 			})
 		}
 	case IntentSearch:
-		initialToolCalls = []ToolCall{{Tool: ToolSearch, Parameters: map[string]interface{}{"query": query}}}
+		initialToolCalls = []ToolCall{{Tool: ToolSearch, Parameters: map[string]interface{}{"query": cleanQueryForSearch(query)}}}
 	case IntentSummarize:
-		initialToolCalls = []ToolCall{{Tool: ToolSummarize, Parameters: map[string]interface{}{"query": query}}}
+		initialToolCalls = []ToolCall{{Tool: ToolSummarize, Parameters: map[string]interface{}{"query": cleanQueryForSearch(query)}}}
 	case IntentCompare:
-		initialToolCalls = []ToolCall{{Tool: ToolCompare, Parameters: map[string]interface{}{"query": query}}}
+		initialToolCalls = []ToolCall{{Tool: ToolCompare, Parameters: map[string]interface{}{"query": cleanQueryForSearch(query)}}}
 	case IntentGenerate:
-		initialToolCalls = []ToolCall{{Tool: ToolGenerate, Parameters: map[string]interface{}{"query": query}}}
+		initialToolCalls = []ToolCall{{Tool: ToolGenerate, Parameters: map[string]interface{}{"query": cleanQueryForSearch(query)}}}
 	case IntentFollowUp, IntentClarify:
 		// 追问/澄清：如果已有文档，不触发新检索
 		if len(session.Context.ActiveDocuments) > 0 {
@@ -192,8 +228,8 @@ loop:
 			continue
 		}
 
-		// 执行 QueryLoop（调用 LLM）
-		result := QueryLoop(state, query)
+		// 执行 QueryLoop（调用 LLM，传入系统提示词）
+		result := QueryLoop(state, query, systemPrompt)
 
 		switch result.Transition {
 		case TransitionStop:
@@ -294,6 +330,9 @@ loop:
 	log.Printf("[Agent] 会话ID: %d, 意图: %s, 置信度: %.2f", newSessionID, intent.Type, intent.Confidence)
 	log.Printf("[Agent] 引用文档: %d 个, 工具调用: %d 次", len(finalResponse.References), len(finalResponse.ToolCalls))
 	log.Printf("[Agent] 回复摘要: %q", truncateOutput(finalResponse.Content, 100))
+
+	// 13. 异步反思对话并更新用户画像
+	GetMemoryManager().ReflectOnConversation(session.Messages)
 
 	return finalResponse, nil
 }
@@ -681,4 +720,72 @@ func buildReferences(docs []SearchResult) []ReferenceItem {
 		})
 	}
 	return refs
+}
+
+func cleanQueryForSearch(query string) string {
+	jieba := synonym.GetJieba()
+	if jieba == nil {
+		// 回退到基础过滤
+		fillers := []string{"查找一下", "搜索一下", "查询一下", "帮我找找", "有没有关于", "我想看下", "最近的", "的相关记录", "的所有文档"}
+		result := query
+		for _, f := range fillers {
+			result = strings.ReplaceAll(result, f, "")
+		}
+		return strings.TrimSpace(result)
+	}
+
+	// 使用词性标注提取核心词
+	tags := jieba.Tag(query)
+	var keywords []string
+	
+	// 定义干扰词性
+	ignorePOS := map[string]bool{
+		"uj": true, // 的
+		"ul": true, // 了
+		"p":  true, // 介词 (在, 从)
+		"r":  true, // 代词 (我, 你, 这, 哪)
+		"m":  true, // 数词
+		"q":  true, // 量词
+		"c":  true, // 连词
+		"d":  true, // 副词 (很, 非常, 一下)
+		"f":  true, // 方位词/时间副词 (最近, 上面)
+		"u":  true, // 助词
+		"w":  true, // 标点
+	}
+
+	// 强制移除的常见动词和形容词（干扰搜索）
+	stopWords := map[string]bool{
+		"查找": true, "搜索": true, "查询": true, "显示": true, "找": true, "看": true, "输出": true,
+		"最近": true, "一下": true, "帮我": true, "请": true, "有没有": true,
+	}
+
+	for _, tag := range tags {
+		parts := strings.Split(tag, "/")
+		if len(parts) != 2 {
+			continue
+		}
+		word := parts[0]
+		pos := parts[1]
+
+		// 过滤干扰词性、干扰动词
+		// 注意：保留 x (未知词)，因为很多专有名词如 "东财" 会被识别为 x
+		if ignorePOS[pos] || stopWords[word] {
+			continue
+		}
+		
+		// 额外的标点符号检查 (针对 x 类型中的标点)
+		if pos == "x" && regexp.MustCompile(`[^\w\x{4e00}-\x{9fa5}]`).MatchString(word) {
+			continue
+		}
+
+		keywords = append(keywords, word)
+	}
+
+	if len(keywords) == 0 {
+		return query // 兜底：如果过滤光了，返回原词
+	}
+
+	result := strings.Join(keywords, " ")
+	log.Printf("[Agent] Query 清洗: %q -> %q", query, result)
+	return result
 }

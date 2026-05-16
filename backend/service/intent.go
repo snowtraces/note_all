@@ -1,9 +1,14 @@
 package service
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
 	"regexp"
 	"strings"
+
+	"note_all_backend/pkg"
+	"note_all_backend/pkg/synonym"
 )
 
 // IntentType 意图类型
@@ -132,10 +137,14 @@ func (ia *IntentAnalyzer) Analyze(query string, history []ConversationMessage, c
 	// 优先级 2.5: 继续追问（重试/继续）
 	for _, marker := range continueMarkers {
 		if strings.Contains(query, marker) && len(history) > 0 {
-			return IntentResult{
-				Type:       IntentFollowUp,
-				Reference:  marker,
-				Confidence: 0.85,
+			// 尝试寻找上一轮的动作
+			lastMsg := history[len(history)-1]
+			if lastMsg.Role == "assistant" {
+				return IntentResult{
+					Type:       IntentFollowUp,
+					Reference:  marker,
+					Confidence: 0.9,
+				}
 			}
 		}
 	}
@@ -180,19 +189,138 @@ func (ia *IntentAnalyzer) Analyze(query string, history []ConversationMessage, c
 		}
 	}
 
-	// 优先级 6: 使用原有意图检测（search/summarize/explore/generate/record）
-	basicIntent := IntentDetection(query)
-	if basicIntent != "record" {
+	// 优先级 6: 混合意图检测（Jieba 分词 + 关键词）
+	basicIntent, confidence := ia.detectWithJieba(query)
+	if confidence > 0.8 {
 		return IntentResult{
-			Type:       IntentType(basicIntent),
-			Confidence: 0.7,
+			Type:       basicIntent,
+			Confidence: confidence,
 		}
 	}
 
-	// 默认: 新话题
+	// 优先级 7: LLM 意图识别（兜底）
+	log.Printf("[IntentAnalyzer] 低置信度意图，触发 LLM 识别...")
+	llmIntent := ia.analyzeWithLLM(query, history)
+	return llmIntent
+}
+
+// detectWithJieba 使用 Jieba 分词进行意图识别
+func (ia *IntentAnalyzer) detectWithJieba(query string) (IntentType, float32) {
+	jieba := synonym.GetJieba()
+	if jieba == nil {
+		// 回退到简单关键词匹配
+		return IntentType(IntentDetection(query)), 0.6
+	}
+
+	// 1. 分词
+	words := jieba.Cut(query, true)
+	wordMap := make(map[string]bool)
+	for _, w := range words {
+		wordMap[w] = true
+	}
+
+	// 2. 核心特征词库
+	features := map[IntentType][]string{
+		IntentSearch:    {"找", "查", "搜索", "检索", "定位", "哪些", "哪里", "谁", "什么时候"},
+		IntentSummarize: {"总结", "归纳", "要点", "提炼", "大意", "整理", "梳理", "概括"},
+		IntentCompare:   {"对比", "差异", "不同", "区别", "比较", "相同点"},
+		IntentGenerate:  {"生成", "写", "创作", "做", "构思", "报告", "方案", "大纲"},
+		IntentRecord:    {"记", "存", "备忘", "保存", "收录"},
+	}
+
+	bestIntent := IntentNewTopic
+	maxScore := float32(0)
+
+	for intent, keywords := range features {
+		score := float32(0)
+		for _, kw := range keywords {
+			if wordMap[kw] {
+				score += 1.0
+			}
+		}
+		if score > maxScore {
+			maxScore = score
+			bestIntent = intent
+		}
+	}
+
+	if maxScore > 0 {
+		return bestIntent, 0.7 + (maxScore * 0.1)
+	}
+
+	return IntentNewTopic, 0.4
+}
+
+// analyzeWithLLM 使用 LLM 进行意图识别
+func (ia *IntentAnalyzer) analyzeWithLLM(query string, history []ConversationMessage) IntentResult {
+	// 构建 prompt，要求返回 JSON 格式
+	prompt := `你是一个意图识别与任务拆解引擎。请分析用户的输入意图。
+可选意图类型：
+- search: 检索文档、查找具体信息
+- summarize: 对已有内容进行总结、归纳
+- compare: 对比多个文档或概念的异同
+- generate: 创作、写报告、生成新内容
+- follow_up: 对前文的深入追问
+- record: 随手记、备忘（通常很短且没有明显指令）
+
+如果任务包含多个步骤（如“先找A再总结”），请拆解为 sub_tasks。
+请只输出纯 JSON 格式：
+{
+  "intent": "意图类型",
+  "confidence": 0.xx,
+  "sub_tasks": [{"query": "子任务查询词", "intent": "子意图"}],
+  "reason": "简短理由"
+}
+用户输入：%s`
+
+	fullQuery := fmt.Sprintf(prompt, query)
+	
+	// 调用 LLM
+	response, err := pkg.AskAI([]map[string]string{
+		{"role": "user", "content": fullQuery},
+	}, "你是一个精准的语义分析助手。")
+
+	if err != nil {
+		log.Printf("[IntentAnalyzer] LLM 识别失败: %v", err)
+		return IntentResult{Type: IntentNewTopic, Confidence: 0.5}
+	}
+
+	// 智能解析 JSON
+	var result struct {
+		Intent     string    `json:"intent"`
+		Confidence float32   `json:"confidence"`
+		SubTasks   []SubTask `json:"sub_tasks"`
+	}
+	
+	// 寻找 JSON 块
+	re := regexp.MustCompile(`(?s)\{.*\}`)
+	jsonStr := re.FindString(response)
+	if jsonStr != "" {
+		if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
+			log.Printf("[IntentAnalyzer] 解析 LLM JSON 失败: %v", err)
+		}
+	}
+
+	intentType := IntentType(result.Intent)
+	if intentType == "" {
+		// 关键词兜底
+		if strings.Contains(response, "search") {
+			intentType = IntentSearch
+		} else if strings.Contains(response, "summarize") {
+			intentType = IntentSummarize
+		} else if strings.Contains(response, "compare") {
+			intentType = IntentCompare
+		} else if strings.Contains(response, "generate") {
+			intentType = IntentGenerate
+		} else {
+			intentType = IntentNewTopic
+		}
+	}
+
 	return IntentResult{
-		Type:       IntentNewTopic,
-		Confidence: 0.5,
+		Type:       intentType,
+		Confidence: result.Confidence,
+		SubTasks:   result.SubTasks,
 	}
 }
 
@@ -268,15 +396,16 @@ func (ia *IntentAnalyzer) parseMultiStep(query string) []SubTask {
 		}
 	}
 
-	// 如果解析失败，返回单任务
-	if len(tasks) == 0 {
-		tasks = append(tasks, SubTask{
-			Query:  query,
-			Intent: IntentSearch,
-		})
+	log.Printf("[IntentAnalyzer] 多步任务解析: %s -> %d 个子任务", query, len(tasks))
+	
+	// 如果正则解析得到的子任务太少或太简单，尝试 LLM 解析
+	if len(tasks) <= 1 && len([]rune(query)) > 15 {
+		llmResult := ia.analyzeWithLLM(query, nil)
+		if len(llmResult.SubTasks) > 1 {
+			return llmResult.SubTasks
+		}
 	}
 
-	log.Printf("[IntentAnalyzer] 多步任务解析: %s -> %d 个子任务", query, len(tasks))
 	return tasks
 }
 

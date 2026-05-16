@@ -21,6 +21,7 @@ const (
 	ToolCompare   Tool = "compare"   // 对比分析
 	ToolGenerate  Tool = "generate"  // 生成内容
 	ToolAnalyze   Tool = "analyze"   // 分析关系
+	ToolSaveNote  Tool = "save_note" // 保存笔记
 )
 
 // ToolCall 工具调用请求
@@ -88,6 +89,8 @@ func (te *ToolExecutor) Execute(call ToolCall) ToolResult {
 		return te.executeGenerate(call)
 	case ToolAnalyze:
 		return te.executeAnalyze(call)
+	case ToolSaveNote:
+		return te.executeSaveNote(call)
 	default:
 		return ToolResult{
 			Output: fmt.Sprintf("未知工具: %s", call.Tool),
@@ -388,4 +391,35 @@ func (te *ToolExecutor) ExecuteWithTiming(step int, call ToolCall) (ToolResult, 
 
 	info := te.BuildToolCallInfo(step, call, result, duration)
 	return result, info
+}
+
+// executeSaveNote 执行保存笔记
+func (te *ToolExecutor) executeSaveNote(call ToolCall) ToolResult {
+	title, _ := call.Parameters["title"].(string)
+	content, _ := call.Parameters["content"].(string)
+	tags, _ := call.Parameters["tags"].(string)
+
+	if content == "" {
+		return ToolResult{Output: "保存失败：内容不能为空"}
+	}
+
+	if title == "" {
+		title = "Agent 生成笔记 " + time.Now().Format("2006-01-02 15:04:05")
+	}
+
+	note, err := CreateNoteFromText(content, title)
+	if err != nil {
+		return ToolResult{Output: "保存失败: " + err.Error()}
+	}
+
+	// 如果有标签，额外同步一下（虽然 CreateNoteFromText 也会触发 AI 提炼标签，但这里可以手动覆盖）
+	if tags != "" {
+		syncTags(note.ID, tags)
+	}
+
+	return ToolResult{
+		Output:    fmt.Sprintf("笔记已成功保存。标题: %s, ID: %d", note.OriginalName, note.ID),
+		Documents: []SearchResult{{NoteItem: *note, Score: 1.0}},
+		Metadata:  map[string]interface{}{"note_id": note.ID},
+	}
 }

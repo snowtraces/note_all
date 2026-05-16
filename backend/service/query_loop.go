@@ -1,8 +1,10 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -70,7 +72,7 @@ type QueryLoopResult struct {
 }
 
 // QueryLoop 主循环入口
-func QueryLoop(state *QueryState, query string) QueryLoopResult {
+func QueryLoop(state *QueryState, query string, systemPrompt string) QueryLoopResult {
 	log.Printf("[QueryLoop] ───── 轮次 %d ─────", state.TurnCount+1)
 	log.Printf("[QueryLoop] 输入: %q", query)
 
@@ -98,7 +100,7 @@ func QueryLoop(state *QueryState, query string) QueryLoopResult {
 
 	// 3. 调用 LLM（带流式处理，传入文档上下文）
 	log.Printf("[QueryLoop] 调用 LLM...")
-	llmResult := callLLMWithStreaming(messages)
+	llmResult := callLLMWithStreaming(messages, systemPrompt)
 
 	// 4. 处理 LLM 响应
 	log.Printf("[QueryLoop] LLM 响应: stop_reason=%s, output_len=%d", llmResult.StopReason, len(llmResult.Output))
@@ -378,7 +380,7 @@ func buildDocumentContext(toolResults []ToolResult) string {
 	return BuildRAGContext(allDocs)
 }
 
-func callLLMWithStreaming(messages []ConversationMessage) LLMResult {
+func callLLMWithStreaming(messages []ConversationMessage, systemPrompt string) LLMResult {
 	// 转换消息格式
 	llmMessages := make([]map[string]string, 0)
 	for _, msg := range messages {
@@ -388,8 +390,10 @@ func callLLMWithStreaming(messages []ConversationMessage) LLMResult {
 		})
 	}
 
-	// 调用 LLM
-	systemPrompt := buildSystemPrompt()
+	// 使用传入的 systemPrompt
+	if systemPrompt == "" {
+		systemPrompt = buildSystemPrompt()
+	}
 
 	// 计算输入 token 估算（使用 rune 计数）
 	inputChars := utf8.RuneCountInString(systemPrompt)
@@ -446,12 +450,51 @@ func callLLM(messages []map[string]string, systemPrompt string) (string, error) 
 	return callLLMInternal(messages, systemPrompt)
 }
 
-// detectToolCalls 检测 LLM 输出中的工具调用意图
-// TODO: 待实现 - 需要定义工具调用的输出格式和解析逻辑
+// detectToolCalls 检测 LLM 输出中的工具调用意图 (ReAct 模式)
 func detectToolCalls(output string) []ToolCall {
-	// 简化版：通过关键词检测工具调用意图
-	// 实际应解析 LLM 输出的结构化工具调用格式
-	return nil
+	// 匹配格式: Action: ToolName({"key": "value"})
+	// 支持中英文关键字 (Action/行动)、Markdown 加粗以及中英文冒号 (:)
+	// 同时也支持 XML 样式的参数包裹（容错性）
+	re := regexp.MustCompile(`(?i)(?:\*\*)?(?:Action|行动)(?:\*\*)?[:：]\s*(\w+)\s*[(\<]([\s\S]*?)[)\>]`)
+	matches := re.FindAllStringSubmatch(output, -1)
+
+	var calls []ToolCall
+	for _, match := range matches {
+		if len(match) >= 3 {
+			toolNameStr := strings.TrimSpace(match[1])
+			paramJSON := strings.TrimSpace(match[2])
+			
+			// 清理 JSON：移除可能存在的 Markdown 代码块包裹
+			paramJSON = strings.TrimPrefix(paramJSON, "```json")
+			paramJSON = strings.TrimPrefix(paramJSON, "```")
+			paramJSON = strings.TrimSuffix(paramJSON, "```")
+			paramJSON = strings.TrimSpace(paramJSON)
+
+			log.Printf("[QueryLoop] 检测到工具调用意图: %s, 参数: %s", toolNameStr, paramJSON)
+
+			var params map[string]interface{}
+			if paramJSON == "" || paramJSON == "{}" {
+				params = make(map[string]interface{})
+			} else {
+				if err := json.Unmarshal([]byte(paramJSON), &params); err != nil {
+					// 容错处理：如果不是 JSON，但看起来像是一个纯文本参数（如在 <tag> 中）
+					// 我们尝试将其包装为 {"query": "..."}
+					log.Printf("[QueryLoop] 参数非 JSON 格式，尝试自动包装: %q", paramJSON)
+					params = map[string]interface{}{"query": paramJSON}
+				}
+			}
+
+			calls = append(calls, ToolCall{
+				Tool:       Tool(strings.ToLower(toolNameStr)),
+				Parameters: params,
+			})
+		}
+	}
+	if len(calls) == 0 && strings.Contains(output, "Action:") {
+		log.Printf("[QueryLoop] 警告: 输出包含 Action: 关键字但未匹配到有效工具调用。输出片段: %q", truncateOutput(output, 100))
+	}
+	
+	return calls
 }
 
 // handleToolUse 处理工具调用

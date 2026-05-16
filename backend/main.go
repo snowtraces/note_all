@@ -34,9 +34,10 @@ func main() {
 			log.Fatalf("解析 config.json 失败: %v", err)
 		}
 
-		// 1. 仅初始化底层核心组件，不启动 Gin Web、微信机器人、自动同步等
+		// 1. 仅初始化底层核心组件
 		database.InitSystem()
 		service.InitWorker()
+		service.InitSkills() // 初始化 Agent 技能仓
 
 		if global.DB != nil {
 			global.DB.Logger = global.DB.Logger.LogMode(logger.Silent)
@@ -59,6 +60,7 @@ func main() {
 	// 1. 初始化底层核心与外置服务（SQLite / FTS5 / SnowStorage）
 	database.InitSystem()
 	service.InitWorker()
+	service.InitSkills() // 初始化 Agent 技能仓
 	service.InitActiveWeixinBots()
 
 	// 1.1 启动定时任务后台调度轮询器 (使用可取消 context，支持优雅退出)

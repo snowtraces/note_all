@@ -79,6 +79,7 @@ function AppContent() {
             setSelectedItem(null);
           }
         } else if (routeViewMode === 'chats') {
+          setSelectedItem(null);
           if (routeSessionId) {
             setLoading(true);
             const messages = await getChatMessages(routeSessionId);
@@ -205,6 +206,9 @@ function AppContent() {
       return;
     }
     setSelectedItem(nextItem);
+    if (nextItem) {
+      setViewMode('notes');
+    }
   };
 
   const loadTrashData = async () => {
@@ -595,30 +599,53 @@ function AppContent() {
                           <MarkdownRenderer content={chat.content} />
 
                     {chat.references && chat.references.length > 0 && (
-                            <div className="mt-6 pt-4 border-t border-borderSubtle">
-                              <div className="flex items-center gap-1.5 text-[10px] uppercase font-mono mb-3 tracking-widest text-textTertiary">
-                                <BookOpen size={10} /> 智能引证
+                            <div className="mt-8 pt-6 border-t border-borderSubtle">
+                              <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2 text-[11px] uppercase font-mono tracking-widest text-primeAccent/80">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-primeAccent animate-pulse"></div>
+                                  智能引证 · {chat.references.length}
+                                </div>
+                                <div className="text-[10px] text-textTertiary font-mono">INSIGHT SOURCES</div>
                               </div>
-                              <div className="flex flex-col gap-2">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {chat.references.map(ref => (
                                   <div
                                       key={ref.id}
                                       onClick={() => guardedSetSelectedItem(ref)}
-                                      className="flex items-center gap-3 p-2 rounded-lg border transition-all cursor-pointer bg-bgSubtle border-borderSubtle hover:bg-bgHover hover:border-primeAccent/20"
+                                      className="flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer bg-card/30 backdrop-blur-sm border-borderSubtle hover:bg-bgHover hover:border-primeAccent/30 hover:translate-y-[-2px] hover:shadow-lg group relative overflow-hidden"
                                     >
-                                      <div className="min-w-0 flex-1">
-                                        <div className="flex items-center justify-between gap-2 mb-1">
-                                          <div className="flex flex-wrap gap-1 max-h-[16px] overflow-hidden">
-                                            {(ref.ai_tags || "").split(',').slice(0, 2).map((t, i) => t.trim() && (
-                                              <span key={i} className="text-[9px] bg-primeAccent/10 text-primeAccent/70 px-1 rounded">#{t.trim()}</span>
-                                            ))}
-                                          </div>
-                                          <span className="text-[9px] font-mono shrink-0 text-textMuted">
-                                            {new Date(ref.created_at).toLocaleDateString('zh-CN', {month:'2-digit', day:'2-digit'})}
-                                          </span>
-                                        </div>
-                                        <div className="text-[11px] leading-snug line-clamp-2 text-textSecondary">{ref.ai_summary || '碑片内容细节...'}</div>
+                                      {/* 背景光晕装饰 */}
+                                      <div className="absolute -right-4 -top-4 w-12 h-12 bg-primeAccent/5 rounded-full blur-xl group-hover:bg-primeAccent/10 transition-colors"></div>
+                                      
+                                      {/* 图标列 */}
+                                      <div className="w-9 h-9 rounded-lg bg-bgSubtle flex items-center justify-center text-textTertiary shrink-0 border border-borderSubtle group-hover:text-primeAccent group-hover:border-primeAccent/20 transition-colors">
+                                        {ref.file_type?.includes('image') ? (
+                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                                        ) : ref.file_type?.includes('pdf') ? (
+                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                        ) : (
+                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
+                                        )}
                                       </div>
+
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                                          <div className="text-[12px] font-medium text-textPrimary truncate group-hover:text-primeAccent transition-colors">
+                                            {ref.ai_title || ref.original_name}
+                                          </div>
+                                          {ref.score && (
+                                            <span className="text-[9px] font-mono text-primeAccent/40 shrink-0">
+                                              {Math.round(ref.score * 100)}%
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="text-[10px] leading-tight line-clamp-1 text-textTertiary group-hover:text-textSecondary transition-colors">
+                                          {ref.ai_summary || '查看文档详情...'}
+                                        </div>
+                                      </div>
+
+                                      {/* 底部标签装饰（可选） */}
+                                      <div className="absolute bottom-0 left-0 h-[2px] w-0 bg-primeAccent/30 group-hover:w-full transition-all duration-300"></div>
                                     </div>
                                   ))}
                               </div>

@@ -192,7 +192,47 @@ func BatchHybridSearch(queries []string, limit int, folderFilter string) ([]Sear
 		ftsQueries = append(ftsQueries, strings.ReplaceAll(q, "\"", ""))
 	}
 	if len(ftsQueries) > 0 {
-		ftsQuery := strings.Join(ftsQueries, " OR ")
+		// 使用 Jieba 分词辅助搜索，提高匹配度
+		jieba := synonym.GetJieba()
+		allFtsTerms := make([]string, 0)
+		
+		// 常用干扰词过滤（停用词）
+		stopWords := map[string]bool{
+			"查找": true, "一下": true, "最近": true, "搜索": true, "查询": true,
+			"获取": true, "展示": true, "看看": true, "关于": true, "那个": true,
+			"哪些": true, "什么": true, "如何": true, "怎么": true, "的": true,
+			"了": true, "在": true, "是": true, "我": true, "你": true,
+		}
+
+		for _, q := range ftsQueries {
+			// 原词匹配（带引号，精确匹配）
+			allFtsTerms = append(allFtsTerms, "\""+q+"\"")
+			
+			if jieba != nil {
+				// 提取核心词（去除停用词和过短词）
+				segments := jieba.Cut(q, true)
+				for _, seg := range segments {
+					seg = strings.TrimSpace(seg)
+					if len([]rune(seg)) < 2 || stopWords[seg] {
+						continue
+					}
+					allFtsTerms = append(allFtsTerms, "\""+seg+"\"")
+				}
+			}
+		}
+		
+		// 如果分词后没有有效词，保留原词
+		if len(allFtsTerms) == 0 {
+			for _, q := range ftsQueries {
+				allFtsTerms = append(allFtsTerms, "\""+q+"\"")
+			}
+		}
+
+		allFtsTerms = uniqueStrings(allFtsTerms)
+		ftsQuery := strings.Join(allFtsTerms, " OR ")
+		
+		log.Printf("[RAG] FTS Query: %s", ftsQuery)
+
 		var ftsResults []struct {
 			ID    uint
 			Score float32
@@ -566,10 +606,13 @@ func RAGAsk(query string) (string, []SearchResult, string, error) {
 
 // RAGAskWithHistory 执行带历史对话的 RAG 问答流程
 func RAGAskWithHistory(query string, history []ConversationMessage) (string, []SearchResult, string, error) {
-	intent := IntentDetection(query)
+	// 使用统一的 IntentAnalyzer
+	analyzer := NewIntentAnalyzer()
+	intentResult := analyzer.Analyze(query, history, &SessionContext{})
+	intent := string(intentResult.Type)
 
 	expandedQueries := []string{query}
-	if intent == "search" || intent == "explore" {
+	if intentResult.Type == IntentSearch || intentResult.Type == IntentCompare {
 		expandedQueries = QueryRewrite(query)
 	}
 
@@ -709,7 +752,21 @@ func BatchHybridSearchWithChunks(queries []string, limit int, folderFilter strin
 		ftsQueries = append(ftsQueries, strings.ReplaceAll(q, "\"", ""))
 	}
 	if len(ftsQueries) > 0 {
-		ftsQuery := strings.Join(ftsQueries, " OR ")
+		jieba := synonym.GetJieba()
+		allFtsTerms := make([]string, 0)
+		for _, q := range ftsQueries {
+			allFtsTerms = append(allFtsTerms, "\""+q+"\"")
+			if jieba != nil {
+				segments := jieba.Cut(q, true)
+				for _, seg := range segments {
+					if len([]rune(seg)) >= 2 {
+						allFtsTerms = append(allFtsTerms, "\""+seg+"\"")
+					}
+				}
+			}
+		}
+		allFtsTerms = uniqueStrings(allFtsTerms)
+		ftsQuery := strings.Join(allFtsTerms, " OR ")
 		var ftsResults []struct {
 			ID    uint
 			Score float32
