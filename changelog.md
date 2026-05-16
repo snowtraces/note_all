@@ -1,6 +1,10 @@
 # Changelog
 
 ## [Unreleased]
+- **后端 (多模型配置解耦与 DeepSeek 集成)**:
+  - **VLM/LLM 配置分离**: 重构了 `AppConfig` 结构体，支持为视觉大模型 (VLM) 独立配置 `vlm_api_url` 和 `vlm_api_token`，实现了视觉与文本模型在不同供应商间的灵活组合。
+  - **智能回退机制**: 在 `DescribeImageVlm` 中实现了配置回退逻辑，当未提供 VLM 专用配置时自动延用基础 LLM 配置，确保系统在基础配置下的开箱即用性。
+  - **模型升级**: 全量接入 DeepSeek-V4-Flash 模型作为主对话引擎，优化了 API Token 与模型 ID 配置，提升了系统整体的语义理解与响应效率。
 - **Frontend (支持 HTML5 History 无刷路由)**:
   - **核心重构**: 移除了原有的纯内部 State 强绑定切换，引入轻量级的 `useHistoryRouter` 自定义 Hook，实现了基于原生 HTML5 History API 的 URL 双向无刷同步。
   - **精确直达与刷新支持**: 现已支持直接通过 URL（如 `/graph`, `/notes/123`, `/chats` 等）精确进入特定模块，并会自动提取 ID 拉取对应数据详情，彻底解决 F5 刷新白屏或丢失界面的痛点。

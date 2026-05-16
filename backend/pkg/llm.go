@@ -123,12 +123,21 @@ func DescribeImageVlm(imageBytes []byte, mimeType string, availableFolders strin
 		return "", "", "", "", "", fmt.Errorf("构建 VLM JSON payload 失败: %v", err)
 	}
 
-	req, err := http.NewRequest("POST", global.Config.LlmApiUrl, bytes.NewBuffer(payloadBytes))
+	vlmUrl := global.Config.VlmApiUrl
+	if vlmUrl == "" {
+		vlmUrl = global.Config.LlmApiUrl
+	}
+	vlmToken := global.Config.VlmApiToken
+	if vlmToken == "" {
+		vlmToken = global.Config.LlmApiToken
+	}
+
+	req, err := http.NewRequest("POST", vlmUrl, bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		return "", "", "", "", "", fmt.Errorf("构建 VLM POST 请求失败: %v", err)
 	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", global.Config.LlmApiToken))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", vlmToken))
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{Timeout: 120 * time.Second}

@@ -27,6 +27,8 @@ type AppConfig struct {
 	LlmApiUrl    string `json:"llm_api_url"`
 	LlmApiToken  string `json:"llm_api_token"`
 	LlmModelID   string `json:"llm_model_id"`
+	VlmApiUrl    string `json:"vlm_api_url"`   // 视觉大模型 API 地址
+	VlmApiToken  string `json:"vlm_api_token"` // 视觉大模型 API Token
 	VlmModelID       string `json:"vlm_model_id"` // 视觉大模型 ID
 	EmbeddingModelID string `json:"embedding_model_id"`
 	EmbeddingApiUrl  string `json:"embedding_api_url"`
