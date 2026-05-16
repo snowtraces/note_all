@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import 'katex/dist/katex.min.css';
 import './index.css';
 import { BookOpen } from 'lucide-react';
-import { getTrash, searchNotes, deleteNote, restoreNote, uploadNote, createTextNote, updateNoteText, updateNoteStatus, askAI, getChatMessages, batchArchiveNotes } from './api/noteApi';
+import { getTrash, searchNotes, deleteNote, restoreNote, uploadNote, createTextNote, updateNoteText, updateNoteStatus, askAI, getChatMessages, batchArchiveNotes, getNote } from './api/noteApi';
 import { useSSE } from './hooks/useSSE';
+import { useHistoryRouter } from './hooks/useHistoryRouter';
 import { useTheme } from './context/ThemeContext';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { getSSEEventConfig, DEFAULT_TOAST_CONFIG } from './constants/sseEvents';
@@ -58,6 +59,54 @@ function AppContent() {
   const [pendingSelectItem, setPendingSelectItem] = useState(null);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [isConfirmSaving, setIsConfirmSaving] = useState(false);
+  const [pendingRouteUrl, setPendingRouteUrl] = useState(null);
+
+  const isRoutingRef = useRef(false);
+
+  const { parseUrlToState, syncStateToUrl } = useHistoryRouter({
+    hasUnsavedDetail,
+    onRouteMatch: async ({ viewMode: routeViewMode, showTrash: routeShowTrash, selectedId, currentSessionId: routeSessionId }) => {
+      isRoutingRef.current = true;
+      setViewMode(routeViewMode);
+      setShowTrash(routeShowTrash);
+
+      try {
+        if (routeViewMode === 'notes') {
+          if (selectedId) {
+            const noteData = await getNote(selectedId);
+            setSelectedItem(noteData);
+          } else {
+            setSelectedItem(null);
+          }
+        } else if (routeViewMode === 'chats') {
+          if (routeSessionId) {
+            setLoading(true);
+            const messages = await getChatMessages(routeSessionId);
+            setChatHistory(messages.map(m => ({ role: m.role, content: m.content, references: m.references })));
+            setCurrentSessionId(parseInt(routeSessionId));
+            setLoading(false);
+          } else {
+            setChatHistory([]);
+            setCurrentSessionId(0);
+          }
+        } else {
+          setSelectedItem(null);
+        }
+      } catch (e) {
+        console.error(e);
+        setSelectedItem(null);
+        setLoading(false);
+      } finally {
+        setTimeout(() => {
+          isRoutingRef.current = false;
+        }, 50);
+      }
+    },
+    onUnsavedIntercept: (targetUrl) => {
+      setPendingRouteUrl(targetUrl);
+      setShowSaveConfirm(true);
+    }
+  });
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -106,17 +155,20 @@ function AppContent() {
     },
   });
 
-  // 1. 当首次登录成功时，执行全量初始化 (数据拉取与视图复位)
+  // 1. 当首次登录成功时，由 URL 解析初始状态
   useEffect(() => {
     if (!isLoggedIn) return;
-    executeSearch(query, selectedFolder);
-    setSelectedItem(null);
-    setChatHistory([]);
-    setCurrentSessionId(0);
-    setViewMode('notes');
-  }, [isLoggedIn]);
+    parseUrlToState();
+  }, [isLoggedIn, parseUrlToState]);
 
-  // 2. 当显式切换回收站或搜索指令变化时，仅负责加载对应数据，不干扰视图与对话状态
+  // 同步状态到 URL
+  useEffect(() => {
+    if (isLoggedIn && !isRoutingRef.current) {
+      syncStateToUrl(viewMode, showTrash, selectedItem, currentSessionId);
+    }
+  }, [viewMode, showTrash, selectedItem, currentSessionId, isLoggedIn, syncStateToUrl]);
+
+  // 2. 当首次登录或显式切换回收站/搜索指令变化时，负责加载对应数据
   useEffect(() => {
     if (!isLoggedIn) return;
     if (showTrash) {
@@ -124,9 +176,11 @@ function AppContent() {
     } else {
       executeSearch(query, selectedFolder);
     }
-    // 切换数据源时清空已选中的详情项（安全做法），但不再重置 ViewMode 与聊天历史
-    setSelectedItem(null);
-  }, [showTrash, query, selectedFolder]);
+    // 只有在非路由初始化的情况下，切换数据源才清空详情
+    if (!isRoutingRef.current) {
+      setSelectedItem(null);
+    }
+  }, [isLoggedIn, showTrash, query, selectedFolder]);
 
   // 全局键盘事件监听
   useEffect(() => {
@@ -633,7 +687,13 @@ function AppContent() {
                 setIsConfirmSaving(false);
                 setShowSaveConfirm(false);
                 setHasUnsavedDetail(false);
-                setSelectedItem(pendingSelectItem);
+                if (pendingRouteUrl) {
+                  window.history.pushState(null, '', pendingRouteUrl);
+                  parseUrlToState();
+                  setPendingRouteUrl(null);
+                } else {
+                  setSelectedItem(pendingSelectItem);
+                }
               }).catch(() => {
                 setIsConfirmSaving(false);
               });
@@ -641,17 +701,30 @@ function AppContent() {
               setIsConfirmSaving(false);
               setShowSaveConfirm(false);
               setHasUnsavedDetail(false);
-              setSelectedItem(pendingSelectItem);
+              if (pendingRouteUrl) {
+                window.history.pushState(null, '', pendingRouteUrl);
+                parseUrlToState();
+                setPendingRouteUrl(null);
+              } else {
+                setSelectedItem(pendingSelectItem);
+              }
             }
           }}
           onDiscard={() => {
             setShowSaveConfirm(false);
             setHasUnsavedDetail(false);
-            setSelectedItem(pendingSelectItem);
+            if (pendingRouteUrl) {
+              window.history.pushState(null, '', pendingRouteUrl);
+              parseUrlToState();
+              setPendingRouteUrl(null);
+            } else {
+              setSelectedItem(pendingSelectItem);
+            }
           }}
           onCancel={() => {
             setShowSaveConfirm(false);
             setPendingSelectItem(null);
+            setPendingRouteUrl(null);
           }}
         />
       )}

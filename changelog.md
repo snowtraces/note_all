@@ -1,6 +1,10 @@
 # Changelog
 
 ## [Unreleased]
+- **Frontend (支持 HTML5 History 无刷路由)**:
+  - **核心重构**: 移除了原有的纯内部 State 强绑定切换，引入轻量级的 `useHistoryRouter` 自定义 Hook，实现了基于原生 HTML5 History API 的 URL 双向无刷同步。
+  - **精确直达与刷新支持**: 现已支持直接通过 URL（如 `/graph`, `/notes/123`, `/chats` 等）精确进入特定模块，并会自动提取 ID 拉取对应数据详情，彻底解决 F5 刷新白屏或丢失界面的痛点。
+  - **防丢失拦截与后退兼容**: 完美对接了浏览器的前进/后退机制。在编辑碎片时若存在未保存内容 (`hasUnsavedDetail`)，点击后退会自动触发安全拦截弹窗，通过重写 `pushState` 保证 URL 不静默错位。
 - **双层级知识目录分类与高质感大纲配置面板 (Dual-Tier Catalog Classification & Premium Taxonomy Settings Panel) [Phase D2]**:
   - **后端双层级合并算法**: 在 `NoteFolder` 存储结构中新增 `Subfolders` 文本列，以 JSON 格式持久化用户预先规划的无数据空二级目录。重构了 `GetFolderTree` 树级级联算法，将用户手动配置大纲与数据库文档实际打标动态衍生的二级分类合并去重展现，彻底满足 Taxonomy 先行规划的需求。
   - **RESTful 二级子树管理**: 新增 `PUT /api/folders/subfolder` 与 `DELETE /api/folders/subfolder` 接口，支持对二级分类名称的联动级联更新及空载分类的清零删除。
