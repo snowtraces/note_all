@@ -616,8 +616,8 @@ func RAGAskWithHistory(query string, history []ConversationMessage) (string, []S
 		expandedQueries = QueryRewrite(query)
 	}
 
-	// 使用分片级混合检索
-	hits, hitChunks, err := BatchHybridSearchWithChunks(expandedQueries, 20, "")
+	// 使用分片级混合检索 (限制为 8 个引证)
+	hits, hitChunks, err := BatchHybridSearchWithChunks(expandedQueries, 8, "")
 	if err != nil {
 		log.Printf("[RAG] [错误] 检索失败: %v", err)
 	}
