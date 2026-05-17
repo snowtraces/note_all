@@ -50,6 +50,9 @@ func NewIntentAnalyzer() *IntentAnalyzer {
 	return &IntentAnalyzer{}
 }
 
+// 只允许汉字、英文字母、数字以及下划线和减号的词，用于强力过滤标点符号、表情及连续问号
+var wordEntityRegexp = regexp.MustCompile(`^[\p{Han}a-zA-Z0-9_-]+$`)
+
 // 预设指代词库（15个）
 var referenceWords = []string{
 	"它", "它们", "这个", "那个", "这些", "那些",
@@ -597,8 +600,8 @@ func IsRelatedToHistory(query string, history []ConversationMessage) bool {
 	queryWordMap := make(map[string]bool)
 	for _, w := range queryWords {
 		w = strings.TrimSpace(strings.ToLower(w))
-		// 过滤掉常见中英文停用词、单字和标点
-		if len([]rune(w)) > 1 && !isStopWord(w) {
+		// 过滤掉常见中英文停用词、单字、标点符号以及连续问号表情等非业务实体词
+		if len([]rune(w)) > 1 && !isStopWord(w) && wordEntityRegexp.MatchString(w) {
 			queryWordMap[w] = true
 		}
 	}
@@ -639,6 +642,13 @@ func isStopWord(w string) bool {
 		"的": true, "了": true, "是": true, "我": true, "你": true, "他": true, "它": true,
 		"在": true, "有": true, "个": true, "上": true, "下": true, "中": true, "和": true,
 		"与": true, "被": true, "让": true, "这": true, "那": true, "都": true, "就": true,
+		"吧": true, "呢": true, "啊": true, "呀": true, "吗": true,
+		"查找": true, "搜索": true, "查询": true, "检索": true, "定位": true, "搜一下": true,
+		"总结": true, "归纳": true, "要点": true, "提炼": true, "大意": true, "整理": true,
+		"对比": true, "差异": true, "不同": true, "区别": true, "比较": true,
+		"生成": true, "写": true, "创作": true, "做": true, "构思": true, "方案": true,
+		"一下": true, "笔记": true, "文档": true, "关于": true, "帮助": true, "有没有": true,
+		"怎么": true, "如何": true, "这个": true, "那个": true, "什么": true, "哪里": true,
 		"the": true, "is": true, "are": true, "and": true, "to": true, "in": true, "on": true,
 	}
 	return stopWords[w]

@@ -195,7 +195,7 @@ func BatchHybridSearch(queries []string, limit int, folderFilter string) ([]Sear
 		// 使用 Jieba 分词辅助搜索，提高匹配度
 		jieba := synonym.GetJieba()
 		allFtsTerms := make([]string, 0)
-		
+
 		// 常用干扰词过滤（停用词）
 		stopWords := map[string]bool{
 			"查找": true, "一下": true, "最近": true, "搜索": true, "查询": true,
@@ -207,7 +207,7 @@ func BatchHybridSearch(queries []string, limit int, folderFilter string) ([]Sear
 		for _, q := range ftsQueries {
 			// 原词匹配（带引号，精确匹配）
 			allFtsTerms = append(allFtsTerms, "\""+q+"\"")
-			
+
 			if jieba != nil {
 				// 提取核心词（去除停用词和过短词）
 				segments := jieba.Cut(q, true)
@@ -220,7 +220,7 @@ func BatchHybridSearch(queries []string, limit int, folderFilter string) ([]Sear
 				}
 			}
 		}
-		
+
 		// 如果分词后没有有效词，保留原词
 		if len(allFtsTerms) == 0 {
 			for _, q := range ftsQueries {
@@ -230,7 +230,7 @@ func BatchHybridSearch(queries []string, limit int, folderFilter string) ([]Sear
 
 		allFtsTerms = uniqueStrings(allFtsTerms)
 		ftsQuery := strings.Join(allFtsTerms, " OR ")
-		
+
 		log.Printf("[RAG] FTS Query: %s", ftsQuery)
 
 		var ftsResults []struct {
@@ -295,7 +295,7 @@ func BatchHybridSearch(queries []string, limit int, folderFilter string) ([]Sear
 	// 5. 获取笔记详情
 	var notes []models.NoteItem
 	dbQuery := global.DB.Where("id IN ? AND deleted_at IS NULL AND is_archived = ?", ids, false)
-	
+
 	if folderFilter != "" {
 		parts := strings.SplitN(folderFilter, "/", 2)
 		dbQuery = dbQuery.Where("folder_l1 = ?", parts[0])
@@ -616,8 +616,8 @@ func RAGAskWithHistory(query string, history []ConversationMessage) (string, []S
 		expandedQueries = QueryRewrite(query)
 	}
 
-	// 使用分片级混合检索 (限制为 8 个引证)
-	hits, hitChunks, err := BatchHybridSearchWithChunks(expandedQueries, 8, "")
+	// 使用分片级混合检索 (限制为 4 个引证)
+	hits, hitChunks, err := BatchHybridSearchWithChunks(expandedQueries, 4, "")
 	if err != nil {
 		log.Printf("[RAG] [错误] 检索失败: %v", err)
 	}
@@ -840,7 +840,7 @@ func BatchHybridSearchWithChunks(queries []string, limit int, folderFilter strin
 	// 5. 获取笔记详情
 	var notes []models.NoteItem
 	dbQuery := global.DB.Where("id IN ? AND deleted_at IS NULL AND is_archived = ?", ids, false)
-	
+
 	if folderFilter != "" {
 		parts := strings.SplitN(folderFilter, "/", 2)
 		dbQuery = dbQuery.Where("folder_l1 = ?", parts[0])

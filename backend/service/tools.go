@@ -141,8 +141,8 @@ func (te *ToolExecutor) executeSearch(call ToolCall) ToolResult {
 
 	log.Printf("[ToolExecutor] 检索查询: %v", finalQueries)
 
-	// 使用分片级混合检索（限制为 8 个结果）
-	results, hitChunks, err := BatchHybridSearchWithChunks(finalQueries, 8, "")
+	// 使用分片级混合检索（限制为 4 个结果）
+	results, hitChunks, err := BatchHybridSearchWithChunks(finalQueries, 4, "")
 	if err != nil {
 		log.Printf("[ToolExecutor] 检索失败: %v", err)
 		return ToolResult{Output: "检索失败: " + err.Error()}
