@@ -347,16 +347,29 @@ function AppContent() {
   const executeAskAI = async (q) => {
     if (!q.trim()) return;
     setSelectedItem(null);
+
+    let activeSessionId = currentSessionId;
+    let activeHistory = chatHistory;
+
+    // 如果当前不在 chats 视图下（如在首页或其它模块），说明是从首页输入框直接直接发起的提问，
+    // 强制不继承任何未关闭的残留 session_id，彻底重置为空历史与 0 标识以强行新增会话！
+    if (viewMode !== 'chats') {
+      activeSessionId = 0;
+      activeHistory = [];
+      setCurrentSessionId(0);
+      setChatHistory([]);
+    }
+
     setViewMode('chats');
 
     // 构建新的历史记录
     const newUserMsg = { role: 'user', content: q };
-    const updatedHistory = [...chatHistory, newUserMsg];
+    const updatedHistory = [...activeHistory, newUserMsg];
     setChatHistory(updatedHistory);
     setAskLoading(true);
 
     try {
-      const { answer, session_id, references } = await askAI(updatedHistory, currentSessionId);
+      const { answer, session_id, references } = await askAI(updatedHistory, activeSessionId);
       setChatHistory([...updatedHistory, { role: 'assistant', content: answer, references }]);
       setCurrentSessionId(session_id);
     } catch (e) {

@@ -25,6 +25,7 @@ const (
 	IntentCompare    IntentType = "compare"      // 对比分析
 	IntentGenerate   IntentType = "generate"     // 生成内容
 	IntentRecord     IntentType = "record"       // 记录/备忘
+	IntentFreeChat   IntentType = "free_chat"    // 随意闲聊/日常招呼
 )
 
 // IntentResult 意图分析结果
@@ -150,12 +151,10 @@ func (ia *IntentAnalyzer) Analyze(query string, history []ConversationMessage, c
 	}
 
 	// 优先级 3: 指代追问（有上下文时）
-	// 如果用户明确提到了保存、记录、总结、对比等强烈特征动作词，不要强行拦截为普通的指代追问 (FollowUp)
+	// 如果用户明确提到了保存、记录等强烈落库特征动作词，不要强行拦截为普通的追问 (FollowUp)
 	isStrongAction := false
 	strongKeywords := []string{
 		"保存", "记录", "存一下", "记一下", "备忘", "收录",
-		"总结", "整理", "归纳", "提炼", "梳理",
-		"对比", "比较", "不同点", "差异",
 	}
 	for _, kw := range strongKeywords {
 		if strings.Contains(query, kw) {
@@ -164,7 +163,7 @@ func (ia *IntentAnalyzer) Analyze(query string, history []ConversationMessage, c
 		}
 	}
 
-	if !isStrongAction && len(history) > 0 && len(context.ActiveDocuments) > 0 {
+	if !isStrongAction && len(history) > 0 {
 		if ContainsReference(query) {
 			return IntentResult{
 				Type:       IntentFollowUp,
@@ -173,13 +172,15 @@ func (ia *IntentAnalyzer) Analyze(query string, history []ConversationMessage, c
 			}
 		}
 
-		// 优先级 3.5: 操作指令（对已有内容操作，不触发新检索）
-		for _, marker := range operationMarkers {
-			if strings.Contains(query, marker) {
-				return IntentResult{
-					Type:       IntentFollowUp,
-					Reference:  marker,
-					Confidence: 0.85,
+		// 优先级 3.5: 操作指令（对已有内容操作，需有活跃文档上下文作为承接）
+		if len(context.ActiveDocuments) > 0 {
+			for _, marker := range operationMarkers {
+				if strings.Contains(query, marker) {
+					return IntentResult{
+						Type:       IntentFollowUp,
+						Reference:  marker,
+						Confidence: 0.85,
+					}
 				}
 			}
 		}
@@ -205,7 +206,7 @@ func (ia *IntentAnalyzer) Analyze(query string, history []ConversationMessage, c
 
 	// 优先级 6: 混合意图检测（Jieba 分词 + 关键词）
 	basicIntent, confidence := ia.detectWithJieba(query)
-	if confidence > 0.8 {
+	if confidence >= 0.8 {
 		return IntentResult{
 			Type:       basicIntent,
 			Confidence: confidence,
@@ -235,11 +236,12 @@ func (ia *IntentAnalyzer) detectWithJieba(query string) (IntentType, float32) {
 
 	// 2. 核心特征词库
 	features := map[IntentType][]string{
-		IntentSearch:    {"找", "查", "搜索", "检索", "定位", "哪些", "哪里", "谁", "什么时候"},
+		IntentSearch:    {"找", "查", "查找", "搜索", "检索", "定位", "查阅", "搜一下"},
 		IntentSummarize: {"总结", "归纳", "要点", "提炼", "大意", "整理", "梳理", "概括"},
 		IntentCompare:   {"对比", "差异", "不同", "区别", "比较", "相同点"},
 		IntentGenerate:  {"生成", "写", "创作", "做", "构思", "报告", "方案", "大纲"},
 		IntentRecord:    {"记", "存", "备忘", "保存", "收录"},
+		IntentFreeChat:  {"你好", "您好", "哈喽", "hello", "hi", "谢谢", "感谢", "你是谁", "中文怎么说", "名字"},
 	}
 
 	bestIntent := IntentNewTopic
@@ -267,15 +269,16 @@ func (ia *IntentAnalyzer) detectWithJieba(query string) (IntentType, float32) {
 
 // analyzeWithLLM 使用 LLM 进行意图识别
 func (ia *IntentAnalyzer) analyzeWithLLM(query string, history []ConversationMessage) IntentResult {
-	// 构建 prompt，要求返回 JSON 格式
+	// 构建 prompt，要求返回 JSON 格式，并携带历史对话上下文
 	prompt := `你是一个意图识别与任务拆解引擎。请分析用户的输入意图。
 可选意图类型：
-- search: 检索文档、查找具体信息
+- free_chat: 纯粹的闲聊、打招呼、说谢谢、询问你是谁/你的名字/你的中文名、日常问候与随意聊天（无特定检索、总结或保存需要，用户只想轻松对话）
+- search: 检索文档、查找具体知识库信息
 - summarize: 对已有内容进行总结、归纳
 - compare: 对比多个文档或概念的异同
 - generate: 创作、写报告、生成新内容
-- follow_up: 对前文的深入追问
-- record: 随手记、备忘（通常很短且没有明显指令）
+- follow_up: 对前文的深入追问（例如：在上轮对话引导或上下文选择下做出的具体选择、补充、回答或澄清）
+- record: 随手记、备忘（通常很短且没有明显指令，如“记一下xxx”、“存一下xxx”）
 
 如果任务包含多个步骤（如“先找A再总结”），请拆解为 sub_tasks。
 请只输出纯 JSON 格式：
@@ -285,9 +288,27 @@ func (ia *IntentAnalyzer) analyzeWithLLM(query string, history []ConversationMes
   "sub_tasks": [{"query": "子任务查询词", "intent": "子意图"}],
   "reason": "简短理由"
 }
-用户输入：%s`
+%s用户当前输入：%s`
 
-	fullQuery := fmt.Sprintf(prompt, query)
+	// 格式化最近的上下文历史，帮助大模型做出精准的多轮意图判断
+	var historyContext string
+	if len(history) > 0 {
+		historyContext = "\n[历史对话上下文（按时间正序排列）]\n"
+		startIdx := 0
+		if len(history) > 4 {
+			startIdx = len(history) - 4
+		}
+		for _, msg := range history[startIdx:] {
+			contentSnippet := msg.Content
+			if len([]rune(contentSnippet)) > 150 {
+				contentSnippet = string([]rune(contentSnippet)[:150]) + "..."
+			}
+			historyContext += fmt.Sprintf("[%s]: %s\n", msg.Role, contentSnippet)
+		}
+		historyContext += "\n"
+	}
+
+	fullQuery := fmt.Sprintf(prompt, historyContext, query)
 	
 	// 调用 LLM
 	response, err := pkg.AskAI([]map[string]string{
@@ -318,7 +339,9 @@ func (ia *IntentAnalyzer) analyzeWithLLM(query string, history []ConversationMes
 	intentType := IntentType(result.Intent)
 	if intentType == "" {
 		// 关键词兜底
-		if strings.Contains(response, "search") {
+		if strings.Contains(response, "free_chat") {
+			intentType = IntentFreeChat
+		} else if strings.Contains(response, "search") {
 			intentType = IntentSearch
 		} else if strings.Contains(response, "summarize") {
 			intentType = IntentSummarize
@@ -525,4 +548,98 @@ func (ia *IntentAnalyzer) isLikelyFollowUp(query string) bool {
 		}
 	}
 	return false
+}
+
+// IsRelatedToHistory 检查当前提问与历史对话是否存在关联，为防前文严重覆盖/污染提供智能校验判定
+func IsRelatedToHistory(query string, history []ConversationMessage) bool {
+	if len(history) == 0 {
+		return true
+	}
+
+	query = strings.ToLower(strings.TrimSpace(query))
+
+	// 1. 如果包含指代词，一定有关联
+	if ContainsReference(query) {
+		return true
+	}
+
+	// 2. 检查常用继续和操作标记词，如果有，也是承接上下文的
+	allMarkers := []string{"继续", "接着", "还有", "再来", "重试"}
+	for _, m := range allMarkers {
+		if strings.Contains(query, m) {
+			return true
+		}
+	}
+
+	// 3. 如果 query 太短（比如少于 4 个字/字符），极有可能是简短追问或澄清，判定为有关联
+	if len([]rune(query)) < 4 {
+		return true
+	}
+
+	// 4. 使用 Jieba 分词进行关键词交叉比对
+	jieba := synonym.GetJieba()
+	if jieba == nil {
+		// 降级策略：如果分词不可用，直接通过简单的子串包含判断（忽略常见停用词）
+		lastMsg := history[len(history)-1]
+		lastContent := strings.ToLower(lastMsg.Content)
+		
+		words := strings.Fields(query)
+		for _, w := range words {
+			if len(w) > 3 && strings.Contains(lastContent, w) {
+				return true
+			}
+		}
+		return false
+	}
+
+	// 提取当前 query 的分词，存入 map 以便 O(1) 查找
+	queryWords := jieba.Cut(query, true)
+	queryWordMap := make(map[string]bool)
+	for _, w := range queryWords {
+		w = strings.TrimSpace(strings.ToLower(w))
+		// 过滤掉常见中英文停用词、单字和标点
+		if len([]rune(w)) > 1 && !isStopWord(w) {
+			queryWordMap[w] = true
+		}
+	}
+
+	// 如果 query 过滤后没有有效关键词，默认有关联以防误清空
+	if len(queryWordMap) == 0 {
+		return true
+	}
+
+	// 提取最近两轮历史对话中的所有文本内容
+	var historyText strings.Builder
+	startIdx := len(history) - 2
+	if startIdx < 0 {
+		startIdx = 0
+	}
+	for i := startIdx; i < len(history); i++ {
+		historyText.WriteString(strings.ToLower(history[i].Content))
+		historyText.WriteString(" ")
+	}
+
+	// 分词历史文本并检测交集
+	historyWords := jieba.Cut(historyText.String(), true)
+	log.Printf("[DEBUG] query=%q, queryWords=%v, queryWordMap=%v, historyWords=%v", query, queryWords, queryWordMap, historyWords)
+	for _, w := range historyWords {
+		w = strings.TrimSpace(strings.ToLower(w))
+		if queryWordMap[w] {
+			log.Printf("[Intent] 检测到多轮主题词交叉关联: %q", w)
+			return true
+		}
+	}
+
+	return false
+}
+
+// isStopWord 常见中英文停用词快速过滤
+func isStopWord(w string) bool {
+	stopWords := map[string]bool{
+		"的": true, "了": true, "是": true, "我": true, "你": true, "他": true, "它": true,
+		"在": true, "有": true, "个": true, "上": true, "下": true, "中": true, "和": true,
+		"与": true, "被": true, "让": true, "这": true, "那": true, "都": true, "就": true,
+		"the": true, "is": true, "are": true, "and": true, "to": true, "in": true, "on": true,
+	}
+	return stopWords[w]
 }

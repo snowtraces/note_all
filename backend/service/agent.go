@@ -56,6 +56,11 @@ func NewAgent() *Agent {
 func (a *Agent) BuildSystemPrompt(includeMemory bool) string {
 	var sb strings.Builder
 
+	// 0. 身份与基本定位 (Identity)
+	sb.WriteString("=== IDENTITY ===\n")
+	sb.WriteString("You are **NAIA (Note-All Intelligence Agent)**, a personal knowledge architect. Your Chinese name is **“奈娅”** or **“全知笔记智能体”**.\n")
+	sb.WriteString("For casual greetings, self-introductions, or questions about your name/identity/role, you MUST respond directly, warmly, and politely in Chinese as NAIA. Completely ignore and filter out any irrelevant search results (e.g., '未找到相关文档') or database logs. Never hallucinate tool error warnings or talk about conflict checks when asked about who you are.\n\n")
+
 	// 1. 基础协议与 ReAct 规范 (Global Protocol)
 	sb.WriteString("=== CORE PROTOCOL ===\n")
 	sb.WriteString("1. Use the **ReAct** pattern for complex tasks (DO NOT TRANSLATE THESE KEYWORDS):\n")
@@ -123,7 +128,7 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 	var confirmedTools []Tool
 	var explicitIntentOverride bool
 	var explicitIntent IntentResult
-	
+
 	if strings.Contains(query, "[[session_confirm:generate]]") {
 		// 加入本 Session 授权列表
 		alreadyConfirmed := false
@@ -138,7 +143,7 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 			// 立即持久化保存授权状态到会话上下文！
 			a.sessionManager.UpdateContext(session.ID, session.Context)
 		}
-		
+
 		confirmedTools = append(confirmedTools, ToolGenerate)
 		query = strings.ReplaceAll(query, "[[session_confirm:generate]]", "")
 		explicitIntent = IntentResult{Type: IntentRecord, Confidence: 1.0}
@@ -210,6 +215,21 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 		log.Printf("[Agent] 决策结果: 意图明确且无主动拉起，保持提示词清爽，不载入记忆")
 	}
 
+	// 2.7 隐式话题切换检测：如果判定为独立的大任务意图（如检索、总结、对比、生成），且当前新 query 与最近历史没有词汇/实体级语义关联，
+	// 说明用户在当前窗口发起了全新的提问，隐式作为新话题处理，清空冗余的历史消息与上下文包袱，避免前文覆盖污染！
+	if len(session.Messages) > 0 && !explicitIntentOverride {
+		isMajorIntent := intent.Type == IntentSearch || 
+		                 intent.Type == IntentSummarize || 
+		                 intent.Type == IntentCompare || 
+		                 intent.Type == IntentGenerate
+		
+		if isMajorIntent && !IsRelatedToHistory(query, session.Messages) {
+			log.Printf("[Agent] 检测到用户发起了与前文完全不关联的新提问 (%s)，自动执行隐式话题切换，清空旧历史以防覆盖！", intent.Type)
+			session.Context = &SessionContext{}
+			session.Messages = []ConversationMessage{}
+		}
+	}
+
 	// 3. 创建 QueryLoop 状态
 	state := NewQueryState(session.ID, session.Messages, session.Context)
 
@@ -243,6 +263,10 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 			rewrite := a.queryRewriter.Rewrite(query, session.Messages, session.Context)
 			initialToolCalls = []ToolCall{{Tool: ToolSearch, Parameters: map[string]interface{}{"query": rewrite.RewrittenQuery}}}
 		}
+	case IntentFreeChat:
+		// 随意闲聊：绝对不触发任何工具调用（包括 ToolSearch），保持最高清爽度
+		log.Printf("[Agent] 检测到闲聊意图 (free_chat)，纯文本直接对话，不调用工具")
+		initialToolCalls = nil
 	case IntentSwitch:
 		// 切换话题：清空上下文
 		session.Context = &SessionContext{}
@@ -268,7 +292,7 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 
 			if lastAssistantContent != "" {
 				log.Printf("[Agent] 找到上一轮 Assistant 生成的有效内容(长度: %d)，直接继承并单步保存", len(lastAssistantContent))
-				
+
 				// 智能提取回答的首个大标题 `# ` 作为笔记名称
 				noteTitle := ""
 				lines := strings.Split(lastAssistantContent, "\n")
@@ -286,7 +310,7 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 				if noteTitle == "" {
 					noteTitle = "整理笔记_" + time.Now().Format("2006-01-02")
 				}
-				
+
 				// 截取标题长度防止过长
 				if len(noteTitle) > 100 {
 					noteTitle = noteTitle[:100]
@@ -1038,10 +1062,10 @@ func (a *Agent) processMentions(query *string, ctx *SessionContext) {
 		isNoteFormat := match[1] == "note:"
 		idStr := match[2]
 		title := strings.TrimSpace(match[3])
-		
+
 		var note models.NoteItem
 		var found bool
-		
+
 		if isNoteFormat && idStr != "" {
 			// 直接通过 ID 精确匹配
 			var id uint
@@ -1053,7 +1077,7 @@ func (a *Agent) processMentions(query *string, ctx *SessionContext) {
 				}
 			}
 		}
-		
+
 		if !found && title != "" {
 			// 兜底通过标题或原始名匹配 (Wiki link 兼容)
 			// 特殊情况：如果是 [[tool:xxx]]，应该跳过
@@ -1065,7 +1089,7 @@ func (a *Agent) processMentions(query *string, ctx *SessionContext) {
 				found = true
 			}
 		}
-		
+
 		if found {
 			log.Printf("[Agent] 成功注入提及笔记内容: %s (ID: %d)", note.OriginalName, note.ID)
 			// 避免重复注入
@@ -1102,7 +1126,7 @@ func shouldIncludeMemory(query string, intent IntentResult) bool {
 	// 1. 主动拉起：用户 query 中包含明确关于“偏好”、“记忆”、“习惯”、“画像”或“我之前”等主观敏感词
 	queryLower := strings.ToLower(query)
 	triggerKeywords := []string{
-		"偏好", "记忆", "习惯", "画像", "我之前", "我以前", "我习惯", 
+		"偏好", "记忆", "习惯", "画像", "我之前", "我以前", "我习惯",
 		"我的偏好", "我的习惯", "我的记忆", "我的设定", "我是谁", "我喜欢",
 	}
 	for _, kw := range triggerKeywords {
@@ -1112,9 +1136,11 @@ func shouldIncludeMemory(query string, intent IntentResult) bool {
 		}
 	}
 
-	// 2. 意图置信度极低或匹配不了明确意图时尝试
-	if intent.Type == "unknown" || intent.Confidence < 0.6 {
-		log.Printf("[Agent] 匹配不到明确意图或置信度偏低 (Type=%s, Confidence=%.2f)，尝试引入长期记忆破局", intent.Type, intent.Confidence)
+	// 2. 语义模糊判定（再模糊，才尝试记忆 + LLM）：
+	// 如果经过 LLM 精准识别后，发现依然是模糊意图 (IntentNewTopic / unknown) 或者置信度偏低，说明是闲聊、泛指疑问或开放式通用问题。
+	// 此时，我们才开启长期用户记忆画像介入，配合 LLM 提供贴心、有温度的个性化破局应答！
+	if intent.Type == IntentNewTopic || intent.Type == "unknown" || intent.Confidence < 0.7 {
+		log.Printf("[Agent] 语义模糊或通用闲聊 (Type=%s, Confidence=%.2f)，开启 记忆+LLM 模式破局", intent.Type, intent.Confidence)
 		return true
 	}
 
