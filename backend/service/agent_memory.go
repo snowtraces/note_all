@@ -41,25 +41,82 @@ func GetMemoryManager() *MemoryManager {
 	return defaultMemoryManager
 }
 
-// Load 加载记忆文件
+const defaultSoulContent = `# Agent Soul: Knowledge Architect
+
+## Identity
+You are NAIA (Note-All Intelligence Agent), a sophisticated "Knowledge Architect" dedicated to helping users organize, discover, and refine their personal knowledge base.
+
+## Core Values
+1. **Precision**: Always strive for accurate information and correct links.
+2. **Helpfulness**: Proactively suggest connections and insights without being intrusive.
+3. **Integrity**: Respect the user's original content. Never modify the core text of a note; only provide summaries, tags, and suggestions.
+4. **Consistency**: Maintain a professional yet encouraging tone.
+
+## Interaction Principles
+- Use standard Markdown for all responses.
+- When referencing notes, use the "[[Title]]" or "[[ID]]" format compatible with the WikiLinks system.
+- If unsure, ask for clarification instead of guessing.
+- Prefer structured data (lists, tables) for complex information.
+
+## Behavioral Constraints
+- Do not invent facts about the user's notes.
+- If a search returns no results, state it clearly.
+- Respect the folder structure (e.g., "任务", "笔记").`
+
+const defaultProfileContent = `# User Profile: Personal Knowledge Space
+
+## Identity & Role
+- **User Role**: Knowledge Creator / Researcher
+- **Key Focus**: Personal productivity, tech research, structured note-taking.
+
+## Established Preferences
+- **Tone**: Professional, encouraging, structured.
+- **Format**: Markdown, bullet points, dynamic comparisons where applicable.
+- **WikiLinks**: Actively link related documents using "[[Title]]".
+
+## Active Interests & Tech Stack
+- **Core Tech**: Go, React, Python, Docker, RAG Systems.
+- **Methodologies**: Agile, test-driven development, continuous integration.`
+
+// Load 加载记忆文件，若缺失则自动初始化默认模板
 func (m *MemoryManager) Load() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	soulPath := filepath.Join(m.basePath, "soul.md")
 	soulData, err := os.ReadFile(soulPath)
-	if err == nil {
-		m.soul = string(soulData)
+	if err != nil {
+		if os.IsNotExist(err) {
+			log.Printf("[Memory] 检测到 soul.md 不存在，自动进行默认灵魂初始化...")
+			err = os.WriteFile(soulPath, []byte(defaultSoulContent), 0644)
+			if err == nil {
+				m.soul = defaultSoulContent
+			} else {
+				log.Printf("[Memory] 错误: 自动初始化 soul.md 失败: %v", err)
+			}
+		} else {
+			log.Printf("[Memory] 错误: 读取 soul.md 失败: %v", err)
+		}
 	} else {
-		log.Printf("[Memory] 警告: 无法读取 soul.md: %v", err)
+		m.soul = string(soulData)
 	}
 
 	profilePath := filepath.Join(m.basePath, "user_profile.md")
 	profileData, err := os.ReadFile(profilePath)
-	if err == nil {
-		m.profile = string(profileData)
+	if err != nil {
+		if os.IsNotExist(err) {
+			log.Printf("[Memory] 检测到 user_profile.md 不存在，自动进行默认画像初始化...")
+			err = os.WriteFile(profilePath, []byte(defaultProfileContent), 0644)
+			if err == nil {
+				m.profile = defaultProfileContent
+			} else {
+				log.Printf("[Memory] 错误: 自动初始化 user_profile.md 失败: %v", err)
+			}
+		} else {
+			log.Printf("[Memory] 错误: 读取 user_profile.md 失败: %v", err)
+		}
 	} else {
-		log.Printf("[Memory] 警告: 无法读取 user_profile.md: %v", err)
+		m.profile = string(profileData)
 	}
 }
 

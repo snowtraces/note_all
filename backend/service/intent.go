@@ -239,7 +239,7 @@ func (ia *IntentAnalyzer) detectWithJieba(query string) (IntentType, float32) {
 		IntentSearch:    {"找", "查", "查找", "搜索", "检索", "定位", "查阅", "搜一下"},
 		IntentSummarize: {"总结", "归纳", "要点", "提炼", "大意", "整理", "梳理", "概括"},
 		IntentCompare:   {"对比", "差异", "不同", "区别", "比较", "相同点"},
-		IntentGenerate:  {"生成", "写", "创作", "做", "构思", "报告", "方案", "大纲"},
+		IntentGenerate:  {"生成", "写", "创作", "做", "构思", "方案", "大纲"},
 		IntentRecord:    {"记", "存", "备忘", "保存", "收录"},
 		IntentFreeChat:  {"你好", "您好", "哈喽", "hello", "hi", "谢谢", "感谢", "你是谁", "中文怎么说", "名字"},
 	}
