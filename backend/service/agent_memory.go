@@ -2,7 +2,7 @@ package service
 
 import (
 	"fmt"
-	"io/ioutil"
+
 	"log"
 	"os"
 	"path/filepath"
@@ -47,7 +47,7 @@ func (m *MemoryManager) Load() {
 	defer m.mu.Unlock()
 
 	soulPath := filepath.Join(m.basePath, "soul.md")
-	soulData, err := ioutil.ReadFile(soulPath)
+	soulData, err := os.ReadFile(soulPath)
 	if err == nil {
 		m.soul = string(soulData)
 	} else {
@@ -55,7 +55,7 @@ func (m *MemoryManager) Load() {
 	}
 
 	profilePath := filepath.Join(m.basePath, "user_profile.md")
-	profileData, err := ioutil.ReadFile(profilePath)
+	profileData, err := os.ReadFile(profilePath)
 	if err == nil {
 		m.profile = string(profileData)
 	} else {
@@ -83,7 +83,7 @@ func (m *MemoryManager) UpdateUserProfile(content string) error {
 	defer m.mu.Unlock()
 
 	profilePath := filepath.Join(m.basePath, "user_profile.md")
-	err := ioutil.WriteFile(profilePath, []byte(content), 0644)
+	err := os.WriteFile(profilePath, []byte(content), 0644)
 	if err == nil {
 		m.profile = content
 	}
