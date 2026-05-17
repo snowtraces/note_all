@@ -189,6 +189,9 @@ func SetupRouter() *gin.Engine {
 		apiGroup.POST("/image/upload", noteApi.UploadImage)
 		apiGroup.POST("/image/upload_from_url", noteApi.UploadImageFromURL)
 
+		// 9.25 URL 链接预览 API
+		apiGroup.GET("/url/preview", noteApi.GetURLPreview)
+
 		// 9.3 独立模块：生图
 		imageGenApi := new(api.ImageGenerationApi)
 		apiGroup.POST("/image_gen/create", imageGenApi.Generate)

@@ -25,6 +25,8 @@ import SaveConfirmModal from './components/SaveConfirmModal';
 import MentionMenu from './components/MentionMenu';
 import { useMention } from './hooks/useMention';
 import { checkAuth } from './api/authApi';
+import LinkPreviewPortal from './components/LinkPreviewPortal';
+import useLinkPreview from './hooks/useLinkPreview';
 
 // 智能引证极精致折叠渲染组件
 const CitationsSection = ({ references, onSelectRef }) => {
@@ -152,6 +154,15 @@ function AppContent() {
     handleSelectMention: handleFollowUpSelect,
     setMentionType: setFollowUpMentionType
   } = useMention();
+
+  const {
+    visible: previewVisible,
+    loading: previewLoading,
+    data: previewData,
+    coords: previewCoords,
+    onCardMouseEnter,
+    onCardMouseLeave
+  } = useLinkPreview();
 
   const isRoutingRef = useRef(false);
 
@@ -880,6 +891,14 @@ function AppContent() {
           }}
         />
       )}
+      <LinkPreviewPortal 
+        visible={previewVisible}
+        loading={previewLoading}
+        data={previewData}
+        coords={previewCoords}
+        onMouseEnter={onCardMouseEnter}
+        onMouseLeave={onCardMouseLeave}
+      />
       <ToastContainer />
     </div>
   );

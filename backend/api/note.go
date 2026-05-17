@@ -16,6 +16,7 @@ import (
 	"note_all_backend/models"
 	"note_all_backend/service"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -857,3 +858,119 @@ func (a *NoteApi) UploadImageFromURL(c *gin.Context) {
 		"url":        fmt.Sprintf("/api/file/%s", storageID),
 	})
 }
+
+// GetURLPreview 抓取并解析外部 URL 的 HTML 元数据 (标题、描述、OG图片等) 用于前端悬浮卡片预览
+func (a *NoteApi) GetURLPreview(c *gin.Context) {
+	urlStr := c.Query("url")
+	if urlStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "需要 url 参数"})
+		return
+	}
+
+	// 校验 URL 格式与协议，仅限公网 http/https
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的 URL 协议，仅支持 http 或 https"})
+		return
+	}
+
+	// 防止 SSRF：拦截回环地址与局域网敏感资产扫射
+	if isPrivateHost(parsedURL.Host) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "不允许访问内网或敏感局域网地址"})
+		return
+	}
+
+	// 发起安全的 HTTP GET 请求，设定 5 秒超时上限
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	req, err := http.NewRequest("GET", urlStr, nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建请求对象失败: " + err.Error()})
+		return
+	}
+
+	// 伪装常见 Chrome 浏览器 User-Agent，避免防爬网页返回 403 Forbidden
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "抓取目标网页失败: " + err.Error()})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("获取网页返回非 200 状态码: %d", resp.StatusCode)})
+		return
+	}
+
+	// 使用 io.LimitReader 严格限制读取大小为最大 2MB，防止巨型文件触发内存崩溃或 ZIP 炸弹攻击
+	limitedReader := io.LimitReader(resp.Body, 2<<20)
+
+	// 利用 goquery 解析 HTML DOM
+	doc, err := goquery.NewDocumentFromReader(limitedReader)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "解析 HTML DOM 失败: " + err.Error()})
+		return
+	}
+
+	title := ""
+	description := ""
+	image := ""
+	siteName := ""
+
+	// 1. 提取标题 (Priority: og:title -> twitter:title -> <title> tag)
+	if t, exists := doc.Find(`meta[property="og:title"]`).Attr("content"); exists {
+		title = t
+	} else if t, exists := doc.Find(`meta[name="twitter:title"]`).Attr("content"); exists {
+		title = t
+	} else {
+		title = doc.Find("title").First().Text()
+	}
+	title = strings.TrimSpace(title)
+
+	// 2. 提取页面描述 (Priority: og:description -> description -> twitter:description)
+	if d, exists := doc.Find(`meta[property="og:description"]`).Attr("content"); exists {
+		description = d
+	} else if d, exists := doc.Find(`meta[name="description"]`).Attr("content"); exists {
+		description = d
+	} else if d, exists := doc.Find(`meta[name="twitter:description"]`).Attr("content"); exists {
+		description = d
+	}
+	description = strings.TrimSpace(description)
+
+	// 3. 提取 Open Graph 图片 (Priority: og:image -> twitter:image)
+	if img, exists := doc.Find(`meta[property="og:image"]`).Attr("content"); exists {
+		image = img
+	} else if img, exists := doc.Find(`meta[name="twitter:image"]`).Attr("content"); exists {
+		image = img
+	}
+
+	// 将图片相对路径转换为基于目标网页的绝对 URL 路径
+	if image != "" {
+		if imgURL, err := url.Parse(image); err == nil {
+			image = parsedURL.ResolveReference(imgURL).String()
+		}
+	}
+
+	// 4. 提取站点名称 (Priority: og:site_name -> 提取 host 根域名)
+	if sn, exists := doc.Find(`meta[property="og:site_name"]`).Attr("content"); exists {
+		siteName = sn
+	} else {
+		siteName = parsedURL.Hostname()
+	}
+	siteName = strings.TrimSpace(siteName)
+
+	c.JSON(http.StatusOK, gin.H{
+		"title":       title,
+		"description": description,
+		"image":       image,
+		"site_name":   siteName,
+		"url":         urlStr,
+	})
+}
+
