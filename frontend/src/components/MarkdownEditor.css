@@ -687,3 +687,17 @@
   cursor: grabbing;
   transform: scale(0.95);
 }
+
+/* ============ 聊天消息气泡内部 Markdown 渲染排版修正 ============ */
+.chat-bubble-content .tiptap-content p {
+  margin: 0.3em 0;
+  line-height: 1.5;
+}
+
+.chat-bubble-content .tiptap-content p:first-child {
+  margin-top: 0;
+}
+
+.chat-bubble-content .tiptap-content p:last-child {
+  margin-bottom: 0;
+}

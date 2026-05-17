@@ -456,7 +456,7 @@ func detectToolCalls(output string) []ToolCall {
 	// 匹配格式: Action: ToolName({"key": "value"})
 	// 支持中英文关键字 (Action/行动)、Markdown 加粗以及中英文冒号 (:)
 	// 同时也支持 XML 样式的参数包裹（容错性）
-	re := regexp.MustCompile(`(?i)(?:\*\*)?(?:Action|行动)(?:\*\*)?[:：]\s*(\w+)\s*[(\<]([\s\S]*?)[)\>]`)
+	re := regexp.MustCompile(`(?i)(?:\*\*)?(?:Action|行动)(?:\*\*)?[:：](?:\*\*)?\s*(\w+)\s*[(\<]([\s\S]*?)[)\>]`)
 	matches := re.FindAllStringSubmatch(output, -1)
 
 	var calls []ToolCall
@@ -577,7 +577,7 @@ func handleToolUse(state *QueryState, llmResult LLMResult, query string) QueryLo
 	var toolCallInfos []ToolCallInfo
 
 	for i, toolCall := range llmResult.ToolCalls {
-		result, info := toolExecutor.ExecuteWithTiming(i+1, toolCall)
+		result, info := toolExecutor.ExecuteWithTiming(i+1, toolCall, nil)
 		toolResults = append(toolResults, result)
 		toolCallInfos = append(toolCallInfos, info)
 

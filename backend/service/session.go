@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"note_all_backend/global"
@@ -33,9 +34,10 @@ type ConversationSession struct {
 
 // SessionContext 会话上下文
 type SessionContext struct {
-	ActiveDocuments []uint  // 当前讨论的文档 ID
-	ActiveTopic     string  // 当前话题关键词
-	LastIntent      string  // 上轮意图
+	ActiveDocuments []uint   // 当前讨论的文档 ID
+	ActiveTopic     string   // 当前话题关键词
+	LastIntent      string   // 上轮意图
+	ConfirmedTools  []string // 本 Session 已授权直接放行的高风险工具
 }
 
 // ConversationMessage 内存中的消息结构
@@ -106,7 +108,17 @@ func (sm *SessionManager) LoadSession(sessionID uint) (*ConversationSession, err
 		json.Unmarshal([]byte(session.ActiveDocs), &context.ActiveDocuments)
 	}
 	context.ActiveTopic = session.ActiveTopic
-	context.LastIntent = session.LastIntent
+
+	// 从 LastIntent 解析 ConfirmedTools 字段
+	if strings.Contains(session.LastIntent, "|confirmed:") {
+		parts := strings.Split(session.LastIntent, "|confirmed:")
+		context.LastIntent = parts[0]
+		if len(parts) > 1 && parts[1] != "" {
+			context.ConfirmedTools = strings.Split(parts[1], ",")
+		}
+	} else {
+		context.LastIntent = session.LastIntent
+	}
 
 	// 如果有压缩摘要，作为第一条消息
 	if session.ContextSummary != "" && len(messages) > 0 {
@@ -189,12 +201,18 @@ func (sm *SessionManager) UpdateContext(sessionID uint, context *SessionContext)
 
 	activeDocsJSON, _ := json.Marshal(context.ActiveDocuments)
 
+	// 把 ConfirmedTools 拼入 LastIntent 存储以节省数据库字段修改
+	lastIntentSaved := context.LastIntent
+	if len(context.ConfirmedTools) > 0 {
+		lastIntentSaved = fmt.Sprintf("%s|confirmed:%s", context.LastIntent, strings.Join(context.ConfirmedTools, ","))
+	}
+
 	return global.DB.Model(&models.ChatSession{}).
 		Where("id = ?", sessionID).
 		Updates(map[string]interface{}{
 			"active_docs":  string(activeDocsJSON),
 			"active_topic": context.ActiveTopic,
-			"last_intent":  context.LastIntent,
+			"last_intent":  lastIntentSaved,
 		}).Error
 }
 

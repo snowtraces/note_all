@@ -22,7 +22,88 @@ import PublicSharePage from './components/PublicSharePage';
 import ImageGenView from './components/ImageGenView';
 import ToastContainer from './components/ToastContainer';
 import SaveConfirmModal from './components/SaveConfirmModal';
+import MentionMenu from './components/MentionMenu';
+import { useMention } from './hooks/useMention';
 import { checkAuth } from './api/authApi';
+
+// 智能引证极精致折叠渲染组件
+const CitationsSection = ({ references, onSelectRef }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="mt-2.5 pt-2 border-t border-borderSubtle/60">
+      {/* 紧凑精致的可点击折叠头部 */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between py-0.5 text-textSecondary hover:text-primeAccent transition-colors group cursor-pointer border-none bg-transparent outline-none focus:outline-none"
+      >
+        <div className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wide">
+          <div className={`w-1.5 h-1.5 rounded-full bg-primeAccent ${isOpen ? 'animate-pulse' : 'opacity-60'}`}></div>
+          <span className="font-sans">智能引证 ({references.length})</span>
+        </div>
+        <div className="flex items-center gap-1 text-[10px] font-mono opacity-80 uppercase tracking-widest shrink-0 text-textTertiary group-hover:text-primeAccent">
+          <span>{isOpen ? '收起' : '展开'}</span>
+          <svg
+            className={`w-3.5 h-3.5 transform transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </div>
+      </button>
+
+      {/* 展开内容 */}
+      {isOpen && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 select-none">
+          {references.map(ref => (
+            <div
+              key={ref.id}
+              onClick={() => onSelectRef(ref)}
+              className="flex items-start gap-2.5 p-2 rounded-xl border transition-all cursor-pointer bg-card/20 backdrop-blur-sm border-borderSubtle/50 hover:bg-bgHover hover:border-primeAccent/25 hover:shadow-md group relative overflow-hidden text-[11px] min-w-0"
+            >
+              {/* 背景装饰微弱高光 */}
+              <div className="absolute -right-2 -top-2 w-8 h-8 bg-primeAccent/3 rounded-full blur-lg group-hover:bg-primeAccent/6 transition-colors"></div>
+              
+              {/* 图标列 - 缩紧为 28px 精致尺寸 */}
+              <div className="w-7 h-7 rounded-lg bg-bgSubtle flex items-center justify-center text-textTertiary shrink-0 border border-borderSubtle/50 group-hover:text-primeAccent group-hover:border-primeAccent/10 transition-colors mt-0.5">
+                {ref.file_type?.includes('image') ? (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                ) : ref.file_type?.includes('pdf') ? (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                ) : (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
+                )}
+              </div>
+
+              {/* 文本列：多行垂直对齐 */}
+              <div className="min-w-0 flex-1 flex flex-col justify-center min-h-[28px]">
+                <div className="flex items-center justify-between gap-1.5 mb-0.5">
+                  <span className="font-semibold text-textPrimary truncate group-hover:text-primeAccent transition-colors text-[11px] leading-tight">
+                    {ref.ai_title || ref.original_name}
+                  </span>
+                  {ref.score && (
+                    <span className="text-[9px] font-mono text-primeAccent/50 shrink-0 select-none">
+                      {Math.round(ref.score * 100)}%
+                    </span>
+                  )}
+                </div>
+                {/* AI 提炼摘要 */}
+                <div className="text-[10px] text-textTertiary line-clamp-1 group-hover:text-textSecondary transition-colors leading-relaxed">
+                  {ref.ai_summary || '点击查看文档详情...'}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // 内层组件，在 ToastProvider 内部使用 useToast
 function AppContent() {
@@ -60,6 +141,17 @@ function AppContent() {
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [isConfirmSaving, setIsConfirmSaving] = useState(false);
   const [pendingRouteUrl, setPendingRouteUrl] = useState(null);
+  const [followUpInput, setFollowUpInput] = useState('');
+
+  const {
+    mentionType,
+    mentionSearchText,
+    inputRef: followUpRef,
+    handleInputChange: handleFollowUpChange,
+    handleInputKeyDown: handleFollowUpKeyDown,
+    handleSelectMention: handleFollowUpSelect,
+    setMentionType: setFollowUpMentionType
+  } = useMention();
 
   const isRoutingRef = useRef(false);
 
@@ -197,6 +289,23 @@ function AppContent() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [previewImage, selectedItem, hasUnsavedDetail]);
+
+  // 监听打开提及笔记事件
+  useEffect(() => {
+    const handleOpenNote = async (e) => {
+      const { id } = e.detail;
+      try {
+        const noteData = await getNote(id);
+        if (noteData) {
+          guardedSetSelectedItem(noteData);
+        }
+      } catch (err) {
+        console.error("Failed to open note from mention click:", err);
+      }
+    };
+    window.addEventListener('open-note', handleOpenNote);
+    return () => window.removeEventListener('open-note', handleOpenNote);
+  }, []);
 
   // 拦截切换：有未保存修改时弹窗确认
   const guardedSetSelectedItem = (nextItem) => {
@@ -590,70 +699,54 @@ function AppContent() {
                 {/* 对话流 */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-10">
                   <div className="max-w-3xl mx-auto flex flex-col gap-6 md:gap-10">
-                    {chatHistory.map((chat, idx) => (
-                      <div key={idx} className={`flex flex-col ${chat.role === 'user' ? 'items-end' : 'items-start'}`}>
-                        <div className={`rounded-2xl px-4 leading-relaxed text-[14px] shadow-sm ${chat.role === 'user'
-                          ? 'bg-primeAccent/10 border border-primeAccent/20 text-primeAccent rounded-tr-none min-w-[20px] max-w-[80%]'
-                          : 'bg-card border border-borderSubtle text-textSecondary rounded-tl-none max-w-[90%]'
-                          }`}>
-                          <MarkdownRenderer content={chat.content} />
-
-                    {chat.references && chat.references.length > 0 && (
-                            <div className="mt-8 pt-6 border-t border-borderSubtle">
-                              <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center gap-2 text-[11px] uppercase font-mono tracking-widest text-primeAccent/80">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-primeAccent animate-pulse"></div>
-                                  智能引证 · {chat.references.length}
-                                </div>
-                                <div className="text-[10px] text-textTertiary font-mono">INSIGHT SOURCES</div>
-                              </div>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                {chat.references.map(ref => (
-                                  <div
-                                      key={ref.id}
-                                      onClick={() => guardedSetSelectedItem(ref)}
-                                      className="flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer bg-card/30 backdrop-blur-sm border-borderSubtle hover:bg-bgHover hover:border-primeAccent/30 hover:translate-y-[-2px] hover:shadow-lg group relative overflow-hidden"
-                                    >
-                                      {/* 背景光晕装饰 */}
-                                      <div className="absolute -right-4 -top-4 w-12 h-12 bg-primeAccent/5 rounded-full blur-xl group-hover:bg-primeAccent/10 transition-colors"></div>
-                                      
-                                      {/* 图标列 */}
-                                      <div className="w-9 h-9 rounded-lg bg-bgSubtle flex items-center justify-center text-textTertiary shrink-0 border border-borderSubtle group-hover:text-primeAccent group-hover:border-primeAccent/20 transition-colors">
-                                        {ref.file_type?.includes('image') ? (
-                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-                                        ) : ref.file_type?.includes('pdf') ? (
-                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                        ) : (
-                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>
-                                        )}
-                                      </div>
-
-                                      <div className="min-w-0 flex-1">
-                                        <div className="flex items-center justify-between gap-2 mb-0.5">
-                                          <div className="text-[12px] font-medium text-textPrimary truncate group-hover:text-primeAccent transition-colors">
-                                            {ref.ai_title || ref.original_name}
-                                          </div>
-                                          {ref.score && (
-                                            <span className="text-[9px] font-mono text-primeAccent/40 shrink-0">
-                                              {Math.round(ref.score * 100)}%
-                                            </span>
-                                          )}
-                                        </div>
-                                        <div className="text-[10px] leading-tight line-clamp-1 text-textTertiary group-hover:text-textSecondary transition-colors">
-                                          {ref.ai_summary || '查看文档详情...'}
-                                        </div>
-                                      </div>
-
-                                      {/* 底部标签装饰（可选） */}
-                                      <div className="absolute bottom-0 left-0 h-[2px] w-0 bg-primeAccent/30 group-hover:w-full transition-all duration-300"></div>
-                                    </div>
-                                  ))}
-                              </div>
-                            </div>
-                          )}
+                    {chatHistory.map((chat, idx) => {
+                      const isConfirmMessage = chat.role === 'assistant' && chat.content.includes('需要确认：工具');
+                      const isUserConfirm = chat.role === 'user' && (chat.content.startsWith('[[confirm:') || chat.content.startsWith('[[session_confirm:'));
+                      
+                      return (
+                        <div key={idx} className={`flex flex-col ${chat.role === 'user' ? 'items-end' : 'items-start'} ${isConfirmMessage || isUserConfirm || (chat.references && chat.references.length > 0) ? 'w-full' : ''}`}>
+                          <div className={isConfirmMessage || isUserConfirm
+                            ? 'w-full'
+                            : `rounded-2xl px-4 py-2 leading-relaxed text-[14px] shadow-sm chat-bubble-content ${chat.role === 'user'
+                              ? 'bg-primeAccent/10 border border-primeAccent/20 text-primeAccent rounded-tr-none min-w-[20px] max-w-[80%]'
+                              : `bg-card border border-borderSubtle text-textSecondary rounded-tl-none ${chat.references && chat.references.length > 0 ? 'w-full' : 'max-w-[90%]'}`
+                              }`
+                            }>
+                            {isConfirmMessage ? (
+                              <PermissionConfirmCard 
+                                content={chat.content}
+                                onConfirm={() => {
+                                  const toolMatch = chat.content.match(/工具\s+(\w+)\s+属于/);
+                                  const tool = toolMatch ? toolMatch[1] : 'generate';
+                                  executeAskAI(`[[confirm:${tool}]]`);
+                                }}
+                                onSessionConfirm={() => {
+                                  const toolMatch = chat.content.match(/工具\s+(\w+)\s+属于/);
+                                  const tool = toolMatch ? toolMatch[1] : 'generate';
+                                  executeAskAI(`[[session_confirm:${tool}]]`);
+                                }}
+                                onDeny={() => {
+                                  setChatHistory([]);
+                                  setCurrentSessionId(0);
+                                }}
+                              />
+                            ) : isUserConfirm ? (
+                              <UserConfirmCard content={chat.content} />
+                            ) : (
+                              <>
+                                <MarkdownRenderer content={chat.content} />
+                                {chat.references && chat.references.length > 0 && (
+                                  <CitationsSection 
+                                    references={chat.references} 
+                                    onSelectRef={guardedSetSelectedItem} 
+                                  />
+                                )}
+                              </>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     {askLoading && (
                       <div className="flex items-start">
@@ -674,17 +767,36 @@ function AppContent() {
                 <div className="p-4 md:p-8 md:pb-12 shrink-0 bg-bgSubtle">
                   <div className="max-w-3xl mx-auto relative">
                     <input
+                      ref={followUpRef}
                       type="text"
+                      value={followUpInput}
                       placeholder="继续追问 AI..."
                       disabled={askLoading}
+                      onChange={(e) => {
+                        setFollowUpInput(e.target.value);
+                        handleFollowUpChange(e);
+                      }}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.target.value.trim()) {
-                          executeAskAI(e.target.value.trim());
-                          e.target.value = '';
+                        handleFollowUpKeyDown(e);
+                        if (mentionType) return;
+                        if (e.defaultPrevented) return;
+
+                        if (e.key === 'Enter' && !e.nativeEvent.isComposing && followUpInput.trim()) {
+                          executeAskAI(followUpInput.trim());
+                          setFollowUpInput('');
                         }
                       }}
                       className="w-full border rounded-2xl px-6 py-3 md:py-4 text-sm focus:outline-none focus:border-primeAccent/50 transition-all bg-bgSubtle border-borderSubtle text-textPrimary placeholder-textMuted"
                     />
+                    {mentionType && (
+                      <MentionMenu
+                        inputRef={followUpRef}
+                        triggerChar={mentionType}
+                        searchText={mentionSearchText}
+                        onSelect={(item) => handleFollowUpSelect(item, followUpInput, setFollowUpInput)}
+                        onClose={() => setFollowUpMentionType(null)}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -770,3 +882,88 @@ function App() {
 }
 
 export default App;
+
+// 琥珀色玻璃磨砂权限确认卡片组件
+function PermissionConfirmCard({ content, onConfirm, onSessionConfirm, onDeny }) {
+  const toolMatch = content.match(/工具\s+(\w+)\s+属于/);
+  const descMatch = content.match(/工具描述：([\s\S]*)$/);
+
+  const tool = toolMatch ? toolMatch[1] : 'unknown';
+  const desc = descMatch ? descMatch[1].trim() : '此操作涉及敏感生成，请确认。';
+
+  const toolNames = {
+    'generate': 'AI 内容生成',
+    'save_note': '笔记保存',
+    'compare': '文档交叉分析'
+  };
+
+  const displayName = toolNames[tool] || tool;
+
+  return (
+    <div className="my-1.5 p-2 px-3 rounded-xl border border-amber-300/60 bg-amber-50/20 w-full flex flex-col md:flex-row md:items-center justify-between gap-3 text-[12px] animate-in fade-in slide-in-from-top-1 duration-150 shadow-sm">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="flex items-center justify-center text-amber-600 shrink-0">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </span>
+        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+          <span className="font-bold text-amber-800 shrink-0">确认：{displayName}</span>
+          <span className="text-zinc-300 shrink-0">|</span>
+          <span className="text-zinc-500 truncate font-mono text-[11px]">{desc}</span>
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0 self-end md:self-auto">
+        <button
+          onClick={onConfirm}
+          className="h-7 px-2.5 rounded-lg text-[11px] font-bold border border-amber-400/30 bg-white hover:bg-amber-50 text-amber-700 active:scale-[0.96] transition-all flex items-center justify-center gap-1"
+        >
+          仅这次
+        </button>
+        <button
+          onClick={onSessionConfirm}
+          className="h-7 px-2.5 rounded-lg text-[11px] font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-sm active:scale-[0.96] transition-all flex items-center justify-center gap-1"
+        >
+          本会话允许
+        </button>
+        <button
+          onClick={onDeny}
+          className="h-7 px-2.5 rounded-lg text-[11px] font-medium bg-zinc-100 hover:bg-zinc-200/80 active:scale-[0.96] text-zinc-600 transition-all flex items-center justify-center"
+        >
+          拒绝
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// 绿色安全授权徽章日志条组件
+function UserConfirmCard({ content }) {
+  const isSession = content.includes('session_confirm');
+  const toolMatch = content.match(/\[\[(?:session_)?confirm:(\w+)\]\]/);
+  const tool = toolMatch ? toolMatch[1] : 'unknown';
+
+  const toolNames = {
+    'generate': 'AI 内容生成',
+    'save_note': '笔记保存',
+    'compare': '文档交叉分析'
+  };
+
+  const displayName = toolNames[tool] || tool;
+
+  return (
+    <div className="my-1.5 p-2 px-3 rounded-xl border border-emerald-200 bg-emerald-50/20 w-full flex items-center justify-between text-[11px] animate-in fade-in duration-150 shadow-sm">
+      <div className="flex items-center gap-2">
+        <span className="flex items-center justify-center text-emerald-600 shrink-0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="font-bold text-emerald-800">安全授权：已允许调用【{displayName}】</span>
+          <span className="text-emerald-300">|</span>
+          <span className="text-emerald-600 font-medium">{isSession ? '本会话永久允许' : '本次允许'}</span>
+        </div>
+      </div>
+      <div className="text-[10px] text-emerald-500/80 font-mono tracking-wider shrink-0">
+        SECURE AUTHORIZED
+      </div>
+    </div>
+  );
+}

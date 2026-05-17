@@ -150,7 +150,21 @@ func (ia *IntentAnalyzer) Analyze(query string, history []ConversationMessage, c
 	}
 
 	// 优先级 3: 指代追问（有上下文时）
-	if len(history) > 0 && len(context.ActiveDocuments) > 0 {
+	// 如果用户明确提到了保存、记录、总结、对比等强烈特征动作词，不要强行拦截为普通的指代追问 (FollowUp)
+	isStrongAction := false
+	strongKeywords := []string{
+		"保存", "记录", "存一下", "记一下", "备忘", "收录",
+		"总结", "整理", "归纳", "提炼", "梳理",
+		"对比", "比较", "不同点", "差异",
+	}
+	for _, kw := range strongKeywords {
+		if strings.Contains(query, kw) {
+			isStrongAction = true
+			break
+		}
+	}
+
+	if !isStrongAction && len(history) > 0 && len(context.ActiveDocuments) > 0 {
 		if ContainsReference(query) {
 			return IntentResult{
 				Type:       IntentFollowUp,

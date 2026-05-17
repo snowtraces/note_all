@@ -131,7 +131,7 @@ func (s *LegacyToolSkill) Execute(params map[string]interface{}) (ToolResult, er
 	result := s.executor.Execute(ToolCall{
 		Tool:       s.toolName,
 		Parameters: params,
-	})
+	}, nil)
 	return result, nil
 }
 

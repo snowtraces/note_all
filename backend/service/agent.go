@@ -53,7 +53,7 @@ func NewAgent() *Agent {
 }
 
 // BuildSystemPrompt 构建全局系统提示词
-func (a *Agent) BuildSystemPrompt() string {
+func (a *Agent) BuildSystemPrompt(includeMemory bool) string {
 	var sb strings.Builder
 
 	// 1. 基础协议与 ReAct 规范 (Global Protocol)
@@ -74,10 +74,12 @@ func (a *Agent) BuildSystemPrompt() string {
 	sb.WriteString("2. **Title** it appropriately (e.g., Topic_Year-Month-Day).\n")
 	sb.WriteString("3. **Action**: Call `save_note` tool immediately. DO NOT perform unnecessary searches for duplicates unless explicitly asked.\n\n")
 
-	// 2. 身份与记忆 (Memory & Identity)
-	memory := GetMemoryManager()
-	sb.WriteString(memory.GetMemoryPrompt())
-	sb.WriteString("\n")
+	if includeMemory {
+		// 2. 身份与记忆 (Memory & Identity)
+		memory := GetMemoryManager()
+		sb.WriteString(memory.GetMemoryPrompt())
+		sb.WriteString("\n")
+	}
 
 	// 3. 技能列表 (Capabilities)
 	sb.WriteString("=== AVAILABLE SKILLS ===\n")
@@ -101,10 +103,6 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 
 	originalQuery := query // 保存原始输入，用于后续持久化历史
 
-	// 1.1 构建全局系统提示词 (包含协议、技能和记忆)
-	systemPrompt := a.BuildSystemPrompt()
-	log.Printf("[Agent] 已加载全局系统提示词（含协议、技能与持久化记忆）")
-
 	// 1. 加载会话历史
 	session, err := a.sessionManager.LoadSession(sessionID)
 	if err != nil {
@@ -118,14 +116,98 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 		log.Printf("[Agent] 会话历史: %d 条消息, %d 个活跃文档", len(session.Messages), len(session.Context.ActiveDocuments))
 	}
 
+	// 1.2 处理提及 (Mentions [[Title]])
+	a.processMentions(&query, session.Context)
+
+	// 1.2.5 检查高风险确认指令令牌
+	var confirmedTools []Tool
+	var explicitIntentOverride bool
+	var explicitIntent IntentResult
+	
+	if strings.Contains(query, "[[session_confirm:generate]]") {
+		// 加入本 Session 授权列表
+		alreadyConfirmed := false
+		for _, t := range session.Context.ConfirmedTools {
+			if t == "generate" {
+				alreadyConfirmed = true
+				break
+			}
+		}
+		if !alreadyConfirmed {
+			session.Context.ConfirmedTools = append(session.Context.ConfirmedTools, "generate")
+			// 立即持久化保存授权状态到会话上下文！
+			a.sessionManager.UpdateContext(session.ID, session.Context)
+		}
+		
+		confirmedTools = append(confirmedTools, ToolGenerate)
+		query = strings.ReplaceAll(query, "[[session_confirm:generate]]", "")
+		explicitIntent = IntentResult{Type: IntentRecord, Confidence: 1.0}
+		explicitIntentOverride = true
+	} else if strings.Contains(query, "[[confirm:generate]]") {
+		confirmedTools = append(confirmedTools, ToolGenerate)
+		query = strings.ReplaceAll(query, "[[confirm:generate]]", "")
+		// 强行设为记录意图，让它继续“总结+保存”多步任务
+		explicitIntent = IntentResult{Type: IntentRecord, Confidence: 1.0}
+		explicitIntentOverride = true
+	} else if strings.Contains(query, "[[tool:summarize]]") {
+		explicitIntent = IntentResult{Type: IntentSummarize, Confidence: 1.0}
+		query = strings.ReplaceAll(query, "[[tool:summarize]]", "")
+		explicitIntentOverride = true
+	} else if strings.Contains(query, "[[tool:search]]") {
+		explicitIntent = IntentResult{Type: IntentSearch, Confidence: 1.0}
+		query = strings.ReplaceAll(query, "[[tool:search]]", "")
+		explicitIntentOverride = true
+	} else if strings.Contains(query, "[[tool:compare]]") {
+		explicitIntent = IntentResult{Type: IntentCompare, Confidence: 1.0}
+		query = strings.ReplaceAll(query, "[[tool:compare]]", "")
+		explicitIntentOverride = true
+	} else if strings.Contains(query, "[[tool:generate]]") {
+		explicitIntent = IntentResult{Type: IntentGenerate, Confidence: 1.0}
+		query = strings.ReplaceAll(query, "[[tool:generate]]", "")
+		explicitIntentOverride = true
+	} else if strings.Contains(query, "[[tool:save_note]]") {
+		explicitIntent = IntentResult{Type: IntentRecord, Confidence: 1.0}
+		query = strings.ReplaceAll(query, "[[tool:save_note]]", "")
+		explicitIntentOverride = true
+	}
+
+	// 将本 Session 已经持久化授权的工具自动并入本次的 confirmedTools 列表中
+	for _, ct := range session.Context.ConfirmedTools {
+		toolType := Tool(ct)
+		// 检查是否已经在 confirmedTools 中
+		exists := false
+		for _, t := range confirmedTools {
+			if t == toolType {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			confirmedTools = append(confirmedTools, toolType)
+		}
+	}
+
 	// 2. 分析意图（在 QueryLoop 之前）
-	intent := a.intentAnalyzer.Analyze(query, session.Messages, session.Context)
+	var intent IntentResult
+	if explicitIntentOverride {
+		intent = explicitIntent
+	} else {
+		intent = a.intentAnalyzer.Analyze(query, session.Messages, session.Context)
+	}
 	log.Printf("[Agent] 意图分析结果: type=%s, confidence=%.2f", intent.Type, intent.Confidence)
 	if intent.Type == IntentMultiStep && len(intent.SubTasks) > 0 {
 		log.Printf("[Agent] 多步任务拆解: %d 个子任务", len(intent.SubTasks))
 		for i, sub := range intent.SubTasks {
 			log.Printf("[Agent]   子任务[%d]: intent=%s, query=%q", i+1, sub.Intent, sub.Query)
 		}
+	}
+	// 2.5 智能决策是否拼入长期记忆画像，并构建全局系统提示词
+	includeMemory := shouldIncludeMemory(originalQuery, intent)
+	systemPrompt := a.BuildSystemPrompt(includeMemory)
+	if includeMemory {
+		log.Printf("[Agent] 决策结果: 载入全局用户长期记忆画像")
+	} else {
+		log.Printf("[Agent] 决策结果: 意图明确且无主动拉起，保持提示词清爽，不载入记忆")
 	}
 
 	// 3. 创建 QueryLoop 状态
@@ -173,10 +255,58 @@ func (a *Agent) Ask(sessionID uint, query string) (*AgentResponse, error) {
 			log.Printf("[Agent] 记录意图检测到疑问特征，转为 RAG 回答")
 			initialToolCalls = []ToolCall{{Tool: ToolSearch, Parameters: map[string]interface{}{"query": query}}}
 		} else {
-			// 确认为“记录指令”：强制转为“总结+保存”多步任务
-			initialToolCalls = []ToolCall{
-				{Tool: ToolGenerate, Parameters: map[string]interface{}{"query": "请基于当前对话内容，整理出一份结构清晰、专业、详细的 Markdown 笔记，包含核心要点、代码片段或方案建议。"}},
-				{Tool: ToolSaveNote, Parameters: map[string]interface{}{"title": "整理笔记_" + time.Now().Format("2006-01-02")}},
+			// 确认为“记录指令”：智能寻找上一轮 Assistant 的高质量生成内容，直接秒级保存
+			var lastAssistantContent string
+			for i := len(session.Messages) - 1; i >= 0; i-- {
+				m := session.Messages[i]
+				// 排除权限确认警告等干扰类系统日志
+				if m.Role == "assistant" && !strings.Contains(m.Content, "需要确认：工具") && m.Content != "" {
+					lastAssistantContent = m.Content
+					break
+				}
+			}
+
+			if lastAssistantContent != "" {
+				log.Printf("[Agent] 找到上一轮 Assistant 生成的有效内容(长度: %d)，直接继承并单步保存", len(lastAssistantContent))
+				
+				// 智能提取回答的首个大标题 `# ` 作为笔记名称
+				noteTitle := ""
+				lines := strings.Split(lastAssistantContent, "\n")
+				for _, line := range lines {
+					line = strings.TrimSpace(line)
+					if strings.HasPrefix(line, "# ") {
+						noteTitle = strings.TrimPrefix(line, "# ")
+						break
+					}
+					if strings.HasPrefix(line, "## ") {
+						noteTitle = strings.TrimPrefix(line, "## ")
+						break
+					}
+				}
+				if noteTitle == "" {
+					noteTitle = "整理笔记_" + time.Now().Format("2006-01-02")
+				}
+				
+				// 截取标题长度防止过长
+				if len(noteTitle) > 100 {
+					noteTitle = noteTitle[:100]
+				}
+
+				initialToolCalls = []ToolCall{
+					{
+						Tool: ToolSaveNote,
+						Parameters: map[string]interface{}{
+							"title":   noteTitle,
+							"content": lastAssistantContent,
+						},
+					},
+				}
+			} else {
+				// 兜底：如果第一轮就说保存，则走原有的“总结+保存”多步任务
+				initialToolCalls = []ToolCall{
+					{Tool: ToolGenerate, Parameters: map[string]interface{}{"query": "请基于当前对话内容，整理出一份结构清晰、专业、详细的 Markdown 笔记，包含核心要点、代码片段或方案建议。"}},
+					{Tool: ToolSaveNote, Parameters: map[string]interface{}{"title": "整理笔记_" + time.Now().Format("2006-01-02")}},
+				}
 			}
 		}
 	default:
@@ -226,7 +356,7 @@ loop:
 
 		// 如果有待执行的工具调用，先执行工具
 		if len(state.ActiveToolCalls) > 0 {
-			toolResults, infos, hasError := a.executeToolCalls(state)
+			toolResults, infos, hasError := a.executeToolCalls(state, confirmedTools)
 			toolCallInfos = append(toolCallInfos, infos...)
 			allToolResults = append(allToolResults, toolResults...) // 收集结果
 
@@ -369,7 +499,7 @@ loop:
 }
 
 // executeToolCalls 执行工具调用序列
-func (a *Agent) executeToolCalls(state *QueryState) ([]ToolResult, []ToolCallInfo, bool) {
+func (a *Agent) executeToolCalls(state *QueryState, confirmedTools []Tool) ([]ToolResult, []ToolCallInfo, bool) {
 	log.Printf("[Agent] 执行工具调用序列: %d 个工具", len(state.ActiveToolCalls))
 	results := make([]ToolResult, 0)
 	infos := make([]ToolCallInfo, 0)
@@ -400,17 +530,38 @@ func (a *Agent) executeToolCalls(state *QueryState) ([]ToolResult, []ToolCallInf
 			}
 		}
 
+		// 2.5 特殊逻辑：如果是内容生成工具，且对话包含基于当前对话内容整理的要求，尝试从 state.Messages 中抽取并注入上下文
+		if call.Tool == ToolGenerate && len(state.Messages) > 0 {
+			if call.Parameters == nil {
+				call.Parameters = make(map[string]interface{})
+			}
+			prompt, _ := call.Parameters["prompt"].(string)
+			if prompt == "" {
+				prompt, _ = call.Parameters["query"].(string)
+			}
+			if strings.Contains(prompt, "基于当前对话") || strings.Contains(prompt, "基于上下文") {
+				historyText := "\n\n【参考当前对话历史】开始：\n"
+				for _, msg := range state.Messages {
+					if !strings.Contains(msg.Content, "需要确认：工具") && !strings.Contains(msg.Content, "[[") && msg.Content != "" {
+						historyText += fmt.Sprintf("[%s]: %s\n", msg.Role, msg.Content)
+					}
+				}
+				historyText += "【参考当前对话历史】结束\n"
+				call.Parameters["prompt"] = prompt + historyText
+			}
+		}
+
 		log.Printf("[Agent] 工具[%d]: %s, 参数摘要: %v", i+1, call.Tool, summarizeParams(call.Parameters))
-		result, info := a.toolExecutor.ExecuteWithTiming(i+1, call)
+		result, info := a.toolExecutor.ExecuteWithTiming(i+1, call, confirmedTools)
 		results = append(results, result)
 		infos = append(infos, info)
 
 		// 记录已执行的工具调用
 		state.ExecutedCalls = append(state.ExecutedCalls, call)
 
-		// 检查是否执行失败
-		if strings.Contains(result.Output, "失败") {
-			log.Printf("[Agent] [警告] 工具[%d] 执行失败: %s", i+1, result.Output)
+		// 检查是否执行失败，或被权限拦截
+		if strings.Contains(result.Output, "失败") || strings.Contains(result.Output, "权限拒绝") || strings.Contains(result.Output, "需要确认") {
+			log.Printf("[Agent] [警告] 工具[%d] 执行被中断或失败: %s", i+1, result.Output)
 			hasError = true
 			break
 		}
@@ -495,7 +646,7 @@ func (a *Agent) executeMultiStep(subTasks []SubTask, session *ConversationSessio
 			}
 		}
 
-		result, info := a.toolExecutor.ExecuteWithTiming(i+1, call)
+		result, info := a.toolExecutor.ExecuteWithTiming(i+1, call, nil)
 		results = append(results, result)
 		infos = append(infos, info)
 
@@ -532,7 +683,7 @@ func (a *Agent) executeFollowUp(query string, session *ConversationSession, inte
 			},
 		}
 
-		result, info := a.toolExecutor.ExecuteWithTiming(1, call)
+		result, info := a.toolExecutor.ExecuteWithTiming(1, call, nil)
 		return []ToolResult{result}, []ToolCallInfo{info}
 	}
 
@@ -547,7 +698,7 @@ func (a *Agent) executeFollowUp(query string, session *ConversationSession, inte
 				"queries": rewrite.ExpandedTerms,
 			},
 		}
-		result, info := a.toolExecutor.ExecuteWithTiming(1, call)
+		result, info := a.toolExecutor.ExecuteWithTiming(1, call, nil)
 		return []ToolResult{result}, []ToolCallInfo{info}
 	}
 
@@ -556,7 +707,7 @@ func (a *Agent) executeFollowUp(query string, session *ConversationSession, inte
 		Tool:       ToolSearch,
 		Parameters: map[string]interface{}{"query": rewrite.RewrittenQuery},
 	}
-	result, info := a.toolExecutor.ExecuteWithTiming(1, call)
+	result, info := a.toolExecutor.ExecuteWithTiming(1, call, nil)
 	return []ToolResult{result}, []ToolCallInfo{info}
 }
 
@@ -873,6 +1024,67 @@ func cleanQueryForSearch(query string) string {
 	return result
 }
 
+// processMentions 处理 [[标题]] 或 [[note:ID|标题]] 提及，将其内容注入上下文
+func (a *Agent) processMentions(query *string, ctx *SessionContext) {
+	// 匹配 [[note:123|标题]] 或 [[标题]]
+	re := regexp.MustCompile(`\[\[(note:)?(\d+)?\|?(.*?)\]\]`)
+	matches := re.FindAllStringSubmatch(*query, -1)
+	if len(matches) == 0 {
+		return
+	}
+
+	log.Printf("[Agent] 检测到 %d 个提及标记", len(matches))
+	for _, match := range matches {
+		isNoteFormat := match[1] == "note:"
+		idStr := match[2]
+		title := strings.TrimSpace(match[3])
+		
+		var note models.NoteItem
+		var found bool
+		
+		if isNoteFormat && idStr != "" {
+			// 直接通过 ID 精确匹配
+			var id uint
+			_, err := fmt.Sscanf(idStr, "%d", &id)
+			if err == nil {
+				result := global.DB.First(&note, id)
+				if result.Error == nil {
+					found = true
+				}
+			}
+		}
+		
+		if !found && title != "" {
+			// 兜底通过标题或原始名匹配 (Wiki link 兼容)
+			// 特殊情况：如果是 [[tool:xxx]]，应该跳过
+			if strings.HasPrefix(title, "tool:") {
+				continue
+			}
+			result := global.DB.Where("ai_title = ? OR original_name = ?", title, title).First(&note)
+			if result.Error == nil {
+				found = true
+			}
+		}
+		
+		if found {
+			log.Printf("[Agent] 成功注入提及笔记内容: %s (ID: %d)", note.OriginalName, note.ID)
+			// 避免重复注入
+			exists := false
+			for _, docID := range ctx.ActiveDocuments {
+				if docID == note.ID {
+					exists = true
+					break
+				}
+			}
+			if !exists {
+				ctx.ActiveDocuments = append(ctx.ActiveDocuments, note.ID)
+			}
+		} else {
+			log.Printf("[Agent] 未找到提及笔记: %s (ID string: %s)", title, idStr)
+		}
+	}
+}
+
 // isQuestion 简单判断是否为疑问句
 func isQuestion(query string) bool {
 	query = strings.ToLower(strings.TrimSpace(query))
@@ -883,4 +1095,28 @@ func isQuestion(query string) bool {
 		}
 	}
 	return strings.HasSuffix(query, "?") || strings.HasSuffix(query, "？")
+}
+
+// shouldIncludeMemory 智能判定本轮问答是否引入长期用户画像记忆
+func shouldIncludeMemory(query string, intent IntentResult) bool {
+	// 1. 主动拉起：用户 query 中包含明确关于“偏好”、“记忆”、“习惯”、“画像”或“我之前”等主观敏感词
+	queryLower := strings.ToLower(query)
+	triggerKeywords := []string{
+		"偏好", "记忆", "习惯", "画像", "我之前", "我以前", "我习惯", 
+		"我的偏好", "我的习惯", "我的记忆", "我的设定", "我是谁", "我喜欢",
+	}
+	for _, kw := range triggerKeywords {
+		if strings.Contains(queryLower, kw) {
+			log.Printf("[Agent] 检测到用户主动拉起长期记忆，关键词: %s", kw)
+			return true
+		}
+	}
+
+	// 2. 意图置信度极低或匹配不了明确意图时尝试
+	if intent.Type == "unknown" || intent.Confidence < 0.6 {
+		log.Printf("[Agent] 匹配不到明确意图或置信度偏低 (Type=%s, Confidence=%.2f)，尝试引入长期记忆破局", intent.Type, intent.Confidence)
+		return true
+	}
+
+	return false
 }

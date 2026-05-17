@@ -58,12 +58,27 @@ func NewToolExecutor() *ToolExecutor {
 }
 
 // Execute 执行工具调用（带权限检查）
-func (te *ToolExecutor) Execute(call ToolCall) ToolResult {
+func (te *ToolExecutor) Execute(call ToolCall, confirmedTools []Tool) ToolResult {
 	log.Printf("[ToolExecutor] 执行工具: %s, 参数: %v", call.Tool, call.Parameters)
 
 	// 权限检查
+	var permResult PermissionResult
 	pm := NewPermissionManager()
-	permResult := pm.CheckPermission(call.Tool, call.Parameters)
+
+	isConfirmed := false
+	for _, t := range confirmedTools {
+		if t == call.Tool {
+			isConfirmed = true
+			break
+		}
+	}
+
+	if isConfirmed {
+		log.Printf("[ToolExecutor] 工具 %s 已在确认列表中，直接允许执行", call.Tool)
+		permResult = PermissionAllow
+	} else {
+		permResult = pm.CheckPermission(call.Tool, call.Parameters)
+	}
 
 	switch permResult {
 	case PermissionDeny:
@@ -242,6 +257,9 @@ func (te *ToolExecutor) executeGenerate(call ToolCall) ToolResult {
 	docIDs := te.extractDocIDs(call.Parameters)
 	prompt, _ := call.Parameters["prompt"].(string)
 	if prompt == "" {
+		prompt, _ = call.Parameters["query"].(string)
+	}
+	if prompt == "" {
 		prompt = "请根据文档内容生成一份综合报告"
 	}
 
@@ -405,9 +423,9 @@ func BuildRAGContextFromNotes(notes []models.NoteItem) string {
 }
 
 // ExecuteWithTiming 执行工具调用并记录耗时
-func (te *ToolExecutor) ExecuteWithTiming(step int, call ToolCall) (ToolResult, ToolCallInfo) {
+func (te *ToolExecutor) ExecuteWithTiming(step int, call ToolCall, confirmedTools []Tool) (ToolResult, ToolCallInfo) {
 	start := time.Now()
-	result := te.Execute(call)
+	result := te.Execute(call, confirmedTools)
 	duration := time.Since(start).Milliseconds()
 
 	info := te.BuildToolCallInfo(step, call, result, duration)

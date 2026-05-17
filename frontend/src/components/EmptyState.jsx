@@ -3,19 +3,33 @@ import { BrainCircuit, Sparkles, RefreshCw, FlaskConical, Inbox, ChevronLeft, Ch
 import { getSerendipity, generateDailyReview, getLatestReview } from '../api/noteApi';
 import MarkdownRenderer from './MarkdownRenderer';
 import { useTheme } from '../context/ThemeContext';
+import MentionMenu from './MentionMenu';
+import { useMention } from '../hooks/useMention';
 
 export default function EmptyState({ onAsk, onItemClick, serendipityData, setSerendipityData, labBasket, toggleLabItem }) {
   const { mode } = useTheme();
   const isLight = mode === 'light';
   const [askInput, setAskInput] = useState('');
 
+  const {
+    mentionType,
+    mentionSearchText,
+    inputRef,
+    handleInputChange,
+    handleInputKeyDown,
+    handleSelectMention,
+    setMentionType
+  } = useMention();
+
   const [page, setPage] = useState(1);
+// ... existing state ...
   const [serendipityLoading, setSerendipityLoading] = useState(false);
   const [reviewContent, setReviewContent] = useState(null);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('serendipity'); // 'serendipity' | 'review'
 
   // 加载最近回顾并监听 SSE 通知
+// ... existing effects ...
   useEffect(() => {
     getLatestReview().then(r => { if (r) setReviewContent(r); }).catch(() => { });
     const handler = () => {
@@ -72,10 +86,18 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
           <div className="relative flex items-center bg-card border border-borderSubtle rounded-2xl px-5 h-[62px] w-full shadow-2xl focus-within:border-primeAccent/50 focus-within:ring-4 focus-within:ring-primeAccent/5 transition-all duration-300">
             <Sparkles size={18} className="text-primeAccent mr-3 shrink-0 opacity-60 group-focus-within:opacity-100 transition-opacity" />
             <input
+              ref={inputRef}
               type="text"
               value={askInput}
-              onChange={(e) => setAskInput(e.target.value)}
+              onChange={(e) => {
+                setAskInput(e.target.value);
+                handleInputChange(e);
+              }}
               onKeyDown={(e) => {
+                handleInputKeyDown(e);
+                if (mentionType) return; // 让 MentionMenu 处理
+                if (e.defaultPrevented) return;
+
                 if (e.key === 'Enter' && !e.nativeEvent.isComposing && askInput.trim()) {
                   if (onAsk) onAsk(askInput.trim());
                   setAskInput('');
@@ -84,6 +106,15 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
               placeholder="向 AI 咨询关于你的笔记内容..."
               className="flex-1 bg-transparent border-none outline-none text-[15px] text-textPrimary placeholder-textMuted tracking-wide"
             />
+            {mentionType && (
+              <MentionMenu
+                inputRef={inputRef}
+                triggerChar={mentionType}
+                searchText={mentionSearchText}
+                onSelect={(item) => handleSelectMention(item, askInput, setAskInput)}
+                onClose={() => setMentionType(null)}
+              />
+            )}
             {askInput.trim() && (
               <button
                 onClick={() => {
