@@ -23,3 +23,5 @@ All notable changes to this project will be documented in this file.
 - **按钮及状态前景色对比度优化**：修复了暗色/蓝色主题下，胶囊按钮文字和选中 Check 图标在深色背景下因 `text-black` 而对比度差的问题，强制采用高对比前景色。
 - **编辑器模式切换输入死锁**：彻底重构 `ReadOnlyExtension` 事件拦截为通过 `storage.enabled` 进行动态开关，彻底解决了由于静态评估扩展导致从预览切换回编辑模式时发生键盘输入被永久拦截的致命 Bug。
 - **Tag 标记重渲染美化丢失**：将 `[[tool:xxx]]` 与 `[[note:xxx]]` 的 Badge 美化逻辑封装为 `applyDecorations`，绑定至初始加载、内容更新与 setContent 渲染等完整生命周期，保障 DOM 刷新后样式永不丢失。
+- **预览块选中时键盘误删**：在只读插件中引入原生 DOM `beforeinput` 事件拦截，彻底修复了在 `NodeSelection`（块级选中）高亮状态下，用户按下任意键盘按键导致整行文字被浏览器误删的致命 Regression。
+- **抓手聚焦导致全局切换快捷键失效**：在快捷键拦截逻辑中将预览模式（`editorMode === 'view'`）下的编辑器聚焦状态排除在 input 组件之外，全面恢复了 `v` / `i` / `r` 全局切换快捷键在只读选中状态下的敏感度与响应性。

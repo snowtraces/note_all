@@ -171,7 +171,7 @@ export default function Detail({
       const activeEl = document.activeElement;
       const isInput = activeEl.tagName === 'INPUT' ||
                       activeEl.tagName === 'TEXTAREA' ||
-                      activeEl.isContentEditable;
+                      (activeEl.isContentEditable && editorMode !== 'view');
 
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         if (editorMode !== 'view') {

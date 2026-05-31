@@ -21,6 +21,15 @@ export const ReadOnlyExtension = Extension.create({
           handleTextInput: () => storage.enabled,
           handlePaste: () => storage.enabled,
           handleDrop: () => storage.enabled,
+          handleDOMEvents: {
+            beforeinput: (view, event) => {
+              if (storage.enabled) {
+                event.preventDefault();
+                return true;
+              }
+              return false;
+            },
+          },
         },
       }),
     ];
