@@ -6,8 +6,8 @@ export const getTrash = async () => {
   return data.data || [];
 };
 
-export const searchNotes = async (query) => {
-  const res = await request(`/api/search?q=${encodeURIComponent(query)}`);
+export const searchNotes = async (query, onlyWiki = false) => {
+  const res = await request(`/api/search?q=${encodeURIComponent(query)}&only_wiki=${onlyWiki}`);
   const data = await res.json();
   return data.data || [];
 };

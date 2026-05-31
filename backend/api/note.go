@@ -199,13 +199,21 @@ func (a *NoteApi) GetFile(c *gin.Context) {
 // Search 执行混合检索 (Vector + FTS5 + Tag + Link + Recency)
 func (a *NoteApi) Search(c *gin.Context) {
 	keyword := c.Query("q")
-	if keyword == "" {
-		// 尝试从 Body 读取 (针对 POST 请求)
+	onlyWikiStr := c.Query("only_wiki")
+	onlyWiki, _ := strconv.ParseBool(onlyWikiStr)
+
+	if c.Request.Method == "POST" {
 		var body struct {
-			Query string `json:"query"`
+			Query    string `json:"query"`
+			OnlyWiki bool   `json:"only_wiki"`
 		}
-		if err := c.ShouldBindJSON(&body); err == nil && body.Query != "" {
-			keyword = body.Query
+		if err := c.ShouldBindJSON(&body); err == nil {
+			if body.Query != "" {
+				keyword = body.Query
+			}
+			if body.OnlyWiki {
+				onlyWiki = true
+			}
 		}
 	}
 
@@ -213,8 +221,11 @@ func (a *NoteApi) Search(c *gin.Context) {
 		// 无参数搜索时，默认返回最近更新的 20 条已分析笔记
 		var notes []models.NoteItem
 		// 必须 Preload Tags，否则前端 renderTags 会报错或显示无标签
-		global.DB.Preload("Tags").Where("status IN ? AND is_archived = ?", []string{"analyzed", "done"}, false).
-			Order("updated_at DESC").Limit(20).Find(&notes)
+		dbQuery := global.DB.Preload("Tags").Where("status IN ? AND is_archived = ?", []string{"analyzed", "done"}, false)
+		if onlyWiki {
+			dbQuery = dbQuery.Where("is_wiki = ?", true)
+		}
+		dbQuery.Order("updated_at DESC").Limit(20).Find(&notes)
 
 		results := make([]service.SearchResult, 0)
 		for _, n := range notes {
@@ -227,7 +238,7 @@ func (a *NoteApi) Search(c *gin.Context) {
 		return
 	}
 
-	results, err := service.HybridSearch(keyword, 20)
+	results, err := service.HybridSearch(keyword, 20, onlyWiki)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "检索失败: " + err.Error()})
 		return

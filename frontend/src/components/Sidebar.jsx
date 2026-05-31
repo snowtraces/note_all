@@ -28,6 +28,8 @@ import { useTheme } from '../context/ThemeContext';
 import { promptPresets } from '../constants/promptPresets';
 
 export default function Sidebar({
+  searchOnlyWiki,
+  setSearchOnlyWiki,
   viewMode,
   setViewMode,
   showTrash,
@@ -67,6 +69,8 @@ export default function Sidebar({
   const [sessionLoading, setSessionLoading] = useState(false);
   const [confirmingId, setConfirmingId] = useState(null);
 
+
+
   // 实验室 Wiki 列表与检索状态
   const [wikiList, setWikiList] = useState([]);
   const [wikiSearchQuery, setWikiSearchQuery] = useState('');
@@ -84,6 +88,8 @@ export default function Sidebar({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const displayedResults = results;
 
   const selectedWikiItem = wikiList.find(w => w.id.toString() === labSelectedWikiId);
 
@@ -246,7 +252,7 @@ export default function Sidebar({
           {/* Item Count or Status */}
           <div className="flex items-center gap-2">
             <span className="text-[9px] md:text-[10px] font-mono text-textMuted uppercase tracking-widest bg-sidebar px-2 py-0.5 rounded-full border border-borderSubtle">
-              {results.length} FRAGMENTS
+              {displayedResults.length} {searchOnlyWiki && viewMode === 'notes' ? 'WIKIS' : 'FRAGMENTS'}
             </span>
           </div>
         </div>
@@ -278,10 +284,27 @@ export default function Sidebar({
                 if (e.key === 'Escape') setShowTagDrop(false);
               }}
               placeholder={showTrash ? "回收站不支持搜索" : "搜索... 输入 #标签 或 ?提问"}
-              className={`w-full bg-sidebar border py-2.5 md:py-3 pl-10 md:pl-12 pr-10 text-[14px] md:text-[15px] rounded border-borderSubtle focus:border-primeAccent/50 text-textPrimary placeholder-textMuted focus:outline-none transition-all ${showTrash ? 'opacity-50' : ''}`}
+              className={`w-full bg-sidebar border py-2.5 md:py-3 pl-10 md:pl-12 pr-[86px] text-[14px] md:text-[15px] rounded border-borderSubtle focus:border-primeAccent/50 text-textPrimary placeholder-textMuted focus:outline-none transition-all ${showTrash ? 'opacity-50' : ''}`}
             />
+            {/* Wiki 专属仅查询选项：根据 query 是否为空优雅进行右侧避让 */}
+            {!showTrash && (
+              <button
+                type="button"
+                onClick={() => setSearchOnlyWiki(!searchOnlyWiki)}
+                className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-[9px] font-extrabold tracking-wide uppercase transition-all select-none z-20 ${
+                  query ? 'right-11' : 'right-3'
+                } ${
+                  searchOnlyWiki
+                    ? 'bg-primeAccent/15 text-primeAccent border-primeAccent/30 shadow-sm'
+                    : 'bg-sidebar/40 border-borderSubtle text-textTertiary hover:text-textPrimary hover:bg-bgHover'
+                }`}
+              >
+                <BookOpen size={10} />
+                Wiki
+              </button>
+            )}
             {query && (
-              <X size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-textTertiary cursor-pointer hover:text-textPrimary" onClick={() => { setQuery(''); handleSearch(''); }} />
+              <X size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-textTertiary cursor-pointer hover:text-textPrimary z-20" onClick={() => { setQuery(''); handleSearch(''); }} />
             )}
 
             {showTagDrop && filteredTags.length > 0 && (
@@ -301,29 +324,57 @@ export default function Sidebar({
       <div className="flex-1 overflow-y-auto custom-scrollbar px-4 md:px-5 py-4 flex flex-col gap-3 relative">
         {viewMode === 'notes' ? (
           <>
-            {loading && results.length === 0 && (
+            {loading && displayedResults.length === 0 && (
               <div className="w-full h-32 flex flex-col items-center justify-center text-primeAccent/60 animate-pulse gap-2">
                 <BrainCircuit size={32} className="animate-spin" />
                 <span className="text-sm">检索记忆中...</span>
               </div>
             )}
-            {!loading && results.length === 0 && (
+            {!loading && displayedResults.length === 0 && (
               <div className="w-full h-full flex items-center justify-center text-textMuted text-sm py-20">
-                无相关记忆碎片
+                {searchOnlyWiki ? "无相关 WIKI 档案记录" : "无相关记忆碎片"}
               </div>
             )}
-            {results.map((item) => {
+            {displayedResults.map((item) => {
               const isSelected = selectedItem?.id === item.id;
+
+              // 提取最契合的卡片标题与摘要回显
+              const cardTitle = item.ai_title || item.original_name || "未命名记录";
+              const cardSummary = item.ai_summary || item.ocr_text || (item.status === 'pending' ? "正在进行智能分析与内容提炼..." : "暂无摘要记录，点击查看详情");
+
               return (
                 <div
                   key={item.id}
                   onClick={() => setSelectedItem(item)}
-                  className={`p-4 rounded-xl transition-all duration-300 flex flex-col min-w-0 border-l-[3px] cursor-pointer ${isSelected
+                  className={`p-4 rounded-xl transition-all duration-300 flex flex-col shrink-0 min-w-0 border-l-[3px] cursor-pointer relative overflow-hidden ${isSelected
                     ? 'bg-primeAccent/10 border-l-primeAccent/60 border border-transparent shadow-lg shadow-primeAccent/5'
                     : 'bg-accent-subtle border-l-[3px] rounded-xl hover:bg-card hover:border-l-primeAccent/30 border border-borderSubtle text-textSecondary'
                     } group`}
                 >
-                  <div className="flex justify-between items-start mb-2 relative">
+                  {/* WIKI 巨型半透明大字 SVG 水印 (固定直接显示，Hover 仅稍稍加深颜色) */}
+                  {item.is_wiki && (
+                    <div className={`absolute -right-2 bottom-1 pointer-events-none select-none z-0 transform transition-all duration-300 ease-out origin-bottom-right leading-none ${isSelected
+                      ? 'text-primeAccent/[0.22] dark:text-primeAccent/[0.14] group-hover:text-primeAccent/[0.28] dark:group-hover:text-primeAccent/[0.18]'
+                      : 'text-primeAccent/[0.14] dark:text-primeAccent/[0.08] group-hover:text-primeAccent/[0.20] dark:group-hover:text-primeAccent/[0.12]'
+                      }`}>
+                      <svg viewBox="0 0 110 45" className="w-28 h-12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        {/* 优雅的斜体几何大字 WIKI */}
+                        <text x="5" y="38"
+                          fill="currentColor"
+                          fontSize="38"
+                          fontWeight="900"
+                          fontStyle="italic"
+                          fontFamily="'Inter', 'Segoe UI', system-ui, sans-serif"
+                          letterSpacing="-1.8"
+                          className="select-none">
+                          WIKI
+                        </text>
+                      </svg>
+                    </div>
+                  )}
+
+                  {/* 第一行：元信息栏 (标签、日期、操作) */}
+                  <div className="flex justify-between items-start mb-2.5 relative z-10">
                     <div className="flex flex-wrap gap-1.5 max-h-[44px] overflow-hidden">
                       {renderTags(item.ai_tags, item.id, isSelected)}
                     </div>
@@ -352,12 +403,22 @@ export default function Sidebar({
                       </button>
                     </div>
                   </div>
-                  <div className="text-textSecondary text-[13px] leading-relaxed font-normal line-clamp-3">
-                    {item.ai_summary || item.original_name || item.ai_title || "暂无摘要记录"}
+
+                  {/* 第二行：高尚精致的卡片标题 */}
+                  <h3 className={`text-[14px] font-bold tracking-wide mb-1.5 line-clamp-1 transition-colors relative z-10 ${isSelected ? 'text-primeAccent' : 'text-textPrimary group-hover:text-primeAccent/80'
+                    }`}>
+                    {cardTitle}
+                  </h3>
+
+                  {/* 第三行：清爽优雅的卡片摘要 */}
+                  <div className="text-textSecondary text-[12px] leading-relaxed font-normal line-clamp-2 relative z-10">
+                    {cardSummary}
                   </div>
                 </div>
               );
             })}
+            {/* 列表底部雅致留白，保障最末卡片与底部上传面板有高雅的视觉呼吸感 */}
+            <div className="h-6 shrink-0" />
           </>
         ) : viewMode === 'chats' ? (
           <>
@@ -420,7 +481,7 @@ export default function Sidebar({
             <div className="p-2 border-b border-borderSubtle text-xs font-bold text-textTertiary flex items-center gap-2 mb-3 shrink-0">
               <Files size={14} /> 素材卡片 ({labBasket.length})
             </div>
-            
+
             {/* 上半部分素材卡片列表，占满剩余高度，溢出滚动 */}
             <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2 min-h-0">
               {labBasket.length === 0 ? (
@@ -478,11 +539,11 @@ export default function Sidebar({
 
             {/* 下半部分：固定在底部的 WIKI 关联配置面板 (归属切换固定在底部，已有 WIKI 下拉选择展现在上方) */}
             <div className="border-t border-borderSubtle pt-4 mt-auto flex flex-col gap-3 shrink-0 bg-modal relative">
-              
+
               {/* 1. 追加至已有 WIKI 选择下拉面板 (在按钮上方展开) */}
               {labWikiMode === 'append' && (
                 <div className="relative w-full" ref={wikiDropdownRef}>
-                  
+
                   {/* 触发器按钮：优雅展示当前选择的 WIKI 简述，带下拉指示器 */}
                   <button
                     type="button"
@@ -511,10 +572,10 @@ export default function Sidebar({
                     <ChevronDown size={11} className={`text-textMuted shrink-0 transition-transform duration-200 ${showWikiDropdown ? 'rotate-180 text-primeAccent' : ''}`} />
                   </button>
 
-                   {/* 向上展开的浮动绝对定位搜索下拉列表 */}
+                  {/* 向上展开的浮动绝对定位搜索下拉列表 */}
                   {showWikiDropdown && (
                     <div className="absolute bottom-full left-0 right-0 mb-2 p-3 bg-card backdrop-blur-2xl border border-borderSubtle rounded-xl shadow-[0_-8px_30px_rgba(0,0,0,0.12)] z-50 flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                      
+
                       {/* 下拉内部搜索框 */}
                       <div className="relative shrink-0">
                         <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-textMuted" />
@@ -556,17 +617,15 @@ export default function Sidebar({
                                   setLabSelectedWikiId(w.id.toString());
                                   setShowWikiDropdown(false); // 选择后自动关闭
                                 }}
-                                className={`p-2 rounded-md border transition-all cursor-pointer flex items-center justify-between gap-3 text-left ${
-                                  isSelected
-                                    ? 'bg-primeAccent/10 border-primeAccent text-textPrimary shadow-[0_2px_8px_rgba(255,215,0,0.06)]'
-                                    : 'bg-accent-subtle/50 hover:bg-card border-borderSubtle text-textSecondary'
-                                }`}
+                                className={`p-2 rounded-md border transition-all cursor-pointer flex items-center justify-between gap-3 text-left ${isSelected
+                                  ? 'bg-primeAccent/10 border-primeAccent text-textPrimary shadow-[0_2px_8px_rgba(255,215,0,0.06)]'
+                                  : 'bg-accent-subtle/50 hover:bg-card border-borderSubtle text-textSecondary'
+                                  }`}
                               >
                                 <div className="flex items-center gap-2 min-w-0">
                                   <div
-                                    className={`p-1 rounded shrink-0 flex items-center justify-center ${
-                                      isSelected ? 'bg-primeAccent/25 text-primeAccent' : 'bg-bgHover text-textTertiary'
-                                    }`}
+                                    className={`p-1 rounded shrink-0 flex items-center justify-center ${isSelected ? 'bg-primeAccent/25 text-primeAccent' : 'bg-bgHover text-textTertiary'
+                                      }`}
                                   >
                                     <BookOpen size={10} />
                                   </div>
@@ -601,27 +660,25 @@ export default function Sidebar({
                 <span className="text-[10px] font-extrabold text-textSecondary uppercase tracking-widest flex items-center gap-1.5 select-none">
                   <Zap size={11} className="text-primeAccent animate-pulse" /> 归属 Wiki 档案
                 </span>
-                
+
                 <div className="flex items-center gap-0.5 bg-bgHover p-0.5 rounded-lg border border-borderSubtle">
                   <button
                     type="button"
                     onClick={() => setLabWikiMode('new')}
-                    className={`px-3 py-1 text-[9px] rounded-md transition-all font-extrabold ${
-                      labWikiMode === 'new'
-                        ? 'bg-primeAccent text-white shadow-sm'
-                        : 'text-textTertiary hover:text-textPrimary bg-transparent'
-                    }`}
+                    className={`px-3 py-1 text-[9px] rounded-md transition-all font-extrabold ${labWikiMode === 'new'
+                      ? 'bg-primeAccent text-white shadow-sm'
+                      : 'text-textTertiary hover:text-textPrimary bg-transparent'
+                      }`}
                   >
                     创建新 WIKI
                   </button>
                   <button
                     type="button"
                     onClick={() => setLabWikiMode('append')}
-                    className={`px-3 py-1 text-[9px] rounded-md transition-all font-extrabold ${
-                      labWikiMode === 'append'
-                        ? 'bg-primeAccent text-white shadow-sm'
-                        : 'text-textTertiary hover:text-textPrimary bg-transparent'
-                    }`}
+                    className={`px-3 py-1 text-[9px] rounded-md transition-all font-extrabold ${labWikiMode === 'append'
+                      ? 'bg-primeAccent text-white shadow-sm'
+                      : 'text-textTertiary hover:text-textPrimary bg-transparent'
+                      }`}
                   >
                     追加至 WIKI
                   </button>

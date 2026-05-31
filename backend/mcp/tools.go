@@ -26,9 +26,10 @@ func RegisterTools(s *server.MCPServer) {
 
 	// 1. 混合检索工具
 	searchTool := mcp.NewTool("search_notes",
-		mcp.WithDescription("对 Note All 知识库进行混合检索（包含向量语义与全文 FTS 检索），获取最相关的知识碎片或文档。默认不检索已归档文档。"),
+		mcp.WithDescription("对 Note All 知识库进行混合检索（包含向量语义与全文 FTS 检索），获取最相关的知识碎片或文档。默认不检索已归档文档。支持通过 only_wiki 参数限定仅在 WIKI 知识库文档内检索。"),
 		mcp.WithString("query", mcp.Required(), mcp.Description("检索关键词或语义描述")),
 		mcp.WithNumber("limit", mcp.Description("最大返回结果数，默认 10 条")),
+		mcp.WithBoolean("only_wiki", mcp.Description("可选，设为 true 时仅在 WIKI 知识库类型的文档中进行检索，过滤掉所有普通碎片笔记。适合查询结构化知识积累时使用。")),
 		mcp.WithReadOnlyHintAnnotation(true),
 		mcp.WithDestructiveHintAnnotation(false),
 	)
@@ -81,11 +82,12 @@ func handleSearchNotes(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallT
 		return mcp.NewToolResultError("缺少必填参数: query"), nil
 	}
 	limit := req.GetInt("limit", 10)
+	onlyWiki := req.GetBool("only_wiki", false)
 
-	log.Printf("[MCP Tool] 执行 search_notes: query=%q, limit=%d\n", query, limit)
+	log.Printf("[MCP Tool] 执行 search_notes: query=%q, limit=%d, only_wiki=%v\n", query, limit, onlyWiki)
 
 	// 复用 service 层的混合检索逻辑，底层已包含 is_archived = false 过滤
-	results, err := service.HybridSearch(query, limit)
+	results, err := service.HybridSearch(query, limit, onlyWiki)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("检索失败: %v", err)), nil
 	}

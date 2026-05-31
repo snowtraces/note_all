@@ -111,6 +111,7 @@ const CitationsSection = ({ references, onSelectRef }) => {
 // 内层组件，在 ToastProvider 内部使用 useToast
 function AppContent() {
   const [query, setQuery] = useState('');
+  const [searchOnlyWiki, setSearchOnlyWiki] = useState(false);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -335,13 +336,13 @@ function AppContent() {
     if (showTrash) {
       loadTrashData();
     } else {
-      executeSearch(query);
+      executeSearch(query, searchOnlyWiki);
     }
     // 只有在非路由初始化的情况下，切换数据源才清空详情
     if (!isRoutingRef.current) {
       setSelectedItem(null);
     }
-  }, [isLoggedIn, showTrash, query]);
+  }, [isLoggedIn, showTrash, query, searchOnlyWiki]);
 
   // 全局键盘事件监听
   useEffect(() => {
@@ -399,11 +400,11 @@ function AppContent() {
     setLoading(false);
   };
 
-  const executeSearch = async (q) => {
+  const executeSearch = async (q, onlyWiki = searchOnlyWiki) => {
     if (showTrash) return;
     setLoading(true);
     try {
-      const data = await searchNotes(q);
+      const data = await searchNotes(q, onlyWiki);
       setResults(data);
     } catch (e) {
       console.error(e);
@@ -668,6 +669,8 @@ function AppContent() {
           (selectedItem || viewMode === 'image_gen' || viewMode === 'graph' || viewMode === 'lab' || (viewMode === 'chats' && chatHistory.length > 0)) ? 'hidden md:flex' : 'flex'
         }`}>
           <Sidebar
+            searchOnlyWiki={searchOnlyWiki}
+            setSearchOnlyWiki={setSearchOnlyWiki}
             viewMode={viewMode}
             setViewMode={setViewMode}
             showTrash={showTrash}

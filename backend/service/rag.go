@@ -133,12 +133,12 @@ func BackfillNoteChunks() error {
 }
 
 // HybridSearch 单关键词混合检索
-func HybridSearch(query string, limit int) ([]SearchResult, error) {
-	return BatchHybridSearch([]string{query}, limit)
+func HybridSearch(query string, limit int, onlyWiki bool) ([]SearchResult, error) {
+	return BatchHybridSearch([]string{query}, limit, onlyWiki)
 }
 
 // BatchHybridSearch 批量混合检索，合并多关键词查询
-func BatchHybridSearch(queries []string, limit int) ([]SearchResult, error) {
+func BatchHybridSearch(queries []string, limit int, onlyWiki bool) ([]SearchResult, error) {
 	// 1. 分片级向量检索 (只对第一个 query)
 	vectorScores := make(map[uint]float32)
 	if len(queries) > 0 {
@@ -157,15 +157,20 @@ func BatchHybridSearch(queries []string, limit int) ([]SearchResult, error) {
 					Distance   float32 `gorm:"column:distance"`
 				}
 				// 使用分片向量表进行检索
-				global.DB.Raw(`
+				vecSQL := `
 					SELECT nc.id as chunk_id, nc.note_id, nc.content, nc.heading, nc.chunk_index, v.distance
 					FROM vector_full_scan('note_chunk_embeddings', 'embedding', ?, 50) AS v
 					JOIN note_chunk_embeddings AS ce ON ce.id = v.rowid
 					JOIN note_chunks AS nc ON nc.id = ce.chunk_id
 					JOIN note_items AS n ON n.id = nc.note_id
 					WHERE n.deleted_at IS NULL AND n.status IN ('analyzed', 'done') AND n.is_archived = 0
-					ORDER BY v.distance ASC
-				`, queryBlob).Scan(&vecResults)
+				`
+				if onlyWiki {
+					vecSQL += " AND n.is_wiki = 1"
+				}
+				vecSQL += " ORDER BY v.distance ASC"
+
+				global.DB.Raw(vecSQL, queryBlob).Scan(&vecResults)
 				// 聚合分片分数到文档级（取最高分）
 				for _, r := range vecResults {
 					score := float32(1.0 - float64(r.Distance)/2.0)
@@ -260,12 +265,17 @@ func BatchHybridSearch(queries []string, limit int) ([]SearchResult, error) {
 		NoteID uint
 		Count  int
 	}
-	global.DB.Table("note_tags").
+
+	tagHitsQuery := global.DB.Table("note_tags").
 		Select("note_id, COUNT(*) as count").
 		Where("tag IN ?", allTags).
 		Joins("JOIN note_items ON note_items.id = note_tags.note_id").
-		Where("note_items.deleted_at IS NULL AND note_items.status IN ? AND note_items.is_archived = ?", []string{"analyzed", "done"}, false).
-		Group("note_id").Scan(&tagHits)
+		Where("note_items.deleted_at IS NULL AND note_items.status IN ? AND note_items.is_archived = ?", []string{"analyzed", "done"}, false)
+	if onlyWiki {
+		tagHitsQuery = tagHitsQuery.Where("note_items.is_wiki = ?", true)
+	}
+	tagHitsQuery.Group("note_id").Scan(&tagHits)
+
 	tagScores := make(map[uint]float32)
 	for _, r := range tagHits {
 		tagScores[r.NoteID] = float32(r.Count) * 5.0
@@ -294,7 +304,11 @@ func BatchHybridSearch(queries []string, limit int) ([]SearchResult, error) {
 
 	// 5. 获取笔记详情
 	var notes []models.NoteItem
-	global.DB.Where("id IN ? AND deleted_at IS NULL AND is_archived = ?", ids, false).Find(&notes)
+	dbQuery := global.DB.Where("id IN ? AND deleted_at IS NULL AND is_archived = ?", ids, false)
+	if onlyWiki {
+		dbQuery = dbQuery.Where("is_wiki = ?", true)
+	}
+	dbQuery.Find(&notes)
 
 	// 6. 计算评分
 	results := make([]SearchResult, 0)
