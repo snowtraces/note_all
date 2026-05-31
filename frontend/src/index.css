@@ -479,3 +479,24 @@ select {
 .animate-toast-in {
   animation: toast-in 0.3s ease-out forwards;
 }
+
+/* ============ 知识炼金流光动画与实用工具 ============ */
+@keyframes alch-progress {
+  0% {
+    left: -100%;
+  }
+  50% {
+    left: 0%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+}
+.scrollbar-none {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import 'katex/dist/katex.min.css';
 import './index.css';
 import { BookOpen } from 'lucide-react';
-import { getTrash, searchNotes, deleteNote, restoreNote, uploadNote, createTextNote, updateNoteText, updateNoteStatus, askAI, getChatMessages, batchArchiveNotes, getNote } from './api/noteApi';
+import { getTrash, searchNotes, deleteNote, restoreNote, uploadNote, createTextNote, updateNoteText, updateNoteStatus, askAI, getChatMessages, batchArchiveNotes, getNote, synthesizeNotes, saveSynthesizedNote, appendSynthesizedNotes, saveAppendedNote } from './api/noteApi';
+import { promptPresets } from './constants/promptPresets';
 import { useSSE } from './hooks/useSSE';
 import { useHistoryRouter } from './hooks/useHistoryRouter';
 import { useTheme } from './context/ThemeContext';
@@ -135,6 +136,63 @@ function AppContent() {
   const [askLoading, setAskLoading] = useState(false);
   const [viewMode, setViewMode] = useState('notes'); // App level viewMode to show Graph full screen
   const [labBasket, setLabBasket] = useState([]); // 暂存待聚合的碎片 IDs
+  const [labPrompt, setLabPrompt] = useState(promptPresets[0].prompt);
+  const [labGenerating, setLabGenerating] = useState(false);
+  const [labResult, setLabResult] = useState(null);
+  const [labError, setLabError] = useState(null);
+  const [labWikiMode, setLabWikiMode] = useState('new');
+  const [labSelectedWikiId, setLabSelectedWikiId] = useState('');
+  const [labArchiveChecked, setLabArchiveChecked] = useState(true);
+
+  const handleLabSynthesize = async () => {
+    if (labBasket.length === 0) return;
+    setLabGenerating(true);
+    setLabError(null);
+    try {
+      let data;
+      if (labWikiMode === 'append' && labSelectedWikiId) {
+        data = await appendSynthesizedNotes(labSelectedWikiId, labBasket, labPrompt);
+      } else {
+        data = await synthesizeNotes(labBasket, labPrompt);
+      }
+      setLabResult({
+        title: data.title,
+        content: data.content
+      });
+    } catch (e) {
+      setLabError(e.message);
+    } finally {
+      setLabGenerating(false);
+    }
+  };
+
+  const handleLabSave = async () => {
+    if (!labResult) return;
+    setLabGenerating(true);
+    setLabError(null);
+    try {
+      if (labWikiMode === 'append' && labSelectedWikiId) {
+        await saveAppendedNote(labSelectedWikiId, labBasket, labResult.content);
+      } else {
+        await saveSynthesizedNote(labBasket, labResult.title, labResult.content);
+      }
+      if (labArchiveChecked && labBasket.length > 0) {
+        try {
+          await batchArchiveNotes(labBasket, true);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      setLabBasket([]);
+      setLabResult(null);
+      setViewMode('notes');
+      executeSearch(query);
+    } catch (e) {
+      setLabError(e.message);
+    } finally {
+      setLabGenerating(false);
+    }
+  };
   const chatEndRef = useRef(null);
   const detailSaveRef = useRef(null);
   const [hasUnsavedDetail, setHasUnsavedDetail] = useState(false);
@@ -631,6 +689,16 @@ function AppContent() {
             setShowSettings={setShowSettings}
             labBasket={labBasket}
             toggleLabItem={toggleLabItem}
+            labPrompt={labPrompt}
+            setLabPrompt={setLabPrompt}
+            labGenerating={labGenerating}
+            labWikiMode={labWikiMode}
+            setLabWikiMode={setLabWikiMode}
+            labSelectedWikiId={labSelectedWikiId}
+            setLabSelectedWikiId={setLabSelectedWikiId}
+            labArchiveChecked={labArchiveChecked}
+            setLabArchiveChecked={setLabArchiveChecked}
+            handleLabSynthesize={handleLabSynthesize}
           />
         </div>
 
@@ -673,14 +741,19 @@ function AppContent() {
                 allNotes={results}
                 onClose={() => setViewMode('notes')}
                 removeFromBasket={removeFromLabItem}
-                onSaveSuccess={async (sourceIds, shouldArchive) => {
-                  if (shouldArchive && sourceIds.length > 0) {
-                     try { await batchArchiveNotes(sourceIds, true); } catch(e) { console.error(e); }
-                  }
-                  setLabBasket([]);
-                  setViewMode('notes');
-                  executeSearch(query);
-                }}
+                prompt={labPrompt}
+                setPrompt={setLabPrompt}
+                generating={labGenerating}
+                result={labResult}
+                setResult={setLabResult}
+                error={labError}
+                setError={setLabError}
+                wikiMode={labWikiMode}
+                selectedWikiId={labSelectedWikiId}
+                archiveChecked={labArchiveChecked}
+                setArchiveChecked={setLabArchiveChecked}
+                handleSynthesize={handleLabSynthesize}
+                handleSave={handleLabSave}
              />
           </div>
 

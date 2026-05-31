@@ -13,13 +13,19 @@ import {
   Trash2,
   UploadCloud,
   X,
-  Zap
+  Zap,
+  BookOpen,
+  Check,
+  Wand2,
+  Loader2,
+  ChevronDown
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { deleteChatSession, getChatSessions, getTags } from '../api/noteApi';
+import { deleteChatSession, getChatSessions, getTags, getWikiList } from '../api/noteApi';
 import { generateImage } from '../api/imageGenApi';
 import { useTheme } from '../context/ThemeContext';
+import { promptPresets } from '../constants/promptPresets';
 
 export default function Sidebar({
   viewMode,
@@ -42,7 +48,17 @@ export default function Sidebar({
   askLoading,
   setShowSettings,
   labBasket,
-  toggleLabItem
+  toggleLabItem,
+  labPrompt,
+  setLabPrompt,
+  labGenerating,
+  labWikiMode,
+  setLabWikiMode,
+  labSelectedWikiId,
+  setLabSelectedWikiId,
+  labArchiveChecked,
+  setLabArchiveChecked,
+  handleLabSynthesize
 }) {
   const { mode } = useTheme();
   const isLight = mode === 'light';
@@ -50,6 +66,52 @@ export default function Sidebar({
   const [chatSessions, setChatSessions] = useState([]);
   const [sessionLoading, setSessionLoading] = useState(false);
   const [confirmingId, setConfirmingId] = useState(null);
+
+  // 实验室 Wiki 列表与检索状态
+  const [wikiList, setWikiList] = useState([]);
+  const [wikiSearchQuery, setWikiSearchQuery] = useState('');
+  const [wikiLoading, setWikiLoading] = useState(false);
+
+  const [showWikiDropdown, setShowWikiDropdown] = useState(false);
+  const wikiDropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (wikiDropdownRef.current && !wikiDropdownRef.current.contains(event.target)) {
+        setShowWikiDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedWikiItem = wikiList.find(w => w.id.toString() === labSelectedWikiId);
+
+  useEffect(() => {
+    if (viewMode === 'lab' && labWikiMode === 'append') {
+      setWikiLoading(true);
+      getWikiList()
+        .then(list => {
+          setWikiList(list);
+          if (list.length > 0 && !labSelectedWikiId) {
+            setLabSelectedWikiId(list[0].id.toString());
+          }
+        })
+        .catch(console.error)
+        .finally(() => setWikiLoading(false));
+    }
+  }, [viewMode, labWikiMode]);
+
+  // 根据搜索关键字过滤已有的 Wiki
+  const filteredWikis = wikiList.filter(w => {
+    const q = wikiSearchQuery.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      (w.original_name && w.original_name.toLowerCase().includes(q)) ||
+      (w.ai_summary && w.ai_summary.toLowerCase().includes(q)) ||
+      w.id.toString().includes(q)
+    );
+  });
 
   const fileInputRef = useRef(null);
   const dropdownRef = useRef(null);
@@ -354,11 +416,13 @@ export default function Sidebar({
             <p className="text-textMuted text-xs">通过节点引力洞见记忆间的连结。</p>
           </div>
         ) : viewMode === 'lab' ? (
-          <div className="w-full h-full flex flex-col relative">
+          <div className="w-full h-full flex flex-col relative overflow-hidden">
             <div className="p-2 border-b border-borderSubtle text-xs font-bold text-textTertiary flex items-center gap-2 mb-3 shrink-0">
               <Files size={14} /> 素材卡片 ({labBasket.length})
             </div>
-            <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2">
+            
+            {/* 上半部分素材卡片列表，占满剩余高度，溢出滚动 */}
+            <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2 min-h-0">
               {labBasket.length === 0 ? (
                 <div className="py-20 px-6 flex flex-col items-center text-center">
                   <div className="w-12 h-12 rounded-2xl bg-primeAccent/5 flex items-center justify-center mb-4 border border-primeAccent/10">
@@ -412,6 +476,159 @@ export default function Sidebar({
               )}
             </div>
 
+            {/* 下半部分：固定在底部的 WIKI 关联配置面板 (归属切换固定在底部，已有 WIKI 下拉选择展现在上方) */}
+            <div className="border-t border-borderSubtle pt-4 mt-auto flex flex-col gap-3 shrink-0 bg-modal relative">
+              
+              {/* 1. 追加至已有 WIKI 选择下拉面板 (在按钮上方展开) */}
+              {labWikiMode === 'append' && (
+                <div className="relative w-full" ref={wikiDropdownRef}>
+                  
+                  {/* 触发器按钮：优雅展示当前选择的 WIKI 简述，带下拉指示器 */}
+                  <button
+                    type="button"
+                    onClick={() => setShowWikiDropdown(!showWikiDropdown)}
+                    className="w-full p-2 rounded-lg border border-borderSubtle bg-sidebar/20 hover:bg-card transition-all flex items-center justify-between text-left group min-h-[42px]"
+                  >
+                    {selectedWikiItem ? (
+                      <div className="flex items-center gap-2 min-w-0 pr-2">
+                        <div className="p-1 rounded bg-primeAccent/15 text-primeAccent shrink-0 flex items-center justify-center">
+                          <BookOpen size={10} />
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="text-[10px] font-extrabold truncate leading-tight group-hover:text-primeAccent transition-colors">
+                            {selectedWikiItem.original_name || `WIKI #${selectedWikiItem.id}`}
+                          </h4>
+                          <p className="text-[8px] text-textMuted truncate mt-0.5">
+                            {selectedWikiItem.ai_summary || '暂无摘要描述'}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-[9px] text-textMuted italic pl-1 flex items-center gap-1.5">
+                        <BookOpen size={10} className="opacity-45" /> 点击选择目标 WIKI 档案...
+                      </span>
+                    )}
+                    <ChevronDown size={11} className={`text-textMuted shrink-0 transition-transform duration-200 ${showWikiDropdown ? 'rotate-180 text-primeAccent' : ''}`} />
+                  </button>
+
+                   {/* 向上展开的浮动绝对定位搜索下拉列表 */}
+                  {showWikiDropdown && (
+                    <div className="absolute bottom-full left-0 right-0 mb-2 p-3 bg-card backdrop-blur-2xl border border-borderSubtle rounded-xl shadow-[0_-8px_30px_rgba(0,0,0,0.12)] z-50 flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                      
+                      {/* 下拉内部搜索框 */}
+                      <div className="relative shrink-0">
+                        <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-textMuted" />
+                        <input
+                          type="text"
+                          placeholder="输入 WIKI 标题/摘要过滤..."
+                          value={wikiSearchQuery}
+                          onChange={(e) => setWikiSearchQuery(e.target.value)}
+                          className="w-full bg-sidebar/50 border border-borderSubtle rounded-md pl-8 pr-7 py-1.5 text-[10px] focus:outline-none focus:border-primeAccent transition-colors text-textPrimary placeholder-textMuted"
+                          onClick={(e) => e.stopPropagation()} // 防止点击输入框关闭下拉
+                        />
+                        {wikiSearchQuery && (
+                          <X
+                            size={11}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-textMuted hover:text-textPrimary cursor-pointer"
+                            onClick={(e) => { e.stopPropagation(); setWikiSearchQuery(''); }}
+                          />
+                        )}
+                      </div>
+
+                      {/* 滚动 Wiki 列表 */}
+                      <div className="max-h-[140px] overflow-y-auto space-y-1.5 custom-scrollbar pr-0.5 min-h-0">
+                        {wikiLoading ? (
+                          <div className="py-4 text-center text-[10px] text-primeAccent animate-pulse italic">
+                            加载已有 WIKI...
+                          </div>
+                        ) : filteredWikis.length === 0 ? (
+                          <div className="py-4 text-center text-[9px] text-textMuted">
+                            无匹配的已有 WIKI
+                          </div>
+                        ) : (
+                          filteredWikis.map((w) => {
+                            const isSelected = labSelectedWikiId === w.id.toString();
+                            return (
+                              <div
+                                key={w.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setLabSelectedWikiId(w.id.toString());
+                                  setShowWikiDropdown(false); // 选择后自动关闭
+                                }}
+                                className={`p-2 rounded-md border transition-all cursor-pointer flex items-center justify-between gap-3 text-left ${
+                                  isSelected
+                                    ? 'bg-primeAccent/10 border-primeAccent text-textPrimary shadow-[0_2px_8px_rgba(255,215,0,0.06)]'
+                                    : 'bg-accent-subtle/50 hover:bg-card border-borderSubtle text-textSecondary'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div
+                                    className={`p-1 rounded shrink-0 flex items-center justify-center ${
+                                      isSelected ? 'bg-primeAccent/25 text-primeAccent' : 'bg-bgHover text-textTertiary'
+                                    }`}
+                                  >
+                                    <BookOpen size={10} />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <h4 className="text-[10px] font-bold truncate leading-tight">
+                                      {w.original_name || `WIKI #${w.id}`}
+                                    </h4>
+                                    <p className="text-[8px] text-textMuted truncate mt-0.5">
+                                      {w.ai_summary || '暂无摘要描述'}
+                                    </p>
+                                  </div>
+                                </div>
+                                {isSelected && (
+                                  <div className="w-3.5 h-3.5 rounded-full bg-primeAccent flex items-center justify-center text-white-fixed shrink-0">
+                                    <Check size={8} strokeWidth={3} />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+
+                    </div>
+                  )}
+
+                </div>
+              )}
+
+              {/* 2. 标题和 WIKI 模式切换 (永久居最底部不动) */}
+              <div className="flex items-center justify-between pb-1 shrink-0">
+                <span className="text-[10px] font-extrabold text-textSecondary uppercase tracking-widest flex items-center gap-1.5 select-none">
+                  <Zap size={11} className="text-primeAccent animate-pulse" /> 归属 Wiki 档案
+                </span>
+                
+                <div className="flex items-center gap-0.5 bg-bgHover p-0.5 rounded-lg border border-borderSubtle">
+                  <button
+                    type="button"
+                    onClick={() => setLabWikiMode('new')}
+                    className={`px-3 py-1 text-[9px] rounded-md transition-all font-extrabold ${
+                      labWikiMode === 'new'
+                        ? 'bg-primeAccent text-white shadow-sm'
+                        : 'text-textTertiary hover:text-textPrimary bg-transparent'
+                    }`}
+                  >
+                    创建新 WIKI
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLabWikiMode('append')}
+                    className={`px-3 py-1 text-[9px] rounded-md transition-all font-extrabold ${
+                      labWikiMode === 'append'
+                        ? 'bg-primeAccent text-white shadow-sm'
+                        : 'text-textTertiary hover:text-textPrimary bg-transparent'
+                    }`}
+                  >
+                    追加至 WIKI
+                  </button>
+                </div>
+              </div>
+
+            </div>
           </div>
         ) : viewMode === 'image_gen' ? (
           <ImageGenSidebarItem />

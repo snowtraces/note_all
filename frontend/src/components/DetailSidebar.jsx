@@ -106,7 +106,7 @@ export default function DetailSidebar({
                     : 'text-textSecondary/50 hover:text-textSecondary'
                     }`}
                 >
-                  <Zap size={10} /> 知识谱系
+                  <Zap size={10} /> {item.is_wiki ? '溯源档案' : '知识谱系'}
                 </button>
               </div>
             )}
@@ -142,7 +142,7 @@ export default function DetailSidebar({
                 <>
                   {!(relatedItems.length > 0) && (
                     <div className="text-[10px] text-textSecondary/50 uppercase mb-2 font-mono flex items-center gap-2">
-                      <Zap size={10} className="text-primeAccent" /> 知识合成谱系
+                      <Zap size={10} className="text-primeAccent" /> {item.is_wiki ? 'WIKI 溯源档案' : '知识合成谱系'}
                     </div>
                   )}
                   <div className="border rounded-xl divide-y divide-borderSubtle overflow-hidden bg-primeAccent/5 border-primeAccent/10">

@@ -794,6 +794,7 @@ func CreateSynthesizedNote(ids []uint, title, content string) (*models.NoteItem,
 		FileSize:     int64(len(content)),
 		OcrText:      content,
 		Status:       "pending",
+		IsWiki:       true, // 自动标记为 WIKI
 		Parents:      items,
 	}
 
@@ -808,4 +809,42 @@ func CreateSynthesizedNote(ids []uint, title, content string) (*models.NoteItem,
 	}
 
 	return &note, nil
+}
+
+// AppendSynthesizedNote 将新生成的合成内容追加更新到已有的 WIKI 笔记中
+func AppendSynthesizedNote(wikiID string, fragmentIDs []uint, newContent string) error {
+	// 1. 查询原 WIKI
+	var wiki models.NoteItem
+	if err := global.DB.First(&wiki, wikiID).Error; err != nil {
+		return fmt.Errorf("WIKI记录不存在: %v", err)
+	}
+
+	// 2. 查询新的碎片
+	var items []models.NoteItem
+	if err := global.DB.Where("id IN ?", fragmentIDs).Find(&items).Error; err != nil {
+		return err
+	}
+
+	// 3. 追加碎片到 WIKI 的 Parents 关联中
+	if err := global.DB.Model(&wiki).Association("Parents").Append(items); err != nil {
+		return fmt.Errorf("关联新碎片失败: %v", err)
+	}
+
+	// 4. 更新正文、状态（等待重新提炼）、文件大小
+	updates := map[string]interface{}{
+		"ocr_text": newContent,
+		"status":   "pending",
+		"file_size": int64(len(newContent)),
+	}
+	if err := global.DB.Model(&models.NoteItem{}).Where("id = ?", wiki.ID).Updates(updates).Error; err != nil {
+		return fmt.Errorf("正文写入失败: %v", err)
+	}
+
+	// 5. 触发后台提炼更新 (确保 WIKI 标签会保留)
+	nID := wiki.ID
+	global.WorkerChan <- func() {
+		performFullAnalysis(nID, 0)
+	}
+
+	return nil
 }

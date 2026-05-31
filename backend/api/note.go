@@ -643,6 +643,76 @@ func (a *NoteApi) SaveSynthesized(c *gin.Context) {
 		"data":    note,
 	})
 }
+
+// GetWikiList 获取所有的 WIKI 列表
+func (a *NoteApi) GetWikiList(c *gin.Context) {
+	var notes []models.NoteItem
+	if err := global.DB.
+		Where("is_wiki = ? AND deleted_at IS NULL AND is_archived = ?", true, false).
+		Order("updated_at DESC").
+		Find(&notes).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取 WIKI 列表失败: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": notes})
+}
+
+// AppendSynthesize 预览追加合成结果
+func (a *NoteApi) AppendSynthesize(c *gin.Context) {
+	var body struct {
+		WikiID string `json:"wiki_id" binding:"required"`
+		IDs    []uint `json:"ids" binding:"required"`
+		Prompt string `json:"prompt"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
+		return
+	}
+
+	var wiki models.NoteItem
+	if err := global.DB.First(&wiki, body.WikiID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "找不到目标 WIKI"})
+		return
+	}
+
+	// 组合新提示词：携带原有 WIKI 作为强上下文
+	wikiContext := fmt.Sprintf("\n【这是原 WIKI 的正文内容，你的任务是将新素材融合进去，必须保留它的整体结构并扩展新知识】：\n%s\n", wiki.OcrText)
+	appendedPrompt := body.Prompt + "\n" + wikiContext
+
+	title, content, err := service.SynthesizeNotes(body.IDs, appendedPrompt)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "追加合成失败: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "追加合成预览成功",
+		"data": gin.H{
+			"title":   title,
+			"content": content,
+		},
+	})
+}
+
+// SaveAppendedSynthesize 保存追加合成的结果
+func (a *NoteApi) SaveAppendedSynthesize(c *gin.Context) {
+	var body struct {
+		WikiID  string `json:"wiki_id" binding:"required"`
+		IDs     []uint `json:"ids" binding:"required"`
+		Content string `json:"content" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数解析失败"})
+		return
+	}
+
+	if err := service.AppendSynthesizedNote(body.WikiID, body.IDs, body.Content); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存追加失败: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "追加合并成功"})
+}
 // GetNote 获取单条笔记详情 (含标签和完整正文)
 func (a *NoteApi) GetNote(c *gin.Context) {
 	id := c.Param("id")

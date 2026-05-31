@@ -31,6 +31,7 @@ type NoteItem struct {
 	Status      string `gorm:"size:32;default:'pending'" json:"status"` // pending/ocred/analyzed/done/error
 	IsArchived  bool   `gorm:"default:false;index" json:"is_archived"`  // [新增] 是否归档
 	UserComment string `gorm:"type:text" json:"user_comment"`           // 用户手动标记的批注信息
+	IsWiki      bool   `gorm:"default:false;index" json:"is_wiki"`      // [新增] 是否为实验室生成的WIKI
 
 	// 关联
 	Tags    []NoteTag  `gorm:"foreignKey:NoteID" json:"tags"`
@@ -169,6 +170,30 @@ func SetupDBWithFTS(db *gorm.DB) error {
 		return fmt.Errorf("failed to setup synonym fts: %v", err)
 	}
 
+	// 兼容历史数据：将存在关联碎片的记录自动标记为 WIKI
+	if err := BackfillIsWiki(db); err != nil {
+		return fmt.Errorf("failed to backfill is_wiki: %v", err)
+	}
+
+	return nil
+}
+
+// BackfillIsWiki 自动找出作为父节点的笔记，将其 IsWiki 置为 true
+// 幂等：只更新 is_wiki = false 的记录，重复执行无副作用
+func BackfillIsWiki(db *gorm.DB) error {
+	result := db.Exec(`
+		UPDATE note_items 
+		SET is_wiki = 1 
+		WHERE is_wiki = 0 
+		  AND id IN (SELECT note_id FROM note_relations) 
+		  AND deleted_at IS NULL
+	`)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected > 0 {
+		fmt.Printf("[Backfill] 已将 %d 条历史合成笔记标记为 WIKI\n", result.RowsAffected)
+	}
 	return nil
 }
 

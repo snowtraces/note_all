@@ -224,3 +224,38 @@ export const uploadImageFromUrl = async (url, mimeType) => {
   return { storageId: data.storage_id, url: data.url };
 };
 
+export const getWikiList = async () => {
+  const res = await request('/api/wiki/list');
+  if (!res.ok) throw new Error("Get wiki list failed");
+  const data = await res.json();
+  return data.data || [];
+};
+
+export const appendSynthesizedNotes = async (wikiId, ids, prompt) => {
+  const res = await request("/api/note/synthesize/append", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ wiki_id: wikiId, ids, prompt }),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || "Append synthesis preview failed");
+  }
+  const data = await res.json();
+  return data.data;
+};
+
+export const saveAppendedNote = async (wikiId, ids, content) => {
+  const res = await request("/api/note/synthesize/append/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ wiki_id: wikiId, ids, content }),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || "Save appended synthesis failed");
+  }
+  const data = await res.json();
+  return data.data;
+};
+
