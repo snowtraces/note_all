@@ -110,7 +110,6 @@ const CitationsSection = ({ references, onSelectRef }) => {
 // 内层组件，在 ToastProvider 内部使用 useToast
 function AppContent() {
   const [query, setQuery] = useState('');
-  const [selectedFolder, setSelectedFolder] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -238,7 +237,7 @@ function AppContent() {
       if (eventConfig) {
         // 已定义的事件：执行动作 + 显示 toast
         if (eventConfig.action === 'refresh_list') {
-          executeSearch(query, selectedFolder);
+          executeSearch(query);
         } else if (eventConfig.action === 'image_gen_refresh') {
           window.dispatchEvent(new Event('IMAGE_GEN_REFRESH'));
         } else if (eventConfig.action === 'review_ready') {
@@ -278,13 +277,13 @@ function AppContent() {
     if (showTrash) {
       loadTrashData();
     } else {
-      executeSearch(query, selectedFolder);
+      executeSearch(query);
     }
     // 只有在非路由初始化的情况下，切换数据源才清空详情
     if (!isRoutingRef.current) {
       setSelectedItem(null);
     }
-  }, [isLoggedIn, showTrash, query, selectedFolder]);
+  }, [isLoggedIn, showTrash, query]);
 
   // 全局键盘事件监听
   useEffect(() => {
@@ -342,11 +341,11 @@ function AppContent() {
     setLoading(false);
   };
 
-  const executeSearch = async (q, f = '') => {
+  const executeSearch = async (q) => {
     if (showTrash) return;
     setLoading(true);
     try {
-      const data = await searchNotes(q, f);
+      const data = await searchNotes(q);
       setResults(data);
     } catch (e) {
       console.error(e);
@@ -419,7 +418,7 @@ function AppContent() {
       await deleteNote(id, hard);
       setSelectedItem(null);
       if (showTrash) loadTrashData();
-      else executeSearch(query, selectedFolder);
+      else executeSearch(query);
     } catch (e) {
       console.error(e);
     }
@@ -446,8 +445,8 @@ function AppContent() {
     try {
       await uploadNote(formData);
       // 延迟重试刷新搜索结果以等待后端处理
-      setTimeout(() => executeSearch(query, selectedFolder), 3000);
-      setTimeout(() => executeSearch(query, selectedFolder), 12000);
+      setTimeout(() => executeSearch(query), 3000);
+      setTimeout(() => executeSearch(query), 12000);
     } catch (e) {
       alert("上传崩溃...");
       console.error(e);
@@ -461,7 +460,7 @@ function AppContent() {
     try {
       const newNote = await createTextNote("");
       setSelectedItem(newNote);
-      executeSearch(query, selectedFolder);
+      executeSearch(query);
     } catch (e) {
       alert('新增文档失败...');
       console.error(e);
@@ -527,10 +526,10 @@ function AppContent() {
       if (showTrash) {
         loadTrashData();
       } else {
-        executeSearch(query, selectedFolder);
+        executeSearch(query);
         if (reanalyze) {
-          setTimeout(() => executeSearch(query, selectedFolder), 3000);
-          setTimeout(() => executeSearch(query, selectedFolder), 12000);
+          setTimeout(() => executeSearch(query), 3000);
+          setTimeout(() => executeSearch(query), 12000);
         }
       }
     } catch (e) {
@@ -546,7 +545,7 @@ function AppContent() {
       if (showTrash) {
         loadTrashData();
       } else {
-        executeSearch(query, selectedFolder);
+        executeSearch(query);
       }
     } catch (e) {
       alert('状态更新失败...');
@@ -617,9 +616,7 @@ function AppContent() {
             setShowTrash={setShowTrash}
             query={query}
             setQuery={setQuery}
-            selectedFolder={selectedFolder}
-            setSelectedFolder={setSelectedFolder}
-            handleSearch={(q) => executeSearch(q, selectedFolder)}
+            handleSearch={executeSearch}
             loading={loading}
             results={results}
             selectedItem={selectedItem}
@@ -682,7 +679,7 @@ function AppContent() {
                   }
                   setLabBasket([]);
                   setViewMode('notes');
-                  executeSearch(query, selectedFolder);
+                  executeSearch(query);
                 }}
              />
           </div>

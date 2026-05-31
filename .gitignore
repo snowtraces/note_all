@@ -27,8 +27,3 @@ config copy.json
 # OS
 .DS_Store
 Thumbs.db
-
-# Databases
-*.db
-backend/data.db
-

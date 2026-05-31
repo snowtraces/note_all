@@ -6,12 +6,8 @@ export const getTrash = async () => {
   return data.data || [];
 };
 
-export const searchNotes = async (query, folder = '') => {
-  const queryParam = encodeURIComponent(query);
-  const folderParam = encodeURIComponent(folder);
-  let url = `/api/search?q=${queryParam}`;
-  if (folder) url += `&folder=${folderParam}`;
-  const res = await request(url);
+export const searchNotes = async (query) => {
+  const res = await request(`/api/search?q=${encodeURIComponent(query)}`);
   const data = await res.json();
   return data.data || [];
 };

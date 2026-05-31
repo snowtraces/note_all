@@ -216,8 +216,6 @@ func savePipelineResultAsNote(taskName string, content string) uint {
 		FileType:     "text/markdown",
 		FileSize:     int64(len(content)),
 		OcrText:      content,
-		FolderL1:     "任务",
-		FolderL2:     taskName,
 		Status:       "done",
 	}
 
@@ -235,10 +233,9 @@ func savePipelineResultAsNote(taskName string, content string) uint {
 
 		// 获取分析模板
 		targetTpl, _ := models.GetActiveTemplate(global.DB)
-		availableFolders := buildAvailableFoldersStr()
 
 		// 调用 LLM 提炼
-		aiTitle, summary, tags, _, err := pkg.ExtractSummaryAndTags(content, targetTpl.SystemPrompt, availableFolders)
+		aiTitle, summary, tags, err := pkg.ExtractSummaryAndTags(content, targetTpl.SystemPrompt)
 		if err != nil {
 			log.Printf("[Pipeline] AI 提炼失败: %v", err)
 			summary = content
