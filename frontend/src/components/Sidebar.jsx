@@ -395,7 +395,7 @@ export default function Sidebar({
                         }}
                         title={labBasket?.includes(item.id) ? "从实验室移除" : "加入实验室素材"}
                         className={`p-1.5 rounded-lg transition-all ${labBasket?.includes(item.id)
-                          ? 'bg-primeAccent text-black scale-110 shadow shadow-primeAccent/40'
+                          ? 'bg-primeAccent text-white-fixed scale-110 shadow shadow-primeAccent/40'
                           : 'bg-sidebar text-textSecondary/20 hover:text-primeAccent hover:bg-primeAccent/10 opacity-40 group-hover:opacity-100'
                           }`}
                       >

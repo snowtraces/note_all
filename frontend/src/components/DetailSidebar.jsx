@@ -1,7 +1,188 @@
-import { Image as ImageIcon, Link, Zap, RefreshCw, CheckCircle2, ClipboardEdit, Eye, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Image as ImageIcon, Link, Zap, RefreshCw, CheckCircle2, ClipboardEdit, Eye, ChevronDown, ChevronUp, X, BookOpen, Copy, ArrowUpRight, FileText, GitBranch } from 'lucide-react';
 import TableOfContents from './TableOfContents';
+import MarkdownRenderer from './MarkdownRenderer';
 
-export default function DetailSidebar({
+// ─────────────────────────────────────────────────────────────────────────────
+// Wiki 专属溯源面板
+// ─────────────────────────────────────────────────────────────────────────────
+function WikiSidebarContent({ item, onNavigate, showToC, setShowToC, tocContent, tocContainerRef }) {
+  const [previewItem, setPreviewItem] = useState(null);
+  const [copiedId, setCopiedId] = useState(null);
+
+  const parents = item.parents || [];
+
+  const handleCopy = async (text, id) => {
+    try {
+      await navigator.clipboard.writeText(text || '');
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 1800);
+    } catch (_) {}
+  };
+
+  // ESC 关闭预览（capture 模式优先捕获）
+  useEffect(() => {
+    if (!previewItem) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        setPreviewItem(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [previewItem]);
+
+  return (
+    <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 bg-panel/80 flex flex-col flex-none h-auto lg:h-full relative border-t lg:border-t-0 lg:border-l border-borderSubtle">
+      {/* 大纲浮动覆盖层（保留） */}
+      {showToC && (
+        <div className="absolute inset-0 z-30 bg-main/80 backdrop-blur-xl flex flex-col animate-in slide-in-from-right duration-300">
+          <div className="px-3 py-2.5 border-b border-borderSubtle/40 flex items-center justify-between shrink-0">
+            <span className="text-[11px] text-textSecondary/70 font-bold tracking-widest font-mono uppercase">大纲导读</span>
+            <button
+              onClick={() => setShowToC(false)}
+              className="text-textSecondary/40 hover:text-red-400 transition-colors bg-sidebar/50 p-1 rounded-md border border-borderSubtle/40"
+            >
+              <X size={11} />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto custom-scrollbar py-1">
+            <TableOfContents content={tocContent} containerRef={tocContainerRef} contained />
+          </div>
+        </div>
+      )}
+
+      {/* 溯源预览浮动框 - 着右侧边栏左边缘 */}
+      {previewItem && (
+        <div className="absolute top-0 bottom-0 right-0 lg:right-[280px] xl:right-[320px] w-[600px] bg-panel/95 backdrop-blur-xl border-r border-borderSubtle/60 shadow-2xl flex flex-col animate-in slide-in-from-left duration-300 z-40">
+          {/* 头部 */}
+          <div className="px-5 py-3 border-b border-borderSubtle/40 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-primeAccent/10 border border-primeAccent/20">
+                <FileText size={14} className="text-primeAccent" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[12px] font-bold tracking-widest font-mono uppercase text-textSecondary/80">来源碎片预览</span>
+                {previewItem.original_name && (
+                  <span className="text-[10px] font-mono text-textSecondary/40 truncate max-w-[200px]">{previewItem.original_name}</span>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => setPreviewItem(null)}
+              className="text-textSecondary/40 hover:text-red-400 transition-colors bg-sidebar/50 p-2 rounded-lg border border-borderSubtle/40"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* 内容区 - Markdown 渲染 */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-5">
+            <div className="bg-sidebar/40 border border-borderSubtle/40 rounded-xl overflow-hidden">
+              <MarkdownRenderer
+                content={previewItem.ocr_text || previewItem.ai_summary || '（暂无内容）'}
+                className="p-5 text-[14px] leading-relaxed"
+              />
+            </div>
+          </div>
+
+          {/* 操作栏 */}
+          <div className="shrink-0 px-5 py-3 border-t border-borderSubtle/40 flex items-center gap-3">
+            <button
+              onClick={() => handleCopy(previewItem.ocr_text || previewItem.ai_summary, previewItem.id)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-medium border transition-all ${
+                copiedId === previewItem.id
+                  ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                  : 'bg-sidebar border-borderSubtle text-textSecondary/60 hover:text-textPrimary hover:border-borderSubtle/80'
+              }`}
+            >
+              <Copy size={12} />
+              {copiedId === previewItem.id ? '已复制' : '复制原文'}
+            </button>
+            <button
+              onClick={() => {
+                setPreviewItem(null);
+                onNavigate(previewItem);
+              }}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-medium border border-primeAccent/20 bg-primeAccent/5 text-primeAccent/70 hover:bg-primeAccent/10 hover:text-primeAccent transition-all"
+            >
+              前往查看详情
+              <ArrowUpRight size={12} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 顶部标题栏 */}
+      <div className="shrink-0 px-4 py-3 border-b border-borderSubtle/60 flex items-center justify-between bg-sidebar/30">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-primeAccent/10 border border-primeAccent/20">
+            <GitBranch size={12} className="text-primeAccent" />
+          </div>
+          <span className="text-[11px] font-bold tracking-widest font-mono uppercase text-textSecondary/80">溯源档案</span>
+        </div>
+        {parents.length > 0 && (
+          <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-primeAccent/10 text-primeAccent border border-primeAccent/20">
+            {parents.length} 个来源
+          </span>
+        )}
+      </div>
+
+      {/* 溯源碎片列表 */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-3 flex flex-col gap-2">
+        {parents.length === 0 ? (
+          /* 空态 */
+          <div className="flex-1 flex flex-col items-center justify-center py-16 text-center px-4">
+            <div className="w-12 h-12 rounded-2xl bg-primeAccent/5 border border-primeAccent/10 flex items-center justify-center mb-4">
+              <FileText size={20} className="text-primeAccent/30" />
+            </div>
+            <p className="text-[11px] text-textSecondary/40 leading-relaxed">此 Wiki 暂无关联来源碎片</p>
+          </div>
+        ) : (
+          parents.map((p, idx) => {
+            const hasContent = !!(p.ocr_text || p.ai_summary);
+
+            return (
+              <button
+                key={p.id}
+                onClick={() => setPreviewItem(p)}
+                className="w-full rounded-xl border border-borderSubtle bg-sidebar/40 hover:border-primeAccent/20 hover:bg-sidebar/70 transition-all duration-200 px-3 py-2.5 flex items-start gap-2.5 group/card text-left"
+              >
+                {/* 序号徽章 */}
+                <span className="shrink-0 mt-0.5 w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-extrabold font-mono bg-primeAccent/10 border border-primeAccent/20 text-primeAccent/60 group-hover/card:bg-primeAccent/15 group-hover/card:text-primeAccent transition-colors">
+                  {idx + 1}
+                </span>
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] leading-snug line-clamp-2 text-textSecondary group-hover/card:text-textPrimary transition-colors">
+                    {p.ai_summary || p.original_name || '未命名碎片'}
+                  </p>
+                  {p.original_name && p.ai_summary && (
+                    <p className="mt-1 text-[9px] font-mono text-textSecondary/50 truncate">{p.original_name}</p>
+                  )}
+                </div>
+
+                {/* 预览指示器 */}
+                <span className="shrink-0 mt-0.5 opacity-30 group-hover/card:opacity-70 transition-opacity">
+                  <Eye size={12} className="text-primeAccent" />
+                </span>
+              </button>
+            );
+          })
+        )}
+        {/* 底部留白 */}
+        <div className="h-4 shrink-0" />
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 普通笔记侧边栏（原样保留）
+// ─────────────────────────────────────────────────────────────────────────────
+function NormalSidebarContent({
   item,
   fileUrl,
   relatedItems,
@@ -20,7 +201,6 @@ export default function DetailSidebar({
   handleUpdateStatus,
   isSubmittingStatus,
 }) {
-
   return (
     <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 bg-panel/80 flex flex-col flex-none h-auto lg:h-full relative border-t lg:border-t-0 lg:border-l border-borderSubtle">
       {/* 大纲浮动覆盖层 */}
@@ -106,7 +286,7 @@ export default function DetailSidebar({
                     : 'text-textSecondary/50 hover:text-textSecondary'
                     }`}
                 >
-                  <Zap size={10} /> {item.is_wiki ? '溯源档案' : '知识谱系'}
+                  <Zap size={10} /> 知识谱系
                 </button>
               </div>
             )}
@@ -142,7 +322,7 @@ export default function DetailSidebar({
                 <>
                   {!(relatedItems.length > 0) && (
                     <div className="text-[10px] text-textSecondary/50 uppercase mb-2 font-mono flex items-center gap-2">
-                      <Zap size={10} className="text-primeAccent" /> {item.is_wiki ? 'WIKI 溯源档案' : '知识合成谱系'}
+                      <Zap size={10} className="text-primeAccent" /> 知识合成谱系
                     </div>
                   )}
                   <div className="border rounded-xl divide-y divide-borderSubtle overflow-hidden bg-primeAccent/5 border-primeAccent/10">
@@ -221,4 +401,24 @@ export default function DetailSidebar({
       </div>
     </div>
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 导出：根据 item.is_wiki 路由到不同侧边栏
+// ─────────────────────────────────────────────────────────────────────────────
+export default function DetailSidebar(props) {
+  if (props.item?.is_wiki) {
+    return (
+      <WikiSidebarContent
+        item={props.item}
+        onNavigate={props.onNavigate}
+        showToC={props.showToC}
+        setShowToC={props.setShowToC}
+        tocContent={props.tocContent}
+        tocContainerRef={props.tocContainerRef}
+      />
+    );
+  }
+
+  return <NormalSidebarContent {...props} />;
 }

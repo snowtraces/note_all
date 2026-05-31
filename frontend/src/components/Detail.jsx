@@ -88,9 +88,10 @@ export default function Detail({
   useEffect(() => {
     if (!item) return;
 
-    if (item.id && !item.ocr_text) {
+    const needFullFetch = !item.ocr_text || (item.is_wiki && !(item.parents?.length > 0));
+    if (item.id && needFullFetch) {
       getNote(item.id).then(fullItem => {
-        if (fullItem?.ocr_text) {
+        if (fullItem) {
           setSelectedItem(fullItem);
         }
       }).catch(err => console.error("Fetch full note failed:", err));
