@@ -226,6 +226,11 @@ func SetupRouter() *gin.Engine {
 
 		apiGroup.GET("/cron-settings", cronApi.GetSettings)
 		apiGroup.PUT("/cron-settings", cronApi.UpdateSettings)
+
+		// 13. 配置管理
+		configApi := new(api.ConfigApi)
+		apiGroup.GET("/config", configApi.GetConfig)
+		apiGroup.PUT("/config", configApi.UpdateConfig)
 	}
 
 	// ====================== 静态资源与 SPA 路由逻辑 ======================

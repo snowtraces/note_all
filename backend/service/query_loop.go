@@ -9,6 +9,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"note_all_backend/global"
 	"note_all_backend/pkg"
 )
 
@@ -639,15 +640,24 @@ func estimateTokenUsage(messages []ConversationMessage) int {
 }
 
 func getModelMaxTokens() int {
-	return 32000 // 模型窗口上限
+	if global.Config.LlmContextWindow > 0 {
+		return global.Config.LlmContextWindow // 从配置读取（DeepSeek V4 = 1M）
+	}
+	return 32000 // 兜底默认值
 }
 
 func getReservedTokens() int {
-	return 8000 // 输出预留
+	if global.Config.LlmReservedTokens > 0 {
+		return global.Config.LlmReservedTokens
+	}
+	return 8000 // 兜底默认值
 }
 
 func getBufferTokens() int {
-	return 4000 // 恢复预留
+	if global.Config.LlmBufferTokens > 0 {
+		return global.Config.LlmBufferTokens
+	}
+	return 4000 // 兜底默认值
 }
 
 func isPromptTooLong(err error) bool {

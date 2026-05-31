@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Palette, FileText, Wrench, Server, Cpu, BookOpen, Bot, Clock } from 'lucide-react';
+import { X, Palette, FileText, Wrench, Server, Cpu, BookOpen, Bot, Clock, Settings2 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
-// 导入模块化后的 8 个选项卡组件
+// 导入模块化后的 9 个选项卡组件
 import AppearanceTab from './settings/AppearanceTab';
 import TemplatesTab from './settings/TemplatesTab';
 import ToolsTab from './settings/ToolsTab';
@@ -11,10 +11,12 @@ import VectorTab from './settings/VectorTab';
 import SynonymTab from './settings/SynonymTab';
 import WeixinTab from './settings/WeixinTab';
 import CronTab from './settings/CronTab';
+import ModelConfigTab from './settings/ModelConfigTab';
 
 // 定义选项卡元数据
 const TABS = [
   { id: 'appearance', label: '外观样式', icon: Palette, description: '切换配色方案与明暗模式' },
+  { id: 'model', label: '模型配置', icon: Settings2, description: '管理 API 密钥与上下文窗口参数' },
   { id: 'templates', label: 'AI 提示模板', icon: FileText, description: '自定义大语言模型抽取提示词' },
   { id: 'tools', label: '工具配置', icon: Wrench, description: '管理网页抽取提纯等通用工具规则' },
   { id: 'server', label: '连接服务器', icon: Server, description: '管理探活路由与进行速度测试' },
@@ -114,6 +116,7 @@ export default function SettingsModal({ onClose, initialTab }) {
           {/* 选项卡面板主体 (Active Tab Content Panel) */}
           <div className="flex-1 overflow-hidden flex bg-bgSubtle">
             {activeTab === 'appearance' && <AppearanceTab />}
+            {activeTab === 'model' && <ModelConfigTab />}
             {activeTab === 'templates' && <TemplatesTab />}
             {activeTab === 'tools' && <ToolsTab />}
             {activeTab === 'server' && <ServerTab />}

@@ -327,7 +327,7 @@ func AskAIWithConfig(messages []map[string]string, systemPrompt string, maxToken
 
 	maxTokens := global.Config.LlmMaxOutputTokens
 	if maxTokens <= 0 {
-		maxTokens = 8192 // 默认值
+		maxTokens = 384000 // DeepSeek V4 默认输出上限
 	}
 	if maxTokensOverride > 0 {
 		maxTokens = maxTokensOverride
