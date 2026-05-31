@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, act } from 'react';
 import { BrainCircuit, Sparkles, X, ArchiveRestore, Trash2, RefreshCw, ChevronLeft, ChevronDown, Share2, Download, List, PanelRightClose } from 'lucide-react';
 import ContentToolbar from './ContentToolbar';
 import EditorToolbar from './EditorToolbar';
@@ -165,38 +165,52 @@ export default function Detail({
   // Ctrl+S 全局保存 & 模式切换快捷键
   const onSaveWrapRef = useRef(onSaveWrap);
   onSaveWrapRef.current = onSaveWrap;
+  const handleKeyCapture = useCallback((e) => {
+    const activeEl = document.activeElement;
+
+    // Ctrl+S 保存（任何模式）
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      if (editorMode !== 'view') {
+        e.preventDefault();
+        onSaveWrapRef.current();
+      }
+      return;
+    }
+
+    // 编辑模式下不拦截任何普通按键——用户正在打字
+    if (editorMode === 'edit' && activeEl.className.includes('tiptap-content')) return;
+
+    // 聚焦在真实输入框（RAW 模式的 textarea 等）时也不拦截
+
+    if (activeEl?.tagName === 'INPUT' || activeEl?.tagName === 'TEXTAREA') return;
+
+    // v / i / r 模式切换快捷键
+    const key = e.key.toLowerCase();
+    const code = e.code
+    console.log('key', e.key, e)
+    if (key === 'i' || code === 'KeyI') {
+      console.log('do i')
+      e.preventDefault();
+      e.stopPropagation();
+      changeMode('edit');
+    } else if (key === 'r' || code === 'KeyR') {
+      e.preventDefault();
+      e.stopPropagation();
+      changeMode('raw');
+    } else if (key === 'v' || code === 'KeyV') {
+      e.preventDefault();
+      e.stopPropagation();
+      changeMode('view');
+    }
+  }, [editorMode, changeMode]);
 
   useEffect(() => {
-    const handler = (e) => {
-      const activeEl = document.activeElement;
-      const isInput = activeEl.tagName === 'INPUT' ||
-                      activeEl.tagName === 'TEXTAREA' ||
-                      (activeEl.isContentEditable && editorMode !== 'view');
-
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        if (editorMode !== 'view') {
-          e.preventDefault();
-          onSaveWrapRef.current();
-        }
-        return;
-      }
-
-      if (!isInput) {
-        if (e.key === 'i') {
-          e.preventDefault();
-          changeMode('edit');
-        } else if (e.key === 'r') {
-          e.preventDefault();
-          changeMode('raw');
-        } else if (e.key === 'v') {
-          e.preventDefault();
-          changeMode('view');
-        }
-      }
+    window.addEventListener('keydown', handleKeyCapture, true);
+    return () => {
+      window.removeEventListener('keydown', handleKeyCapture, true);
     };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [editorMode, changeMode]);
+  }, [handleKeyCapture]);
+
 
   const handleReprocess = async () => {
     if (!item) return;
@@ -260,7 +274,9 @@ export default function Detail({
   };
 
   return (
-    <div className="w-full h-full flex flex-col animate-in fade-in zoom-in-95 duration-300">
+    <div
+      className="w-full h-full flex flex-col animate-in fade-in zoom-in-95 duration-300"
+    >
       {/* 顶栏控制 */}
       <div className="flex items-center justify-between px-4 md:px-5 py-2.5 border-b border-borderSubtle bg-main shrink-0">
         <div className="font-medium text-textPrimary tracking-wide flex items-center gap-1 md:gap-2 text-[15px]">
@@ -335,11 +351,10 @@ export default function Detail({
           {(editorMode === 'view' || editorMode === 'edit') && (
             <button
               onClick={() => setShowToC(!showToC)}
-              className={`absolute right-0 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center transition-all duration-300 ${
-                showToC
-                  ? 'w-7 h-24 bg-primeAccent/30 backdrop-blur-md border border-primeAccent/40 rounded-l-lg text-primeAccent shadow-lg'
-                  : 'w-5 h-14 bg-sidebar/80 backdrop-blur-sm border border-borderSubtle rounded-l-md text-textTertiary hover:text-primeAccent hover:bg-primeAccent/10 hover:border-primeAccent/20 shadow-md hover:shadow-lg'
-              }`}
+              className={`absolute right-0 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center transition-all duration-300 ${showToC
+                ? 'w-7 h-24 bg-primeAccent/30 backdrop-blur-md border border-primeAccent/40 rounded-l-lg text-primeAccent shadow-lg'
+                : 'w-5 h-14 bg-sidebar/80 backdrop-blur-sm border border-borderSubtle rounded-l-md text-textTertiary hover:text-primeAccent hover:bg-primeAccent/10 hover:border-primeAccent/20 shadow-md hover:shadow-lg'
+                }`}
               title={showToC ? '收起大纲' : '展开大纲'}
             >
               {showToC ? <PanelRightClose size={14} /> : <List size={12} />}
@@ -406,7 +421,7 @@ export default function Detail({
                     editable={editorMode === 'edit'}
                     pseudoEditable={editorMode === 'view'}
                     initialContent={tiptapContent}
-                    onUpdate={(md) => { if (editorMode === 'edit') { setEditValue(md); setTiptapContent(md); }}}
+                    onUpdate={(md) => { if (editorMode === 'edit') { setEditValue(md); setTiptapContent(md); } }}
                     editorRef={tiptapEditorRef}
                     className={editorMode === 'view' ? 'markdown-ocr' : ''}
                   />

@@ -119,6 +119,8 @@ export default function MarkdownEditor({
   }, [onImageUpload]);
 
   const editor = useEditor({
+    // view 模式（pseudoEditable）保持 editable=true，以便 drag handle 正常显示。
+    // 内容保护由 ReadOnlyExtension 的 filterTransaction 在事务层拦截，无需关闭编辑能力。
     editable: editable || pseudoEditable,
     extensions: [
       ...getCommonExtensions({ markdownClipboard: true }),
@@ -165,6 +167,15 @@ export default function MarkdownEditor({
   }, [editor, editable, pseudoEditable]);
 
   const domParentRef = useRef(null);
+  const wrapperRef = useRef(null);
+
+  // 模式切换时动态更新只读拦截器的开关状态
+  useEffect(() => {
+    if (!editor) return;
+    if (editor.storage.readOnlyMode) {
+      editor.storage.readOnlyMode.enabled = pseudoEditable;
+    }
+  }, [editor, pseudoEditable]);
 
   const applyDecorations = useCallback(() => {
     if (!pseudoEditable || !editor) return;
@@ -269,9 +280,9 @@ export default function MarkdownEditor({
       e.stopPropagation();
 
       const view = editor.view;
-      
-      // 聚焦编辑器，确保在选中时处于活跃状态
-      view.focus();
+
+      // view 模式下 editor 不可编辑，不需将焦点移入编辑器（避免丢失全局快捷键）
+      // view.focus(); // 删除！
 
       // 根据点击事件的 clientY 坐标，和编辑器正文横坐标中心，精准定位当前的文字行/块
       const editorRect = view.dom.getBoundingClientRect();
@@ -411,9 +422,11 @@ export default function MarkdownEditor({
           queueMicrotask(() => {
             if (editor.isFocused) return;
 
+            editor.isProgrammaticUpdate = true;
             editor.commands.setContent(initialContent || '', false, {
               parseOptions: { preserveWhitespace: 'full' },
             });
+            editor.isProgrammaticUpdate = false;
             lastMarkdownRef.current = initialContent;
             applyDecorations(); // 内容同步后立即重刷特殊标记渲染
           });
@@ -430,13 +443,6 @@ export default function MarkdownEditor({
     return () => editor.view.dom.removeEventListener('compositionend', onCompositionEnd);
   }, [initialContent, editor, applyDecorations]);
 
-  // 模式切换时动态更新只读拦截器的开关状态
-  useEffect(() => {
-    if (editor && editor.storage.readOnlyMode) {
-      editor.storage.readOnlyMode.enabled = pseudoEditable;
-    }
-  }, [editor, pseudoEditable]);
-
   useEffect(() => {
     setOnImageUpload(onImageUpload || null);
     setOnShowHelp(() => setShowHelp(true));
@@ -445,7 +451,7 @@ export default function MarkdownEditor({
   if (!editor) return null;
 
   return (
-    <div className={`markdown-editor-wrapper relative ${className}`}>
+    <div ref={wrapperRef} className={`markdown-editor-wrapper relative ${className}`}>
       {isTableActive && activeTableWrapper && createPortal(
         <div
           className="absolute -bottom-10 right-0 flex items-center gap-1 bg-modal/95 border border-borderSubtle rounded-lg shadow-xl p-1.5 animate-in fade-in zoom-in-95 backdrop-blur-md z-50"
