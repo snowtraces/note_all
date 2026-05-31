@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 - **卡片式 WIKI 搜索下拉选单 (`WikiSelector`)**：在左侧侧边栏引入了向上绝对定位弹出的模糊搜索下拉框，支持小卡片高亮选中状态。
 - **全新 WIKI 独立字段 `IsWiki (is_wiki)`**：在后端 `NoteItem` 模型中引入独立布尔字段 `IsWiki`，摆脱标签干扰。
 - **历史数据自动回填脚本 (`BackfillIsWiki`)**：后端每次启动时自动将血缘父节点的回顾长文其 `IsWiki` 初始化标记为 `true`。
+- **Notion 级块选中高亮交互**：在富文本编辑器中支持通过单次点击左侧 `drag-handle` 拖动柄一键选中并高亮对应的整个段落、标题、列表项或代码块，在样式上引入了极富质感的主题色微距描边与淡淡的主题色半透明背景。
+- **只读模式块选中与手柄调优**：在预览（伪只读）模式下依然支持鼠标滑过浮现手柄且支持点击选中，但精细拦截了 `mousedown` 的默认行为以防拖动篡改，无缝满足“能选中、不修改”的要求。
 
 ### Changed
 - **圆角精细硬朗化重塑**：系统性弱化了 `Sidebar.jsx` 和 `LabView.jsx` 的 border-radius 级别（从 `2xl/3xl` 全面降级为苹果风格的精密 `xl/lg/md` 圆角）。
@@ -19,3 +21,5 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - **按钮及状态前景色对比度优化**：修复了暗色/蓝色主题下，胶囊按钮文字和选中 Check 图标在深色背景下因 `text-black` 而对比度差的问题，强制采用高对比前景色。
+- **编辑器模式切换输入死锁**：彻底重构 `ReadOnlyExtension` 事件拦截为通过 `storage.enabled` 进行动态开关，彻底解决了由于静态评估扩展导致从预览切换回编辑模式时发生键盘输入被永久拦截的致命 Bug。
+- **Tag 标记重渲染美化丢失**：将 `[[tool:xxx]]` 与 `[[note:xxx]]` 的 Badge 美化逻辑封装为 `applyDecorations`，绑定至初始加载、内容更新与 setContent 渲染等完整生命周期，保障 DOM 刷新后样式永不丢失。

@@ -7,10 +7,15 @@
 
 /* 编辑区域 */
 .tiptap-content {
-  padding: 0;
+  padding: 0 12px; /* 增加左右留白，防止选中边框 (Outline) 被截断，并让排版极具呼吸感 */
   caret-color: var(--prime-accent);
   font-size: 16px;
   line-height: 1.8;
+}
+
+/* 伪编辑模式（如预览模式下开启了区块选中）隐藏光标 */
+.tiptap-content.is-pseudo-editable {
+  caret-color: transparent !important;
 }
 
 .markdown-editor-wrapper .tiptap-content {
@@ -663,7 +668,7 @@
   cursor: grab;
   background-color: var(--text-secondary);
   opacity: 0;
-  transition: opacity 0.2s, background-color 0.2s, transform 0.1s ease;
+  transition: opacity 0.2s, background-color 0.2s, transform 0.1s ease, translate 0.15s ease-out;
   pointer-events: all;
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='12' r='1.5'/%3E%3Ccircle cx='9' cy='5' r='1.5'/%3E%3Ccircle cx='9' cy='19' r='1.5'/%3E%3Ccircle cx='15' cy='12' r='1.5'/%3E%3Ccircle cx='15' cy='5' r='1.5'/%3E%3Ccircle cx='15' cy='19' r='1.5'/%3E%3C/svg%3E");
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='9' cy='12' r='1.5'/%3E%3Ccircle cx='9' cy='5' r='1.5'/%3E%3Ccircle cx='9' cy='19' r='1.5'/%3E%3Ccircle cx='15' cy='12' r='1.5'/%3E%3Ccircle cx='15' cy='5' r='1.5'/%3E%3Ccircle cx='15' cy='19' r='1.5'/%3E%3C/svg%3E");
@@ -700,4 +705,76 @@
 
 .chat-bubble-content .tiptap-content p:last-child {
   margin-bottom: 0;
+}
+
+/* ============ ProseMirror 选块高亮样式 (Notion 风格) ============ */
+.tiptap-content-area .ProseMirror .ProseMirror-selectednode {
+  outline: 2px solid var(--prime-accent) !important;
+  outline-offset: 3px;
+  background-color: color-mix(in srgb, var(--prime-accent) 5%, transparent) !important;
+  border-radius: 4px;
+  transition: background-color 0.2s ease, outline 0.2s ease;
+}
+
+/* 消除双重选中的视觉残影：如果外层容器（如 li）被插件错误加上了选中类，且内部包含真实选中的块，隐藏外层轮廓 */
+.ProseMirror-selectednode:has(.ProseMirror-selectednode) {
+  outline: none !important;
+}
+
+/* 列表项被选中时的微调，以防标记（bullet）显示异常 */
+.tiptap-content-area .ProseMirror li.ProseMirror-selectednode {
+  outline-offset: 4px;
+}
+
+/* 代码块容器被选中时的微调 */
+.tiptap-content-area .ProseMirror .tiptap-codeblock-wrapper.ProseMirror-selectednode {
+  outline-offset: 0px;
+}
+
+/* ============ drag-handle 针对不同元素类型的高精度垂直位移对齐微调 ============ */
+
+/* 对大字号的 h1 标题，手柄偏上，向下微调使其对齐第一行中心 */
+.drag-handle[data-active-node-type="h1"] {
+  translate: 0 4.5px;
+}
+
+/* h2 标题向下微调 */
+.drag-handle[data-active-node-type="h2"] {
+  translate: 0 3px;
+}
+
+/* h3 标题向下微调 */
+.drag-handle[data-active-node-type="h3"] {
+  translate: 0 2px;
+}
+
+/* 普通段落 p */
+.drag-handle[data-active-node-type="p"] {
+  translate: 0 0.5px;
+}
+
+/* 列表项 li */
+.drag-handle[data-active-node-type="li"] {
+  translate: 0 2px;
+}
+
+/* 代码块 codeBlock 整体容器，对齐顶部的 header 栏垂直中心 */
+.drag-handle[data-active-node-type="codeblock"],
+.drag-handle[data-active-node-type="codeBlock"] {
+  translate: 0 6px;
+}
+
+/* 嵌套在列表 (li) 或其他结构内的代码块 pre，由于其上方带有 38px 高度的 header 栏，手柄位置偏下。我们通过向上平移 32px 完美对齐到 header 垂直中心，实现与 codeBlock 整体容器完全一致的视觉中线 */
+.drag-handle[data-active-node-type="pre"] {
+  translate: 0 -32px;
+}
+
+/* 任务列表 taskList */
+.drag-handle[data-active-node-type="taskList"] {
+  translate: 0 2px;
+}
+
+/* 块级引用 blockquote */
+.drag-handle[data-active-node-type="blockquote"] {
+  translate: 0 3px;
 }

@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { BrainCircuit, Sparkles, X, ArchiveRestore, Trash2, RefreshCw, ChevronLeft, ChevronDown, Share2, Download, List, PanelRightClose } from 'lucide-react';
-import MarkdownRenderer from './MarkdownRenderer';
 import ContentToolbar from './ContentToolbar';
 import EditorToolbar from './EditorToolbar';
 import MarkdownEditor from './MarkdownEditor';
@@ -402,11 +401,14 @@ export default function Detail({
             {/* 正文 */}
             <div className="mt-1 pt-2 border-t border-borderSubtle -mx-4 px-4 md:-mx-5 md:px-5 lg:-mx-6 lg:px-6">
               <div className="text-textPrimary text-[14px] leading-[1.7] tracking-wide selection:bg-primeAccent selection:text-black">
-                <div style={{ display: editorMode === 'edit' ? 'block' : 'none' }}>
+                <div style={{ display: (editorMode === 'edit' || editorMode === 'view') ? 'block' : 'none' }}>
                   <MarkdownEditor
+                    editable={editorMode === 'edit'}
+                    pseudoEditable={editorMode === 'view'}
                     initialContent={tiptapContent}
                     onUpdate={(md) => { if (editorMode === 'edit') { setEditValue(md); setTiptapContent(md); }}}
                     editorRef={tiptapEditorRef}
+                    className={editorMode === 'view' ? 'markdown-ocr' : ''}
                   />
                 </div>
                 {editorMode === 'raw' && (
@@ -417,11 +419,6 @@ export default function Detail({
                     className="w-full outline-none bg-transparent overflow-hidden whitespace-pre-wrap font-mono text-[13px] text-textSecondary break-words border-none"
                     placeholder="未能提取到或尚未进行 OCR 文本识别..."
                   />
-                )}
-                {editorMode === 'view' && (
-                  <div className="markdown-ocr">
-                    <MarkdownRenderer content={editValue || "未能提取到或尚未进行 OCR 文本识别。"} />
-                  </div>
                 )}
               </div>
             </div>
