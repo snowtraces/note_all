@@ -20,7 +20,7 @@ const (
 // ChunkResult 分片结果
 type ChunkResult struct {
 	Content   string
-	RuneLen   int    // 缓存 rune 长度，避免重复 []rune() 转换
+	RuneLen   int // 缓存 rune 长度，避免重复 []rune() 转换
 	StartPos  int
 	EndPos    int
 	Heading   string
@@ -35,10 +35,10 @@ var (
 	h3Pattern = regexp.MustCompile(`(?m)^#{3}\s+[^\s].+$`)
 	// 其他标题格式（三级分割）
 	otherHeadingPatterns = []*regexp.Regexp{
-		regexp.MustCompile(`(?m)^第[一二三四五六七八九十百千万\d]+[章节部篇].*$`),  // 中文章节：第X章/节/部/篇
-		regexp.MustCompile(`(?m)^(\d+\.){2,}\d*\s+[^\s].+$`),                // 多级数字编号：1.1, 1.1.1
-		regexp.MustCompile(`(?m)^[一二三四五六七八九十]+[、.．]\s+[^\s：:]+$`),   // 中文编号标题：一、
-		regexp.MustCompile(`(?m)^\d+[、.．]\s+[^\s：:]{0,30}$`),              // 数字编号标题：1、
+		regexp.MustCompile(`(?m)^第[一二三四五六七八九十百千万\d]+[章节部篇步].*$`),   // 中文章节：第X章/节/部/篇
+		regexp.MustCompile(`(?m)^(\d+\.){2,}\d*\s+[^\s].+$`),       // 多级数字编号：1.1, 1.1.1
+		regexp.MustCompile(`(?m)^[一二三四五六七八九十]+[、.．]\s+[^\s：:]+$`),  // 中文编号标题：一、
+		regexp.MustCompile(`(?m)^\d+[、.．]\s+[^\s：:]{0,30}$`),       // 数字编号标题：1、
 		regexp.MustCompile(`(?m)^\([一二三四五六七八九十\d]+\)\s+[^\s：:]+$`), // 括号编号：(一)
 		regexp.MustCompile(`(?m)^\[[一二三四五六七八九十\d]+\]\s+[^\s：:]+$`), // 方括号编号：[一]
 	}
@@ -113,7 +113,7 @@ func mergeSmallInH2(chunks []ChunkResult, minSize int, maxSize int, h2Heading st
 					if sameH2Section(current.Heading, next.Heading, h2Heading) {
 						nextLen := next.RuneLen
 						mergedLen := currentLen + nextLen + separatorLen // "\n\n" 分隔符
-						if mergedLen <= maxSize {                       // 确保合并后不超过上限
+						if mergedLen <= maxSize {                        // 确保合并后不超过上限
 							mergedContent := current.Content + "\n\n" + next.Content
 							merged := ChunkResult{
 								Content:   mergedContent,
@@ -381,10 +381,10 @@ func chunkParagraphs(runes []rune, offsetStart int, heading string, config model
 
 	// 贪心累加器：将短段落尽量打包到一个分片内
 	type accEntry struct {
-		content   string
-		runeLen   int
-		startPos  int
-		endPos    int
+		content  string
+		runeLen  int
+		startPos int
+		endPos   int
 	}
 	var acc []accEntry
 	accLen := 0 // 已累积段落的纯文本长度之和
@@ -530,7 +530,7 @@ func splitByLength(runes []rune, globalStart int, config models.ChunkConfig) []C
 		if end < len(runes) {
 			// 向前寻找句子边界 (句号、问号、感叹号)
 			sentenceEnd := findSentenceEnd(runes, start, end)
-			if sentenceEnd > start + config.MinChunkSize {
+			if sentenceEnd > start+config.MinChunkSize {
 				end = sentenceEnd + 1
 			}
 		}
