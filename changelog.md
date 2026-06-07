@@ -18,6 +18,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - **多光标/选区包裹事务算法重构**：采用“从后往前”遍历的逆序绝对索引事务机制，彻底消除了由于 CodeMirror 内置 map 自动映射跟手动追加偏移发生冲突而造成的选区错乱和“选择当前块”的 Bug。
+- **Wiki 溯源档案重复点击数据丢失修复**：在 `Detail.jsx` 中通过及时清除缓存状态锁 `fetchedDetailIdsRef`，解决在第二次点击相同卡片时，因被误认为已拉取详情而跳过接口请求导致溯源面板无数据展示的问题。
+- **源视觉空态占位清理**：优化 `DetailSidebar.jsx` 的渲染逻辑，去除了非图片类型源视觉在右上方大面积的冗余占位图展示。
 
 ## [Unreleased] - 2026-05-31
 

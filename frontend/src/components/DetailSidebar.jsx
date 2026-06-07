@@ -223,23 +223,18 @@ function NormalSidebarContent({
       {/* 可滚动内容区 */}
       <div className="flex-none lg:flex-1 overflow-visible lg:overflow-y-auto p-5 custom-scrollbar scrollbar-hide flex flex-col gap-4">
         {/* 区块 1: 源视觉预览 */}
-        <div className="w-full h-[160px] shrink-0 bg-sidebar border border-borderSubtle rounded-xl flex items-center justify-center relative overflow-hidden group text-center">
-          <div className="absolute top-3 left-3 bg-modal/50 backdrop-blur-md px-2 py-0.5 rounded text-[10px] text-textSecondary tracking-widest uppercase font-mono z-10 pointer-events-none border border-borderSubtle shadow-md">源视觉</div>
+        {item.file_type?.includes('image') && (
+          <div className="w-full h-[160px] shrink-0 bg-sidebar border border-borderSubtle rounded-xl flex items-center justify-center relative overflow-hidden group text-center">
+            <div className="absolute top-3 left-3 bg-modal/50 backdrop-blur-md px-2 py-0.5 rounded text-[10px] text-textSecondary tracking-widest uppercase font-mono z-10 pointer-events-none border border-borderSubtle shadow-md">源视觉</div>
 
-          {item.file_type?.includes('image') ? (
             <img
               src={fileUrl}
               alt="source visual"
               onClick={() => setPreviewImage && setPreviewImage(fileUrl)}
               className="max-w-full max-h-full object-contain transition-transform duration-700 group-hover:scale-105 cursor-crosshair"
             />
-          ) : (
-            <div className="opacity-40 flex flex-col items-center justify-center p-4 h-full text-textTertiary">
-              <ImageIcon size={36} className="mb-3 shrink-0" />
-              <span className="text-[10px] tracking-widest uppercase font-mono">{item.file_type || 'DOCUMENT'}</span>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* 区块 2: 统一信息卡片 */}
         <div className="bg-card border border-borderSubtle rounded-xl p-3 space-y-2">

@@ -85,6 +85,10 @@ export default function Detail({
     const isDifferentNote = prevItemIdRef.current !== item.id;
     prevItemIdRef.current = item.id;
 
+    if (isDifferentNote) {
+      fetchedDetailIdsRef.current.clear();
+    }
+
     const hasFetched = fetchedDetailIdsRef.current.has(item.id);
     const needFullFetch = !hasFetched && (!item.ocr_text || (item.is_wiki && !(item.parents?.length > 0)));
     
