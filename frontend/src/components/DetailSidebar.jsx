@@ -4,13 +4,78 @@ import TableOfContents from './TableOfContents';
 import MarkdownRenderer from './MarkdownRenderer';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Wiki 专属溯源面板
+// 侧边栏预览浮窗
 // ─────────────────────────────────────────────────────────────────────────────
-function WikiSidebarContent({ item, onNavigate, showToC, setShowToC, tocContent, tocContainerRef }) {
+function PreviewOverlay({ previewItem, setPreviewItem, onNavigate, copiedId, handleCopy }) {
+  if (!previewItem) return null;
+
+  return (
+    <div className="absolute top-0 bottom-0 right-0 lg:right-[280px] xl:right-[320px] w-[600px] bg-panel/95 backdrop-blur-xl border-r border-borderSubtle/60 shadow-2xl flex flex-col animate-in slide-in-from-left duration-300 z-40">
+      {/* 头部 */}
+      <div className="px-5 py-3 border-b border-borderSubtle/40 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-primeAccent/10 border border-primeAccent/20">
+            <FileText size={14} className="text-primeAccent" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[12px] font-bold tracking-widest font-mono uppercase text-textSecondary/80">内容预览</span>
+            {previewItem.original_name && (
+              <span className="text-[10px] font-mono text-textSecondary/40 truncate max-w-[200px]">{previewItem.original_name}</span>
+            )}
+          </div>
+        </div>
+        <button
+          onClick={() => setPreviewItem(null)}
+          className="text-textSecondary/40 hover:text-red-400 transition-colors bg-sidebar/50 p-2 rounded-lg border border-borderSubtle/40"
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      {/* 内容区 - Markdown 渲染 */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-5">
+        <div className="bg-sidebar/40 border border-borderSubtle/40 rounded-xl overflow-hidden">
+          <MarkdownRenderer
+            content={previewItem.ocr_text || previewItem.ai_summary || '（暂无内容）'}
+            className="p-5 text-[14px] leading-relaxed"
+          />
+        </div>
+      </div>
+
+      {/* 操作栏 */}
+      <div className="shrink-0 px-5 py-3 border-t border-borderSubtle/40 flex items-center gap-3">
+        <button
+          onClick={() => handleCopy(previewItem.ocr_text || previewItem.ai_summary, previewItem.id)}
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-medium border transition-all ${
+            copiedId === previewItem.id
+              ? 'bg-green-500/10 border-green-500/30 text-green-400'
+              : 'bg-sidebar border-borderSubtle text-textSecondary/60 hover:text-textPrimary hover:border-borderSubtle/80'
+          }`}
+        >
+          <Copy size={12} />
+          {copiedId === previewItem.id ? '已复制' : '复制原文'}
+        </button>
+        <button
+          onClick={() => {
+            setPreviewItem(null);
+            onNavigate(previewItem);
+          }}
+          className="flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-medium border border-primeAccent/20 bg-primeAccent/5 text-primeAccent/70 hover:bg-primeAccent/10 hover:text-primeAccent transition-all"
+        >
+          前往查看详情
+          <ArrowUpRight size={12} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 自定义 Hook: 预览控制逻辑
+// ─────────────────────────────────────────────────────────────────────────────
+function usePreview() {
   const [previewItem, setPreviewItem] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
-
-  const parents = item.parents || [];
 
   const handleCopy = async (text, id) => {
     try {
@@ -20,7 +85,7 @@ function WikiSidebarContent({ item, onNavigate, showToC, setShowToC, tocContent,
     } catch (_) {}
   };
 
-  // ESC 关闭预览（capture 模式优先捕获）
+  // ESC 关闭预览
   useEffect(() => {
     if (!previewItem) return;
     const handleKeyDown = (e) => {
@@ -34,86 +99,52 @@ function WikiSidebarContent({ item, onNavigate, showToC, setShowToC, tocContent,
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [previewItem]);
 
+  return { previewItem, setPreviewItem, copiedId, handleCopy };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 大纲覆盖层组件
+// ─────────────────────────────────────────────────────────────────────────────
+function TocOverlay({ showToC, setShowToC, tocContent, tocContainerRef }) {
+  if (!showToC) return null;
+  return (
+    <div className="absolute inset-0 z-30 bg-main/80 backdrop-blur-xl flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="px-3 py-2.5 border-b border-borderSubtle/40 flex items-center justify-between shrink-0">
+        <span className="text-[11px] text-textSecondary/70 font-bold tracking-widest font-mono uppercase">大纲导读</span>
+        <button
+          onClick={() => setShowToC(false)}
+          className="text-textSecondary/40 hover:text-red-400 transition-colors bg-sidebar/50 p-1 rounded-md border border-borderSubtle/40"
+        >
+          <X size={11} />
+        </button>
+      </div>
+      <div className="flex-1 overflow-y-auto custom-scrollbar py-1">
+        <TableOfContents content={tocContent} containerRef={tocContainerRef} contained />
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Wiki 专属溯源面板
+// ─────────────────────────────────────────────────────────────────────────────
+function WikiSidebarContent({ item, onNavigate, showToC, setShowToC, tocContent, tocContainerRef }) {
+  const { previewItem, setPreviewItem, copiedId, handleCopy } = usePreview();
+
+  const parents = item.parents || [];
+
   return (
     <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 bg-panel/80 flex flex-col flex-none h-auto lg:h-full relative border-t lg:border-t-0 lg:border-l border-borderSubtle">
-      {/* 大纲浮动覆盖层（保留） */}
-      {showToC && (
-        <div className="absolute inset-0 z-30 bg-main/80 backdrop-blur-xl flex flex-col animate-in slide-in-from-right duration-300">
-          <div className="px-3 py-2.5 border-b border-borderSubtle/40 flex items-center justify-between shrink-0">
-            <span className="text-[11px] text-textSecondary/70 font-bold tracking-widest font-mono uppercase">大纲导读</span>
-            <button
-              onClick={() => setShowToC(false)}
-              className="text-textSecondary/40 hover:text-red-400 transition-colors bg-sidebar/50 p-1 rounded-md border border-borderSubtle/40"
-            >
-              <X size={11} />
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto custom-scrollbar py-1">
-            <TableOfContents content={tocContent} containerRef={tocContainerRef} contained />
-          </div>
-        </div>
-      )}
+      <TocOverlay showToC={showToC} setShowToC={setShowToC} tocContent={tocContent} tocContainerRef={tocContainerRef} />
 
       {/* 溯源预览浮动框 - 着右侧边栏左边缘 */}
-      {previewItem && (
-        <div className="absolute top-0 bottom-0 right-0 lg:right-[280px] xl:right-[320px] w-[600px] bg-panel/95 backdrop-blur-xl border-r border-borderSubtle/60 shadow-2xl flex flex-col animate-in slide-in-from-left duration-300 z-40">
-          {/* 头部 */}
-          <div className="px-5 py-3 border-b border-borderSubtle/40 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-primeAccent/10 border border-primeAccent/20">
-                <FileText size={14} className="text-primeAccent" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[12px] font-bold tracking-widest font-mono uppercase text-textSecondary/80">来源碎片预览</span>
-                {previewItem.original_name && (
-                  <span className="text-[10px] font-mono text-textSecondary/40 truncate max-w-[200px]">{previewItem.original_name}</span>
-                )}
-              </div>
-            </div>
-            <button
-              onClick={() => setPreviewItem(null)}
-              className="text-textSecondary/40 hover:text-red-400 transition-colors bg-sidebar/50 p-2 rounded-lg border border-borderSubtle/40"
-            >
-              <X size={16} />
-            </button>
-          </div>
-
-          {/* 内容区 - Markdown 渲染 */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-5">
-            <div className="bg-sidebar/40 border border-borderSubtle/40 rounded-xl overflow-hidden">
-              <MarkdownRenderer
-                content={previewItem.ocr_text || previewItem.ai_summary || '（暂无内容）'}
-                className="p-5 text-[14px] leading-relaxed"
-              />
-            </div>
-          </div>
-
-          {/* 操作栏 */}
-          <div className="shrink-0 px-5 py-3 border-t border-borderSubtle/40 flex items-center gap-3">
-            <button
-              onClick={() => handleCopy(previewItem.ocr_text || previewItem.ai_summary, previewItem.id)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-medium border transition-all ${
-                copiedId === previewItem.id
-                  ? 'bg-green-500/10 border-green-500/30 text-green-400'
-                  : 'bg-sidebar border-borderSubtle text-textSecondary/60 hover:text-textPrimary hover:border-borderSubtle/80'
-              }`}
-            >
-              <Copy size={12} />
-              {copiedId === previewItem.id ? '已复制' : '复制原文'}
-            </button>
-            <button
-              onClick={() => {
-                setPreviewItem(null);
-                onNavigate(previewItem);
-              }}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-medium border border-primeAccent/20 bg-primeAccent/5 text-primeAccent/70 hover:bg-primeAccent/10 hover:text-primeAccent transition-all"
-            >
-              前往查看详情
-              <ArrowUpRight size={12} />
-            </button>
-          </div>
-        </div>
-      )}
+      <PreviewOverlay 
+        previewItem={previewItem} 
+        setPreviewItem={setPreviewItem} 
+        onNavigate={onNavigate} 
+        copiedId={copiedId} 
+        handleCopy={handleCopy} 
+      />
 
       {/* 顶部标题栏 */}
       <div className="shrink-0 px-4 py-3 border-b border-borderSubtle/60 flex items-center justify-between bg-sidebar/30">
@@ -201,25 +232,24 @@ function NormalSidebarContent({
   handleUpdateStatus,
   isSubmittingStatus,
 }) {
+  const { previewItem, setPreviewItem, copiedId, handleCopy } = usePreview();
+
+  const hasRelated = relatedItems && relatedItems.length > 0;
+  const hasParents = item.parents && item.parents.length > 0;
+  const showTabs = hasRelated && hasParents;
+  const showRelated = hasRelated && (!hasParents || activeConnectionTab === 'related');
+  const showParents = hasParents && (!hasRelated || activeConnectionTab === 'lineage');
+
   return (
     <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 bg-panel/80 flex flex-col flex-none h-auto lg:h-full relative border-t lg:border-t-0 lg:border-l border-borderSubtle">
-      {/* 大纲浮动覆盖层 */}
-      {showToC && (
-        <div className="absolute inset-0 z-30 bg-main/80 backdrop-blur-xl flex flex-col animate-in slide-in-from-right duration-300">
-          <div className="px-3 py-2.5 border-b border-borderSubtle/40 flex items-center justify-between shrink-0">
-            <span className="text-[11px] text-textSecondary/70 font-bold tracking-widest font-mono uppercase">大纲导读</span>
-            <button
-              onClick={() => setShowToC(false)}
-              className="text-textSecondary/40 hover:text-red-400 transition-colors bg-sidebar/50 p-1 rounded-md border border-borderSubtle/40"
-            >
-              <X size={11} />
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto custom-scrollbar py-1">
-            <TableOfContents content={tocContent} containerRef={tocContainerRef} contained />
-          </div>
-        </div>
-      )}
+      <PreviewOverlay 
+        previewItem={previewItem} 
+        setPreviewItem={setPreviewItem} 
+        onNavigate={onNavigate} 
+        copiedId={copiedId} 
+        handleCopy={handleCopy} 
+      />
+      <TocOverlay showToC={showToC} setShowToC={setShowToC} tocContent={tocContent} tocContainerRef={tocContainerRef} />
       {/* 可滚动内容区 */}
       <div className="flex-none lg:flex-1 overflow-visible lg:overflow-y-auto p-5 custom-scrollbar scrollbar-hide flex flex-col gap-4">
         {/* 区块 1: 源视觉预览 */}
@@ -261,9 +291,9 @@ function NormalSidebarContent({
         </div>
 
         {/* 区块 3: 关联连接 */}
-        {(relatedItems.length > 0 || (item.parents && item.parents.length > 0)) && (
+        {(hasRelated || hasParents) && (
           <div className="pt-1 animate-in fade-in slide-in-from-top-2 duration-700">
-            {relatedItems.length > 0 && item.parents && item.parents.length > 0 && (
+            {showTabs && (
               <div className="flex bg-sidebar rounded-lg p-0.5 mb-3 border border-borderSubtle">
                 <button
                   onClick={() => setActiveConnectionTab('related')}
@@ -287,9 +317,9 @@ function NormalSidebarContent({
             )}
 
             <div>
-              {(activeConnectionTab === 'related' || !(item.parents && item.parents.length > 0)) && relatedItems.length > 0 && (
+              {showRelated && (
                 <>
-                  {!(item.parents && item.parents.length > 0) && (
+                  {!showTabs && (
                     <div className="text-[10px] text-textSecondary/50 uppercase mb-2 font-mono flex items-center gap-2">
                       <Link size={10} className="text-primeAccent" /> 相关笔记
                     </div>
@@ -298,7 +328,7 @@ function NormalSidebarContent({
                     {relatedItems.map(rel => (
                       <div
                         key={rel.id}
-                        onClick={() => onNavigate(rel)}
+                        onClick={() => setPreviewItem(rel)}
                         className="p-3 hover:bg-primeAccent/5 transition-colors cursor-pointer group/rel"
                       >
                         <div className="text-[11px] text-textSecondary/70 group-hover/rel:text-textPrimary transition-colors line-clamp-2 leading-snug">
@@ -313,9 +343,9 @@ function NormalSidebarContent({
                 </>
               )}
 
-              {(activeConnectionTab === 'lineage' || !(relatedItems.length > 0)) && item.parents && item.parents.length > 0 && (
+              {showParents && (
                 <>
-                  {!(relatedItems.length > 0) && (
+                  {!showTabs && (
                     <div className="text-[10px] text-textSecondary/50 uppercase mb-2 font-mono flex items-center gap-2">
                       <Zap size={10} className="text-primeAccent" /> 知识合成谱系
                     </div>
@@ -324,7 +354,7 @@ function NormalSidebarContent({
                     {item.parents.map(p => (
                       <div
                         key={p.id}
-                        onClick={() => onNavigate(p)}
+                        onClick={() => setPreviewItem(p)}
                         className="p-3 hover:bg-primeAccent/10 transition-colors cursor-pointer group/node"
                       >
                         <div className="text-[11px] line-clamp-2 leading-relaxed text-textSecondary group-hover/node:text-textPrimary transition-colors">

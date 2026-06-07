@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 - **底栏极简快捷键徽章提示**：在底栏左侧集成了极简风格的快捷键指示徽章（`Ctrl + B` 加粗、`Ctrl + I` 块选择、`Ctrl + K` 链接、`Ctrl + S` 保存），并支持响应式大中屏展示与小屏自适应隐藏。
 
 ### Changed
+- **侧边栏预览逻辑统一与结构重构**：将相关笔记和知识合成谱系的点击行为从直接跳转统一改造为与 Wiki 溯源档案一致的无跳转预览浮窗交互。同时在 `DetailSidebar.jsx` 中提取了公共的 `PreviewOverlay` 和 `TocOverlay` 组件，通过清晰的布尔标志位化解了关联节点 Tabs 繁杂晦涩的条件渲染逻辑，显著提升了代码的可读性与健壮性。
 - **编辑器自适应与输入性能提升**：用 CSS 样式覆盖替代了旧版 textarea 通过 JS 高频测量 scrollHeight 同步高度的重计算逻辑，改由 CodeMirror 原生 CSS 布局自适应向下延伸，彻底消除万字长文打字时的浏览器重排卡顿。
 
 ### Fixed
