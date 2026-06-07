@@ -238,11 +238,11 @@ export default function Sidebar({
       onMouseLeave={() => setHoveredNote(null)}
     >
       {/* Header 区 */}
-      <div className="pt-4 md:pt-6 px-4 md:px-5 pb-4 md:pb-5 border-b border-borderSubtle relative shrink-0">
+      <div className="pt-4 px-4 md:px-5 pb-3 border-b border-borderSubtle relative shrink-0">
 
 
-        <div className="flex justify-between items-center mb-4 h-auto md:h-11">
-          <h1 className={`text-xl md:text-2xl font-extrabold tracking-tight transition-colors leading-none ${showTrash ? 'text-red-500/80' : 'text-textPrimary'}`}>
+        <div className="flex justify-between items-center mb-3 h-auto md:h-8">
+          <h1 className={`text-lg md:text-xl font-extrabold tracking-tight transition-colors leading-none ${showTrash ? 'text-red-500/80' : 'text-textPrimary'}`}>
             {showTrash ? 'Trash ' : (viewMode === 'chats' ? 'Chat ' : viewMode === 'graph' ? 'Graph ' : viewMode === 'lab' ? 'Lab ' : viewMode === 'image_gen' ? 'Image ' : 'Note ')}
             <span className={showTrash ? 'text-red-400' : 'text-primeAccent'}>
               {showTrash ? 'Bin' : (viewMode === 'chats' ? 'History' : viewMode === 'graph' ? 'Matrix' : viewMode === 'lab' ? 'Space' : viewMode === 'image_gen' ? 'Studio' : 'All')}
@@ -251,7 +251,7 @@ export default function Sidebar({
 
           {/* Item Count or Status */}
           <div className="flex items-center gap-2">
-            <span className="text-[9px] md:text-[10px] font-mono text-textMuted uppercase tracking-widest bg-sidebar px-2 py-0.5 rounded-full border border-borderSubtle">
+            <span className="text-[10px] tabular-nums font-mono text-textTertiary uppercase tracking-widest px-1.5 py-0.5 rounded-md border border-borderSubtle/50 bg-bgHover/50">
               {displayedResults.length} {searchOnlyWiki && viewMode === 'notes' ? 'WIKIS' : 'FRAGMENTS'}
             </span>
           </div>
@@ -260,16 +260,19 @@ export default function Sidebar({
         {/* 搜素框 */}
         {viewMode === 'notes' && (
           <div className="relative w-full group" ref={dropdownRef}>
-            <div className="absolute inset-y-0 left-3 md:left-4 flex items-center pointer-events-none">
+            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
               {query.startsWith('#') && !showTrash
-                ? <Tag size={16} className="text-primeAccent transition-colors" />
-                : <Search size={16} className="text-primeAccent/50 group-focus-within:text-primeAccent transition-colors" />
+                ? <Tag size={14} className="text-primeAccent transition-colors" />
+                : <Search size={14} className="text-primeAccent/50 group-focus-within:text-primeAccent transition-colors" />
               }
             </div>
             <input
               type="text"
               value={query}
               disabled={showTrash}
+              autoComplete="off"
+              spellCheck="false"
+              autoCorrect="off"
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
                 if (showTagDrop && filteredTags.length > 0) {
@@ -284,27 +287,25 @@ export default function Sidebar({
                 if (e.key === 'Escape') setShowTagDrop(false);
               }}
               placeholder={showTrash ? "回收站不支持搜索" : "搜索... 输入 #标签 或 ?提问"}
-              className={`w-full bg-sidebar border py-2.5 md:py-3 pl-10 md:pl-12 pr-[86px] text-[14px] md:text-[15px] rounded border-borderSubtle focus:border-primeAccent/50 text-textPrimary placeholder-textMuted focus:outline-none transition-all ${showTrash ? 'opacity-50' : ''}`}
+              className={`w-full bg-sidebar/50 hover:bg-sidebar border py-2 pl-9 pr-[86px] text-[13px] rounded-lg shadow-sm border-borderSubtle focus:border-primeAccent/50 text-textPrimary placeholder-textMuted outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 transition-colors duration-200 ${showTrash ? 'opacity-50' : ''}`}
             />
             {/* Wiki 专属仅查询选项：根据 query 是否为空优雅进行右侧避让 */}
             {!showTrash && (
               <button
                 type="button"
                 onClick={() => setSearchOnlyWiki(!searchOnlyWiki)}
-                className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-[9px] font-extrabold tracking-wide uppercase transition-all select-none z-20 ${
-                  query ? 'right-11' : 'right-3'
-                } ${
-                  searchOnlyWiki
+                className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 px-2 py-0.5 rounded-md border text-[9px] font-extrabold tracking-wide uppercase transition-all select-none z-20 ${query ? 'right-8' : 'right-2'
+                  } ${searchOnlyWiki
                     ? 'bg-primeAccent/15 text-primeAccent border-primeAccent/30 shadow-sm'
                     : 'bg-sidebar/40 border-borderSubtle text-textTertiary hover:text-textPrimary hover:bg-bgHover'
-                }`}
+                  }`}
               >
                 <BookOpen size={10} />
                 Wiki
               </button>
             )}
             {query && (
-              <X size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-textTertiary cursor-pointer hover:text-textPrimary z-20" onClick={() => { setQuery(''); handleSearch(''); }} />
+              <X size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-textTertiary cursor-pointer hover:text-textPrimary z-20" onClick={() => { setQuery(''); handleSearch(''); }} />
             )}
 
             {showTagDrop && filteredTags.length > 0 && (
@@ -321,18 +322,33 @@ export default function Sidebar({
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar px-4 md:px-5 py-4 flex flex-col gap-3 relative">
+      <div className="flex-1 overflow-y-auto custom-scrollbar px-4 md:px-5 pt-6 pb-4 flex flex-col gap-4 relative">
         {viewMode === 'notes' ? (
           <>
             {loading && displayedResults.length === 0 && (
-              <div className="w-full h-32 flex flex-col items-center justify-center text-primeAccent/60 animate-pulse gap-2">
-                <BrainCircuit size={32} className="animate-spin" />
-                <span className="text-sm">检索记忆中...</span>
+              <div className="w-full flex flex-col gap-3 animate-pulse pt-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="p-4 rounded-xl bg-accent-subtle/30 ring-1 ring-transparent flex flex-col gap-3">
+                    <div className="flex justify-between items-center">
+                      <div className="flex gap-1.5"><div className="w-10 h-4 bg-primeAccent/10 rounded"></div><div className="w-8 h-4 bg-bgHover rounded"></div></div>
+                      <div className="w-12 h-3 bg-bgHover rounded"></div>
+                    </div>
+                    <div className="w-3/4 h-4 bg-bgHover rounded"></div>
+                    <div className="w-full h-3 bg-bgHover/50 rounded mt-1"></div>
+                    <div className="w-2/3 h-3 bg-bgHover/50 rounded"></div>
+                  </div>
+                ))}
               </div>
             )}
             {!loading && displayedResults.length === 0 && (
-              <div className="w-full h-full flex items-center justify-center text-textMuted text-sm py-20">
-                {searchOnlyWiki ? "无相关 WIKI 档案记录" : "无相关记忆碎片"}
+              <div className="w-full text-center py-24 px-6 flex flex-col items-center">
+                <div className="w-12 h-12 rounded-2xl bg-primeAccent/5 flex items-center justify-center mb-4">
+                  <Search size={20} className="text-primeAccent/40" />
+                </div>
+                <h3 className="text-[13px] font-bold mb-2 text-textSecondary">{searchOnlyWiki ? "未找到 WIKI 档案" : "无相关记忆碎片"}</h3>
+                <p className="text-[11px] text-textMuted leading-relaxed">
+                  尝试更换关键词或标签，或者点击底部「新增文档」来记录新的内容。
+                </p>
               </div>
             )}
             {displayedResults.map((item) => {
@@ -346,9 +362,9 @@ export default function Sidebar({
                 <div
                   key={item.id}
                   onClick={() => setSelectedItem(item)}
-                  className={`p-4 rounded-xl transition-all duration-300 flex flex-col shrink-0 min-w-0 border-l-[3px] cursor-pointer relative overflow-hidden ${isSelected
-                    ? 'bg-primeAccent/10 border-l-primeAccent/60 border border-transparent shadow-lg shadow-primeAccent/5'
-                    : 'bg-accent-subtle border-l-[3px] rounded-xl hover:bg-card hover:border-l-primeAccent/30 border border-borderSubtle text-textSecondary'
+                  className={`p-4 rounded-xl transition-all duration-300 flex flex-col shrink-0 min-w-0 cursor-pointer relative overflow-hidden active:scale-[0.98] ${isSelected
+                    ? 'bg-primeAccent/10 shadow-[0_4px_20px_rgba(255,215,0,0.06)] ring-1 ring-primeAccent/30'
+                    : 'bg-transparent hover:bg-accent-subtle/50 text-textSecondary ring-1 ring-borderSubtle/50 hover:ring-borderSubtle hover:shadow-sm'
                     } group`}
                 >
                   {/* WIKI 巨型半透明大字 SVG 水印 (固定直接显示，Hover 仅稍稍加深颜色) */}
@@ -359,10 +375,10 @@ export default function Sidebar({
                       }`}>
                       <svg viewBox="0 0 110 45" className="w-28 h-12" fill="none" xmlns="http://www.w3.org/2000/svg">
                         {/* 优雅的斜体几何大字 WIKI */}
-                        <text x="5" y="38"
+                        <text x="20" y="38"
                           fill="currentColor"
-                          fontSize="38"
-                          fontWeight="900"
+                          fontSize="30"
+                          fontWeight="800"
                           fontStyle="italic"
                           fontFamily="'Inter', 'Segoe UI', system-ui, sans-serif"
                           letterSpacing="-1.8"
@@ -374,11 +390,11 @@ export default function Sidebar({
                   )}
 
                   {/* 第一行：元信息栏 (标签、日期、操作) */}
-                  <div className="flex justify-between items-start mb-2.5 relative z-10">
+                  <div className="flex justify-between items-end mb-2 mt-0 relative z-10">
                     <div className="flex flex-wrap gap-1.5 max-h-[44px] overflow-hidden">
                       {renderTags(item.ai_tags, item.id, isSelected)}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-end gap-2">
                       {item.parents && item.parents.length > 0 && (
                         <Zap size={10} className="text-primeAccent fill-primeAccent/20 animate-pulse" title="合成生成的知识笔记" />
                       )}
@@ -394,7 +410,7 @@ export default function Sidebar({
                           toggleLabItem(item.id);
                         }}
                         title={labBasket?.includes(item.id) ? "从实验室移除" : "加入实验室素材"}
-                        className={`p-1.5 rounded-lg transition-all ${labBasket?.includes(item.id)
+                        className={`p-1 rounded-lg transition-all ${labBasket?.includes(item.id)
                           ? 'bg-primeAccent text-white-fixed scale-110 shadow shadow-primeAccent/40'
                           : 'bg-sidebar text-textSecondary/20 hover:text-primeAccent hover:bg-primeAccent/10 opacity-40 group-hover:opacity-100'
                           }`}
@@ -414,6 +430,8 @@ export default function Sidebar({
                   <div className="text-textSecondary text-[12px] leading-relaxed font-normal line-clamp-2 relative z-10">
                     {cardSummary}
                   </div>
+
+
                 </div>
               );
             })}
@@ -423,13 +441,24 @@ export default function Sidebar({
         ) : viewMode === 'chats' ? (
           <>
             {sessionLoading && chatSessions.length === 0 && (
-              <div className="w-full h-32 flex flex-col items-center justify-center text-primeAccent/40 animate-pulse">
-                <span className="text-sm italic">激活历史对话档案...</span>
+              <div className="w-full flex flex-col gap-3 animate-pulse pt-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="p-4 rounded-xl bg-accent-subtle/30 ring-1 ring-transparent flex flex-col gap-2">
+                    <div className="flex gap-2 items-center"><div className="w-3 h-3 bg-bgHover rounded-full"></div><div className="w-16 h-3 bg-bgHover rounded"></div></div>
+                    <div className="w-2/3 h-4 bg-bgHover rounded mt-1"></div>
+                  </div>
+                ))}
               </div>
             )}
             {!sessionLoading && chatSessions.length === 0 && (
-              <div className="w-full text-center py-20 px-8">
-                <p className="text-textMuted text-xs">暂无历史对话记录</p>
+              <div className="w-full text-center py-24 px-6 flex flex-col items-center">
+                <div className="w-12 h-12 rounded-2xl bg-primeAccent/5 flex items-center justify-center mb-4">
+                  <MessageSquare size={20} className="text-primeAccent/40" />
+                </div>
+                <h3 className="text-[13px] font-bold mb-2 text-textSecondary">暂无历史对话</h3>
+                <p className="text-[11px] text-textMuted leading-relaxed">
+                  你的新对话将会保存在这里。
+                </p>
               </div>
             )}
             {chatSessions.map((session) => (
@@ -440,7 +469,7 @@ export default function Sidebar({
                   if (e.target.closest('button')) return;
                   loadChatSession(session.id);
                 }}
-                className="group p-4 bg-accent-subtle border border-borderSubtle rounded-xl hover:bg-primeAccent/10 hover:border-l-primeAccent/30 transition-all cursor-pointer relative"
+                className="group p-4 bg-transparent ring-1 ring-borderSubtle/50 rounded-xl hover:bg-primeAccent/10 hover:ring-primeAccent/30 hover:shadow-sm active:scale-[0.98] transition-all duration-300 flex flex-col shrink-0 min-w-0 cursor-pointer relative overflow-hidden"
               >
                 <div className="flex items-center gap-2 mb-2">
                   <MessageSquare size={12} className="text-primeAccent/50" />
@@ -507,7 +536,7 @@ export default function Sidebar({
                   return (
                     <div
                       key={note.id}
-                      className="p-4 rounded-xl bg-accent-subtle border border-borderSubtle border-l-[3px] border-l-primeAccent/20 relative group cursor-help transition-all duration-300 hover:bg-card hover:border-l-primeAccent/30"
+                      className="p-4 rounded-xl bg-transparent ring-1 ring-borderSubtle/50 relative group cursor-help transition-all duration-300 hover:bg-accent-subtle/50 hover:ring-borderSubtle active:scale-[0.98] overflow-hidden flex flex-col shrink-0 min-w-0"
                       onMouseEnter={(e) => {
                         setHoveredNote(note);
                         const cardRect = e.currentTarget.getBoundingClientRect();
@@ -518,6 +547,8 @@ export default function Sidebar({
                         });
                       }}
                     >
+                      {/* 优雅的左侧修饰线，代替生硬的 border-l */}
+                      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-primeAccent/30 group-hover:bg-primeAccent/60 transition-colors"></div>
                       <button
                         onClick={() => toggleLabItem(note.id)}
                         className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-red-400 z-10 p-1 hover:bg-red-500/10 rounded"
@@ -720,7 +751,7 @@ export default function Sidebar({
       )}
 
       {!showTrash && viewMode === 'notes' && (
-        <div className="p-4 border-t bg-modal shrink-0 border-borderSubtle">
+        <div className="px-4 pt-4 pb-6 border-t bg-modal shrink-0 border-borderSubtle">
           <input type="file" ref={fileInputRef} onChange={handleUpload} className="hidden" />
 
 
