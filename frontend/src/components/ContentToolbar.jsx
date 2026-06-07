@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExternalLink, ImageDown, RefreshCw, CheckCircle2, XCircle, Save, PenLine, Code2, Eye } from 'lucide-react';
+import { ExternalLink, ImageDown, RefreshCw, CheckCircle2, XCircle, Save, PenLine, Code2, Eye, ChevronUp, ChevronDown } from 'lucide-react';
 import { EDITOR_MODES } from '../constants/editorModes';
 
 export default function ContentToolbar({
@@ -20,12 +20,92 @@ export default function ContentToolbar({
   onModeChange,
   onSelectTemplate,
   onReprocess,
-  onSave
+  onSave,
+  
+  // Search Props
+  isSearchActive,
+  searchQuery,
+  totalMatches,
+  activeSearchIndex,
+  searchInputRef,
+  onSearchQueryChange,
+  onSearchClose,
+  onSearchNext,
+  onSearchPrev,
+  onSearchKeyDown,
+  isRegex,
+  onToggleRegex
 }) {
   return (
-    <div className="shrink-0 sticky bottom-0 lg:static border-t border-borderSubtle bg-main px-4 md:px-5 py-2 flex items-center gap-2 z-30">
-      {/* 左侧：RAW 模式快捷键提示 (精美小控制台设计) */}
-      {editorMode === 'raw' && (
+    <div className="shrink-0 sticky bottom-0 lg:static border-t border-borderSubtle bg-main px-4 md:px-5 py-2 flex items-center gap-2 z-30 min-h-[48px]">
+      {/* 左侧：搜索栏 或 RAW 模式快捷键提示 */}
+      {isSearchActive && editorMode === 'view' ? (
+        <div className="flex items-center flex-1 min-w-0 mr-3 animate-in fade-in slide-in-from-left-2 duration-200">
+          {/* 搜索输入容器 */}
+          <div className="flex items-center flex-1 min-w-0 h-8 bg-sidebar border border-primeAccent/40 rounded-lg overflow-hidden shadow-[0_0_0_3px_rgba(var(--color-prime-accent-rgb,99,102,241),0.08)] transition-shadow focus-within:shadow-[0_0_0_3px_rgba(var(--color-prime-accent-rgb,99,102,241),0.15)] focus-within:border-primeAccent/70 max-w-md">
+            {/* vi 斜杠标识 */}
+            <span className="shrink-0 flex items-center justify-center w-7 h-full border-r border-borderSubtle/50 text-primeAccent/50 font-mono text-[11px] font-bold select-none">
+              /
+            </span>
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => onSearchQueryChange(e.target.value)}
+              onKeyDown={onSearchKeyDown}
+              placeholder={isRegex ? "正则表达式..." : "搜索文档内容..."}
+              className="flex-1 min-w-0 h-full bg-transparent text-textPrimary text-[12px] outline-none placeholder:text-textTertiary/60 px-2.5"
+            />
+            {/* 正则切换 */}
+            <button
+              onClick={onToggleRegex}
+              className={`shrink-0 flex items-center justify-center w-8 h-full border-l border-borderSubtle/50 font-mono text-[11px] font-bold transition-colors ${
+                isRegex
+                  ? 'text-primeAccent bg-primeAccent/10'
+                  : 'text-textTertiary hover:text-textSecondary hover:bg-bgHover'
+              }`}
+              title={isRegex ? "关闭正则 (.*)": "启用正则 (.*)"}
+            >
+              .*
+            </button>
+            {searchQuery && (
+              <>
+                {/* 结果计数 */}
+                <span className={`shrink-0 text-[10px] font-mono px-2 h-full flex items-center border-l border-borderSubtle/50 ${totalMatches === 0 ? 'text-red-400/70' : 'text-primeAccent/70'}`}>
+                  {totalMatches > 0 ? `${activeSearchIndex + 1} / ${totalMatches}` : '无结果'}
+                </span>
+                {/* 分隔线 */}
+                <div className="w-px h-4 bg-borderSubtle/50 shrink-0" />
+                {/* 上/下导航按钮 */}
+                <button
+                  onClick={onSearchPrev}
+                  className="shrink-0 flex items-center justify-center w-7 h-full text-textTertiary hover:text-primeAccent hover:bg-primeAccent/8 transition-colors"
+                  title="上一个 (Shift+Enter)"
+                >
+                  <ChevronUp size={13} />
+                </button>
+                <button
+                  onClick={onSearchNext}
+                  className="shrink-0 flex items-center justify-center w-7 h-full text-textTertiary hover:text-primeAccent hover:bg-primeAccent/8 transition-colors"
+                  title="下一个 (Enter)"
+                >
+                  <ChevronDown size={13} />
+                </button>
+                {/* 分隔线 */}
+                <div className="w-px h-4 bg-borderSubtle/50 shrink-0" />
+                {/* 关闭按钮 */}
+                <button
+                  onClick={onSearchClose}
+                  className="shrink-0 flex items-center justify-center w-7 h-full text-textTertiary hover:text-red-400 hover:bg-red-500/8 transition-colors rounded-r-lg"
+                  title="关闭 (Esc)"
+                >
+                  <XCircle size={13} />
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      ) : editorMode === 'raw' && (
         <div className="hidden md:flex items-center gap-2 text-[10px] text-textSecondary/50 bg-sidebar/30 border border-borderSubtle/30 px-2.5 py-0.5 rounded-lg shadow-sm animate-in fade-in duration-300">
           <div className="flex items-center gap-1 shrink-0">
             <kbd className="px-1.5 py-0.5 bg-sidebar border border-borderSubtle rounded font-mono text-[9px] text-textPrimary shadow-sm">Ctrl + B</kbd>

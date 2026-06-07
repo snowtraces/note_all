@@ -3,6 +3,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 
 import './MarkdownEditor.css';
 import { getCommonExtensions } from './editor/commonExtensions';
+import { searchPluginKey } from './editor/SearchExtension';
 
 const preprocessContent = (text) => {
   if (!text) return '';
@@ -13,7 +14,7 @@ const preprocessContent = (text) => {
   return processed;
 };
 
-const MarkdownRenderer = React.memo(({ content, className = '' }) => {
+const MarkdownRenderer = React.memo(({ content, className = '', searchQuery = '', activeSearchIndex = 0, onTotalMatchesChange, isRegex = false }) => {
   const containerRef = useRef(null);
   const processedContent = React.useMemo(() => preprocessContent(content), [content]);
 
@@ -42,6 +43,52 @@ const MarkdownRenderer = React.memo(({ content, className = '' }) => {
        }
     }
   }, [processedContent, editor]);
+
+  // Sync search state with editor
+  useEffect(() => {
+    if (editor && !editor.isDestroyed) {
+      editor.commands.setSearchTerm(searchQuery);
+      editor.commands.setActiveMatchIndex(activeSearchIndex);
+      editor.commands.setIsRegex(isRegex);
+    }
+  }, [searchQuery, activeSearchIndex, isRegex, editor]);
+
+  // Safely extract total matches count after transactions
+  useEffect(() => {
+    if (!editor || !onTotalMatchesChange) return;
+    
+    const updateMatches = () => {
+      const pluginState = searchPluginKey.getState(editor.state);
+      if (pluginState) {
+        const decorations = pluginState.find();
+        onTotalMatchesChange(decorations.length);
+      } else {
+        onTotalMatchesChange(0);
+      }
+    };
+
+    // Initial check
+    updateMatches();
+
+    editor.on('transaction', updateMatches);
+    return () => {
+      editor.off('transaction', updateMatches);
+    };
+  }, [editor, onTotalMatchesChange]);
+
+  // Scroll active search match into view
+  useEffect(() => {
+    if (editor && containerRef.current && searchQuery) {
+      // Small delay to allow DOM to update decorations
+      const timer = setTimeout(() => {
+        const activeMatch = containerRef.current.querySelector('.search-match-active');
+        if (activeMatch) {
+          activeMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [activeSearchIndex, searchQuery, editor]);
 
   // 对提及（工具/笔记）进行二次精细化 DOM 渲染和交互绑定
   useEffect(() => {

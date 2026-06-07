@@ -14,6 +14,7 @@ import { CustomImage } from './TiptapImage';
 import { CustomCodeBlock } from './TiptapCodeBlock';
 import { InlineMathDecorations } from './InlineMathDecorations';
 import { HeadingIdPatch } from './HeadingIdPatch';
+import { SearchExtension } from './SearchExtension';
 
 export function getCommonExtensions({ markdownClipboard = false } = {}) {
   return [
@@ -40,5 +41,6 @@ export function getCommonExtensions({ markdownClipboard = false } = {}) {
     CustomCodeBlock,
     InlineMathDecorations,
     HeadingIdPatch,
+    SearchExtension,
   ];
 }

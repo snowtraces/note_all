@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, act } from 'react';
-import { BrainCircuit, Sparkles, X, ArchiveRestore, Trash2, RefreshCw, ChevronLeft, ChevronDown, Share2, Download, List, PanelRightClose } from 'lucide-react';
+import { BrainCircuit, Sparkles, X, ArchiveRestore, Trash2, RefreshCw, ChevronLeft, ChevronDown, Share2, Download, List, PanelRightClose, Search, ChevronUp } from 'lucide-react';
 import ContentToolbar from './ContentToolbar';
 import EditorToolbar from './EditorToolbar';
 import MarkdownEditor from './MarkdownEditor';
@@ -42,6 +42,16 @@ export default function Detail({
   const [showToC, setShowToC] = useState(false);
   const [activeConnectionTab, setActiveConnectionTab] = useState('related');
   const [isAnnotationExpanded, setIsAnnotationExpanded] = useState(false);
+
+  // Search State
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeSearchIndex, setActiveSearchIndex] = useState(0);
+  const [totalMatches, setTotalMatches] = useState(0);
+  const [isRegex, setIsRegex] = useState(() => {
+    return localStorage.getItem('note_search_is_regex') === 'true';
+  });
+  const searchInputRef = useRef(null);
 
   // 防止详情与关联内容重复加载的状态锁
   const fetchedDetailIdsRef = useRef(new Set());
@@ -191,10 +201,23 @@ export default function Detail({
         }
         return;
       }
+      
+      // Vi-style Esc to clear search
+      if (e.key === 'Escape' && isSearchActive) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsSearchActive(false);
+        setSearchQuery('');
+        return;
+      }
 
       if (!isInput) {
         const key = e.key.toLowerCase();
-        if (key === 'i') {
+        if (e.key === '/' && editorMode === 'view') {
+          e.preventDefault();
+          setIsSearchActive(true);
+          setTimeout(() => searchInputRef.current?.focus(), 50);
+        } else if (key === 'i') {
           e.preventDefault();
           changeMode('edit');
         } else if (key === 'r') {
@@ -210,7 +233,30 @@ export default function Detail({
     return () => {
       document.removeEventListener('keydown', handler);
     };
-  }, [editorMode, changeMode]);
+  }, [editorMode, changeMode, isSearchActive, searchQuery, totalMatches]);
+
+  const handleSearchNext = () => {
+    if (totalMatches > 0) {
+      setActiveSearchIndex((prev) => (prev + 1) % totalMatches);
+    }
+  };
+
+  const handleSearchPrev = () => {
+    if (totalMatches > 0) {
+      setActiveSearchIndex((prev) => (prev <= 0 ? totalMatches - 1 : prev - 1));
+    }
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (e.shiftKey) {
+        handleSearchPrev();
+      } else {
+        handleSearchNext();
+      }
+    }
+  };
 
 
   const handleReprocess = async () => {
@@ -433,7 +479,13 @@ export default function Detail({
                 )}
                 {editorMode === 'view' && (
                   <div className="markdown-ocr">
-                    <MarkdownRenderer content={editValue || "未能提取到或尚未进行 OCR 文本识别..."} />
+                    <MarkdownRenderer 
+                      content={editValue || "未能提取到或尚未进行 OCR 文本识别..."} 
+                      searchQuery={searchQuery}
+                      activeSearchIndex={activeSearchIndex}
+                      onTotalMatchesChange={setTotalMatches}
+                      isRegex={isRegex}
+                    />
                   </div>
                 )}
               </div>
@@ -473,6 +525,26 @@ export default function Detail({
               onSelectTemplate={setSelectedTemplateId}
               onReprocess={handleReprocess}
               onSave={onSaveWrap}
+              
+              isSearchActive={isSearchActive}
+              searchQuery={searchQuery}
+              totalMatches={totalMatches}
+              activeSearchIndex={activeSearchIndex}
+              searchInputRef={searchInputRef}
+              isRegex={isRegex}
+              onSearchQueryChange={(q) => { setSearchQuery(q); setActiveSearchIndex(0); }}
+              onSearchClose={() => { setIsSearchActive(false); setSearchQuery(''); }}
+              onToggleRegex={() => { 
+                setIsRegex(r => {
+                  const next = !r;
+                  localStorage.setItem('note_search_is_regex', next);
+                  return next;
+                }); 
+                setActiveSearchIndex(0); 
+              }}
+              onSearchNext={handleSearchNext}
+              onSearchPrev={handleSearchPrev}
+              onSearchKeyDown={handleSearchKeyDown}
             />
           )}
         </div>
