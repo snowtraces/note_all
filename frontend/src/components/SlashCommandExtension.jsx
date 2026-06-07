@@ -16,6 +16,82 @@ export function setOnShowHelp(fn) {
   _onShowHelp = fn;
 }
 
+function showBeautifulLinkPrompt(defaultUrl, callback) {
+  const overlay = document.createElement('div');
+  overlay.className = 'fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200';
+  
+  const dialog = document.createElement('div');
+  dialog.className = 'relative w-full max-w-sm bg-[var(--bg-modal)] border border-[var(--border-subtle)] rounded-xl shadow-2xl p-6 overflow-hidden animate-in zoom-in-95 duration-200';
+  dialog.style.color = 'var(--text-primary)';
+  
+  dialog.innerHTML = `
+    <h3 class="text-sm font-bold mb-4 flex items-center gap-2" style="color: var(--text-primary);">
+      🔗 插入超链接
+    </h3>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">链接地址 (URL)</label>
+        <input type="text" id="prompt-link-url" class="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border-subtle)] focus:border-[var(--prime-accent)] outline-none transition-colors" style="background: var(--bg-header); color: var(--text-primary);" value="${defaultUrl || 'https://'}" placeholder="请输入链接地址..." />
+      </div>
+      <div>
+        <label class="block text-xs font-semibold mb-1" style="color: var(--text-secondary);">链接文本 (可选)</label>
+        <input type="text" id="prompt-link-text" class="w-full px-3 py-2 text-sm rounded-lg border border-[var(--border-subtle)] focus:border-[var(--prime-accent)] outline-none transition-colors" style="background: var(--bg-header); color: var(--text-primary);" placeholder="默认显示为链接地址..." />
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button id="prompt-link-cancel" class="px-4 py-2 text-xs font-bold rounded-lg border border-[var(--border-subtle)] hover:bg-[var(--bg-sidebar)] transition-colors" style="color: var(--text-secondary);">
+          取消
+        </button>
+        <button id="prompt-link-confirm" class="px-4 py-2 text-xs font-bold rounded-lg transition-opacity hover:opacity-90" style="background: var(--prime-accent); color: #ffffff;">
+          确定
+        </button>
+      </div>
+    </div>
+  `;
+  
+  overlay.appendChild(dialog);
+  document.body.appendChild(overlay);
+  
+  const urlInput = dialog.querySelector('#prompt-link-url');
+  const textInput = dialog.querySelector('#prompt-link-text');
+  const cancelBtn = dialog.querySelector('#prompt-link-cancel');
+  const confirmBtn = dialog.querySelector('#prompt-link-confirm');
+  
+  setTimeout(() => {
+    urlInput.focus();
+    urlInput.select();
+  }, 50);
+  
+  const close = () => {
+    overlay.remove();
+  };
+  
+  const submit = () => {
+    const url = urlInput.value.trim();
+    if (url) {
+      const text = textInput.value.trim() || url;
+      callback({ url, text });
+    }
+    close();
+  };
+  
+  cancelBtn.addEventListener('click', close);
+  confirmBtn.addEventListener('click', submit);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) close();
+  });
+  
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      close();
+    }
+  };
+  overlay.addEventListener('keydown', handleKeyDown);
+}
+
 function executeCommand(chain, item, editor) {
   const commandId = item.id;
   
@@ -93,6 +169,46 @@ function executeCommand(chain, item, editor) {
         ).run();
       }
       break;
+    case 'deleteBlock':
+      chain.command(({ tr, state }) => {
+        const { $from } = state.selection;
+        let depth = $from.depth;
+        while (depth > 0) {
+          if ($from.node(depth).isBlock) {
+            break;
+          }
+          depth--;
+        }
+        if (depth > 0) {
+          const start = $from.before(depth);
+          const end = $from.after(depth);
+          if (state.doc.childCount <= 1 && depth === 1) {
+            tr.delete(start + 1, end - 1);
+          } else {
+            tr.delete(start, end);
+          }
+          return true;
+        }
+        return false;
+      }).run();
+      break;
+    case 'link': {
+      chain.run();
+      showBeautifulLinkPrompt('https://', ({ url, text }) => {
+        editor.chain().focus().insertContent([
+          {
+            type: 'text',
+            text: text,
+            marks: [{ type: 'link', attrs: { href: url } }]
+          },
+          {
+            type: 'text',
+            text: ' '
+          }
+        ]).run();
+      });
+      break;
+    }
     case 'clear':
       chain.unsetAllMarks().setParagraph().run();
       break;

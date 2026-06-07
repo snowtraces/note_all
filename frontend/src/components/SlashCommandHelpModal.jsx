@@ -33,6 +33,9 @@ const SlashCommandHelpModal = ({ isOpen, onClose }) => {
       title: '🔗 链接 & 图片',
       example: '/link:URL 或 /img:URL',
       icon: <ImageIcon className="w-5 h-5 text-purple-500" />,
+      items: [
+        { name: '/link', desc: '弹出窗口插入超链接' },
+      ]
     },
     {
       title: '📅 快捷工具',
@@ -41,6 +44,7 @@ const SlashCommandHelpModal = ({ isOpen, onClose }) => {
         { name: '/date', desc: '插入日期' },
         { name: '/time', desc: '插入时间' },
         { name: '/clear', desc: '清除本行格式' },
+        { name: '/delete', desc: '删除当前整块' },
       ]
     }
   ];

@@ -5,8 +5,12 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased] - 2026-06-07
 
 ### Added
+- **斜杠命令新增删除块与超链接**：在斜杠（`/`）菜单中新增了 `delete`（删除当前块）和 `link`/`url`（插入超链接）指令。
+- **自定义精美超链接对话框**：使用动态挂载的 HTML 对话框组件替换了原生的 `window.prompt` 弹窗。提供明暗模式自适应、链接与文本双字段录入、弹出自动聚焦及全键盘（Enter/Esc）交互，界面更符合现代审美。
+- **基于 Marks 的安全超链接插入**：重构了超链接插入逻辑，弃用不安全的 HTML 字符串拼接，改为向 Tiptap 写入包含 `link` mark 属性的结构化文本节点，从源头上杜绝了 HTML 注入与 XSS 攻击的风险。
+- **更新斜杠命令帮助手册**：在 `/help` 指引弹窗的“链接 & 图片”和“快捷工具”中，新添了关于 `/link` 和 `/delete` 指令的使用说明。
 - **浏览器插件：通用 div 表格识别转 Markdown**：在 `content_script.js` 的 `convertToMarkdown` 中引入 `convertAriaGridToTable` 预处理步骤。支持将使用 ARIA role（`role="grid"/"treegrid"/"row"/"gridcell"/"columnheader"`）模拟的 div 表格自动转换为真实 `<table>` 元素，再由 GFM 插件输出标准 Markdown 表格。覆盖 Azure DevOps/TFS、Jira 等主流虚拟滚动 Grid 组件，通用识别策略包括：跨子容器行收集（Phase 1 原子处理）、aria-rowindex/CSS top 行排序、aria-colindex/CSS left 列排序、多级表头回退、aria-hidden 和 role=button 装饰节点移除。
-- **CodeMirror 6 源码编辑器集成**：在 RAW 模式下全新引入 CodeMirror 6 编辑器组件 (`RawEditor.jsx`)，提供流畅的 Markdown 语法高亮、行号展示、自动换行与代码折叠。
+- **CodeMirror 6 源码编辑器集成**：在 RAW 模式下全新引入 CodeMirror 6 编辑器组件 (`RawEditor.jsx`)，提供流畅 of Markdown 语法高亮、行号展示、自动换行与代码折叠。
 - **底栏极简快捷键徽章提示**：在底栏左侧集成了极简风格的快捷键指示徽章（`Ctrl + B` 加粗、`Ctrl + I` 块选择、`Ctrl + K` 链接、`Ctrl + S` 保存），并支持响应式大中屏展示与小屏自适应隐藏。
 
 ### Changed

@@ -5,7 +5,7 @@ import {
   Code2, Minus, Table2, Image as ImageIcon,
   Calendar, Clock, Highlighter, Link,
   Heading4, Heading5, Heading6, Eraser,
-  HelpCircle,
+  HelpCircle, Trash2,
 } from 'lucide-react';
 
 const COMMAND_GROUPS = [
@@ -27,6 +27,7 @@ const COMMAND_GROUPS = [
       { id: 'heading5', title: '标题 5', desc: '五级标题', aliases: ['h5', '5', 'bt5'], icon: Heading5 },
       { id: 'heading6', title: '标题 6', desc: '六级标题', aliases: ['h6', '6', 'bt6'], icon: Heading6 },
       { id: 'blockquote', title: '引用块', desc: '引用内容', aliases: ['quote', 'block', 'yy', 'yinyong', '>'], icon: Quote },
+      { id: 'deleteBlock', title: '删除块', desc: '删除当前整块内容', aliases: ['delete', 'remove', 'sc', 'shanchu', 'del'], icon: Trash2 },
     ],
   },
   {
@@ -46,6 +47,7 @@ const COMMAND_GROUPS = [
       { id: 'divider', title: '分割线', desc: '水平分割线', aliases: ['divider', 'hr', 'line', 'fgx', '---'], icon: Minus },
       { id: 'table', title: '表格', desc: '插入 3×3 表格', aliases: ['table', 'bg', 'biaoge'], icon: Table2 },
       { id: 'image', title: '图片', desc: '上传本地图片', aliases: ['image', 'img', 'pic', 'tp', 'tupian'], icon: ImageIcon },
+      { id: 'link', title: '超链接', desc: '插入网页链接', aliases: ['link', 'url', 'lj', 'lianjie'], icon: Link },
     ],
   },
 ];
