@@ -4,6 +4,7 @@ import ContentToolbar from './ContentToolbar';
 import EditorToolbar from './EditorToolbar';
 import MarkdownEditor from './MarkdownEditor';
 import MarkdownRenderer from './MarkdownRenderer';
+import RawEditor from './RawEditor';
 import './MarkdownEditor.css';
 import { getRelatedNotes, reprocessNote, getNote } from '../api/noteApi';
 import { getTemplates } from '../api/templateApi';
@@ -24,7 +25,6 @@ export default function Detail({
   onSaveRef,
 }) {
   const editBaseline = useRef(item?.ocr_text || '');
-  const textareaRef = useRef(null);
   const contentScrollRef = useRef(null);
   const tiptapEditorRef = useRef(null);
   const [editorMode, setEditorMode] = useState('view');
@@ -76,17 +76,7 @@ export default function Detail({
     imgLoc.refreshDetection(item?.ocr_text);
   }, [item?.ocr_text]);
 
-  // 自动调整 RAW 文本框高度
-  useEffect(() => {
-    if (editorMode === 'raw' && textareaRef.current) {
-      const textarea = textareaRef.current;
-      const scrollableParent = textarea.closest('.raw-textarea-scroll-container');
-      const savedScrollTop = scrollableParent?.scrollTop || 0;
-      textarea.style.height = 'auto';
-      textarea.style.height = textarea.scrollHeight + 'px';
-      if (scrollableParent) scrollableParent.scrollTop = savedScrollTop;
-    }
-  }, [editValue, editorMode]);
+
 
   // 当外部 item 变化时，重新绑定 editValue 和加载关联内容
   useEffect(() => {
@@ -431,11 +421,9 @@ export default function Detail({
                   />
                 </div>
                 {editorMode === 'raw' && (
-                  <textarea
-                    ref={textareaRef}
+                  <RawEditor
                     value={editValue}
-                    onChange={(e) => { setEditValue(e.target.value); }}
-                    className="w-full outline-none bg-transparent overflow-hidden whitespace-pre-wrap font-mono text-[13px] text-textSecondary break-words border-none"
+                    onChange={setEditValue}
                     placeholder="未能提取到或尚未进行 OCR 文本识别..."
                   />
                 )}

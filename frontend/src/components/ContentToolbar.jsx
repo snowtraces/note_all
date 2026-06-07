@@ -24,6 +24,30 @@ export default function ContentToolbar({
 }) {
   return (
     <div className="shrink-0 sticky bottom-0 lg:static border-t border-borderSubtle bg-main px-4 md:px-5 py-2 flex items-center gap-2 z-30">
+      {/* 左侧：RAW 模式快捷键提示 (精美小控制台设计) */}
+      {editorMode === 'raw' && (
+        <div className="hidden md:flex items-center gap-2 text-[10px] text-textSecondary/50 bg-sidebar/30 border border-borderSubtle/30 px-2.5 py-0.5 rounded-lg shadow-sm animate-in fade-in duration-300">
+          <div className="flex items-center gap-1 shrink-0">
+            <kbd className="px-1.5 py-0.5 bg-sidebar border border-borderSubtle rounded font-mono text-[9px] text-textPrimary shadow-sm">Ctrl + B</kbd>
+            <span className="text-textTertiary">加粗</span>
+          </div>
+          <span className="text-borderSubtle/50 font-light select-none">/</span>
+          <div className="flex items-center gap-1 shrink-0">
+            <kbd className="px-1.5 py-0.5 bg-sidebar border border-borderSubtle rounded font-mono text-[9px] text-textPrimary shadow-sm">Ctrl + I</kbd>
+            <span className="text-textTertiary">块选择</span>
+          </div>
+          <span className="text-borderSubtle/50 font-light select-none">/</span>
+          <div className="flex items-center gap-1 shrink-0">
+            <kbd className="px-1.5 py-0.5 bg-sidebar border border-borderSubtle rounded font-mono text-[9px] text-textPrimary shadow-sm">Ctrl + K</kbd>
+            <span className="text-textTertiary">链接</span>
+          </div>
+          <span className="text-borderSubtle/50 font-light select-none">/</span>
+          <div className="flex items-center gap-1 shrink-0">
+            <kbd className="px-1.5 py-0.5 bg-sidebar border border-borderSubtle rounded font-mono text-[9px] text-textPrimary shadow-sm">Ctrl + S</kbd>
+            <span className="text-textTertiary">保存</span>
+          </div>
+        </div>
+      )}
 
 
       {/* 右侧：其余按钮 — 可滚动 */}

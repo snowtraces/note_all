@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] - 2026-06-07
+
+### Added
+- **CodeMirror 6 源码编辑器集成**：在 RAW 模式下全新引入 CodeMirror 6 编辑器组件 (`RawEditor.jsx`)，提供流畅的 Markdown 语法高亮、行号展示、自动换行与代码折叠。
+- **底栏极简快捷键徽章提示**：在底栏左侧集成了极简风格的快捷键指示徽章（`Ctrl + B` 加粗、`Ctrl + I` 块选择、`Ctrl + K` 链接、`Ctrl + S` 保存），并支持响应式大中屏展示与小屏自适应隐藏。
+
+### Changed
+- **编辑器自适应与输入性能提升**：用 CSS 样式覆盖替代了旧版 textarea 通过 JS 高频测量 scrollHeight 同步高度的重计算逻辑，改由 CodeMirror 原生 CSS 布局自适应向下延伸，彻底消除万字长文打字时的浏览器重排卡顿。
+
+### Fixed
+- **多光标/选区包裹事务算法重构**：采用“从后往前”遍历的逆序绝对索引事务机制，彻底消除了由于 CodeMirror 内置 map 自动映射跟手动追加偏移发生冲突而造成的选区错乱和“选择当前块”的 Bug。
+
 ## [Unreleased] - 2026-05-31
 
 ### Added
