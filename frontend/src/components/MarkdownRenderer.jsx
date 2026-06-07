@@ -3,8 +3,6 @@ import { useEditor, EditorContent } from '@tiptap/react';
 
 import './MarkdownEditor.css';
 import { getCommonExtensions } from './editor/commonExtensions';
-import GlobalDragHandle from 'tiptap-extension-global-drag-handle';
-import { ReadOnlyExtension } from './editor/ReadOnlyExtension';
 
 const preprocessContent = (text) => {
   if (!text) return '';
@@ -15,32 +13,17 @@ const preprocessContent = (text) => {
   return processed;
 };
 
-const MarkdownRenderer = React.memo(({ content, className = '', enableSelection = false }) => {
+const MarkdownRenderer = React.memo(({ content, className = '' }) => {
   const containerRef = useRef(null);
   const processedContent = React.useMemo(() => preprocessContent(content), [content]);
 
-  const extensions = React.useMemo(() => {
-    const exts = getCommonExtensions();
-    if (enableSelection) {
-      exts.push(
-        GlobalDragHandle.configure({
-          dragHandleWidth: 28,
-          scrollTreshold: 0,
-          customNodes: ['codeBlock'],
-        }),
-        ReadOnlyExtension
-      );
-    }
-    return exts;
-  }, [enableSelection]);
-
   const editor = useEditor({
-    editable: enableSelection,
-    extensions,
+    editable: false,
+    extensions: getCommonExtensions(),
     content: processedContent || '',
     editorProps: {
       attributes: {
-        class: `tiptap-content outline-none ${enableSelection ? 'is-pseudo-editable' : ''}`,
+        class: 'tiptap-content outline-none',
       },
     },
   });
@@ -168,24 +151,6 @@ const MarkdownRenderer = React.memo(({ content, className = '', enableSelection 
       };
     }
   }, [editor, processedContent]);
-
-  // 复用拖拽插件的幽灵选中拦截逻辑
-  useEffect(() => {
-    if (!editor || !enableSelection || !containerRef.current) return;
-    const domParent = containerRef.current;
-    
-    const handleDragHandleMouseDown = (e) => {
-      const dragHandle = e.target.closest('.drag-handle');
-      if (dragHandle) {
-        e.stopPropagation();
-      }
-    };
-    
-    domParent.addEventListener('mousedown', handleDragHandleMouseDown, true);
-    return () => {
-      domParent.removeEventListener('mousedown', handleDragHandleMouseDown, true);
-    };
-  }, [editor, enableSelection]);
 
   if (!editor) return null;
 

@@ -12,7 +12,6 @@ import { AutoWrapSelection } from './editor/AutoWrapSelection';
 import { uploadImage } from '../api/noteApi';
 import SlashCommand, { setOnImageUpload, setOnShowHelp } from './SlashCommandExtension';
 import SlashCommandHelpModal from './SlashCommandHelpModal';
-import { ReadOnlyExtension } from './editor/ReadOnlyExtension';
 
 export default function MarkdownEditor({
   initialContent,
@@ -20,7 +19,6 @@ export default function MarkdownEditor({
   editorRef,
   onImageUpload,
   editable = true,
-  pseudoEditable = false,
   className = '',
 }) {
   const lastMarkdownRef = useRef(initialContent || '');
@@ -119,9 +117,7 @@ export default function MarkdownEditor({
   }, [onImageUpload]);
 
   const editor = useEditor({
-    // view 模式（pseudoEditable）保持 editable=true，以便 drag handle 正常显示。
-    // 内容保护由 ReadOnlyExtension 的 filterTransaction 在事务层拦截，无需关闭编辑能力。
-    editable: editable || pseudoEditable,
+    editable: editable,
     extensions: [
       ...getCommonExtensions({ markdownClipboard: true }),
       Placeholder.configure({
@@ -133,7 +129,6 @@ export default function MarkdownEditor({
         customNodes: ['codeBlock'],
       }),
       SlashCommand,
-      ReadOnlyExtension,
     ],
     content: initialContent || '',
     onSelectionUpdate: ({ editor }) => {
@@ -147,7 +142,7 @@ export default function MarkdownEditor({
     },
     editorProps: {
       attributes: {
-        class: `tiptap-content outline-none ${className} ${pseudoEditable ? 'is-pseudo-editable' : ''}`,
+        class: `tiptap-content outline-none ${className}`,
       },
       handleDrop: handleDrop,
       handlePaste: handlePaste,
@@ -161,96 +156,14 @@ export default function MarkdownEditor({
   }, [editor, editorRef]);
 
   useEffect(() => {
-    if (editor && editor.isEditable !== (editable || pseudoEditable)) {
-      editor.setEditable(editable || pseudoEditable);
+    if (editor && editor.isEditable !== editable) {
+      editor.setEditable(editable);
     }
-  }, [editor, editable, pseudoEditable]);
+  }, [editor, editable]);
 
   const domParentRef = useRef(null);
-  const wrapperRef = useRef(null);
 
-  // 模式切换时动态更新只读拦截器的开关状态
-  useEffect(() => {
-    if (!editor) return;
-    if (editor.storage.readOnlyMode) {
-      editor.storage.readOnlyMode.enabled = pseudoEditable;
-    }
-  }, [editor, pseudoEditable]);
 
-  const applyDecorations = useCallback(() => {
-    if (!pseudoEditable || !editor) return;
-    const container = editor.view.dom;
-    if (!container) return;
-
-    const codes = container.querySelectorAll('code');
-    codes.forEach(code => {
-      if (code.textContent.includes('🛠️')) {
-        code.style.display = 'inline-flex';
-        code.style.alignItems = 'center';
-        code.style.gap = '4px';
-        code.style.padding = '1px 6px';
-        code.style.borderRadius = '6px';
-        code.style.background = 'rgba(245, 158, 11, 0.08)';
-        code.style.color = '#d97706';
-        code.style.border = '1px solid rgba(245, 158, 11, 0.2)';
-        code.style.fontSize = '12px';
-        code.style.fontWeight = '600';
-        code.style.fontFamily = 'inherit';
-        code.style.margin = '0 2px';
-      }
-    });
-
-    const links = container.querySelectorAll('a');
-    links.forEach(a => {
-      const href = a.getAttribute('href') || '';
-      if (a.textContent.includes('📄') || href.startsWith('/note/')) {
-        const match = href.match(/\/note\/(\d+)/);
-        const noteId = match ? match[1] : null;
-
-        a.style.display = 'inline-flex';
-        a.style.alignItems = 'center';
-        a.style.gap = '4px';
-        a.style.padding = '1px 6px';
-        a.style.borderRadius = '6px';
-        a.style.background = 'rgba(16, 185, 129, 0.08)';
-        a.style.color = '#059669';
-        a.style.border = '1px solid rgba(16, 185, 129, 0.2)';
-        a.style.textDecoration = 'none';
-        a.style.fontSize = '12px';
-        a.style.fontWeight = '600';
-        a.style.margin = '0 2px';
-        a.style.transition = 'all 0.20s cubic-bezier(0.4, 0, 0.2, 1)';
-        a.style.cursor = 'pointer';
-
-        a.onmouseenter = () => {
-          a.style.background = 'rgba(16, 185, 129, 0.16)';
-          a.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-          a.style.transform = 'translateY(-1px)';
-          a.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.15)';
-        };
-        a.onmouseleave = () => {
-          a.style.background = 'rgba(16, 185, 129, 0.08)';
-          a.style.borderColor = 'rgba(16, 185, 129, 0.2)';
-          a.style.transform = 'translateY(0)';
-          a.style.boxShadow = 'none';
-        };
-
-        if (noteId) {
-          a.onclick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const event = new CustomEvent('open-note', { detail: { id: parseInt(noteId) } });
-            window.dispatchEvent(event);
-          };
-        }
-      }
-    });
-  }, [pseudoEditable, editor]);
-
-  // 只读伪编辑模式下动态美化标记
-  useEffect(() => {
-    applyDecorations();
-  }, [applyDecorations, initialContent]);
 
   useEffect(() => {
     if (!editor) return;
@@ -263,9 +176,6 @@ export default function MarkdownEditor({
       const dragHandle = e.target.closest('.drag-handle');
       if (dragHandle) {
         e.stopPropagation();
-        if (pseudoEditable) {
-          e.preventDefault(); // 预览/只读模式下阻止拖拽动作的触发，仅作为“点击选块高亮”入口！
-        }
       }
     };
 
@@ -281,8 +191,8 @@ export default function MarkdownEditor({
 
       const view = editor.view;
 
-      // view 模式下 editor 不可编辑，不需将焦点移入编辑器（避免丢失全局快捷键）
-      // view.focus(); // 删除！
+      // 聚焦编辑器，确保在选中时处于活跃状态
+      view.focus();
 
       // 根据点击事件的 clientY 坐标，和编辑器正文横坐标中心，精准定位当前的文字行/块
       const editorRect = view.dom.getBoundingClientRect();
@@ -406,7 +316,7 @@ export default function MarkdownEditor({
       domParent.removeEventListener('click', handleDragHandleClick, true);
       domParent.removeEventListener('mousemove', handleMouseMove);
     };
-  }, [editor, pseudoEditable]);
+  }, [editor]);
 
   // IME composition 期间绝不调用 setContent，避免破坏 composition 状态导致无限循环卡死；
   // 编辑器聚焦状态下也跳过同步，避免打断输入流。
@@ -422,13 +332,10 @@ export default function MarkdownEditor({
           queueMicrotask(() => {
             if (editor.isFocused) return;
 
-            editor.isProgrammaticUpdate = true;
             editor.commands.setContent(initialContent || '', false, {
               parseOptions: { preserveWhitespace: 'full' },
             });
-            editor.isProgrammaticUpdate = false;
             lastMarkdownRef.current = initialContent;
-            applyDecorations(); // 内容同步后立即重刷特殊标记渲染
           });
         }
       }
@@ -441,7 +348,7 @@ export default function MarkdownEditor({
     };
     editor.view.dom.addEventListener('compositionend', onCompositionEnd);
     return () => editor.view.dom.removeEventListener('compositionend', onCompositionEnd);
-  }, [initialContent, editor, applyDecorations]);
+  }, [initialContent, editor]);
 
   useEffect(() => {
     setOnImageUpload(onImageUpload || null);
@@ -451,7 +358,7 @@ export default function MarkdownEditor({
   if (!editor) return null;
 
   return (
-    <div ref={wrapperRef} className={`markdown-editor-wrapper relative ${className}`}>
+    <div className={`markdown-editor-wrapper relative ${className}`}>
       {isTableActive && activeTableWrapper && createPortal(
         <div
           className="absolute -bottom-10 right-0 flex items-center gap-1 bg-modal/95 border border-borderSubtle rounded-lg shadow-xl p-1.5 animate-in fade-in zoom-in-95 backdrop-blur-md z-50"

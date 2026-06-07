@@ -3,6 +3,7 @@ import { BrainCircuit, Sparkles, X, ArchiveRestore, Trash2, RefreshCw, ChevronLe
 import ContentToolbar from './ContentToolbar';
 import EditorToolbar from './EditorToolbar';
 import MarkdownEditor from './MarkdownEditor';
+import MarkdownRenderer from './MarkdownRenderer';
 import './MarkdownEditor.css';
 import { getRelatedNotes, reprocessNote, getNote } from '../api/noteApi';
 import { getTemplates } from '../api/templateApi';
@@ -41,6 +42,10 @@ export default function Detail({
   const [showToC, setShowToC] = useState(false);
   const [activeConnectionTab, setActiveConnectionTab] = useState('related');
   const [isAnnotationExpanded, setIsAnnotationExpanded] = useState(false);
+
+  // 防止详情与关联内容重复加载的状态锁
+  const fetchedDetailIdsRef = useRef(new Set());
+  const prevItemIdRef = useRef(null);
 
   const normalizeText = (text) => (text || '').replace(/\n{3,}/g, '\n\n').replace(/\s+$/, '');
   const hasUnsaved = editorMode !== 'view' && normalizeText(editValue) !== normalizeText(editBaseline.current);
@@ -87,18 +92,27 @@ export default function Detail({
   useEffect(() => {
     if (!item) return;
 
-    const needFullFetch = !item.ocr_text || (item.is_wiki && !(item.parents?.length > 0));
+    const isDifferentNote = prevItemIdRef.current !== item.id;
+    prevItemIdRef.current = item.id;
+
+    const hasFetched = fetchedDetailIdsRef.current.has(item.id);
+    const needFullFetch = !hasFetched && (!item.ocr_text || (item.is_wiki && !(item.parents?.length > 0)));
+    
     if (item.id && needFullFetch) {
+      fetchedDetailIdsRef.current.add(item.id);
       getNote(item.id).then(fullItem => {
         if (fullItem) {
           setSelectedItem(fullItem);
         }
-      }).catch(err => console.error("Fetch full note failed:", err));
+      }).catch(err => {
+        console.error("Fetch full note failed:", err);
+        fetchedDetailIdsRef.current.delete(item.id);
+      });
     }
 
     setEditValue(item?.ocr_text || '');
     setTiptapContent(item?.ocr_text || '');
-    if (!item.ocr_text && item.status === 'pending') {
+    if (!item.ocr_text || item.status === 'pending') {
       setEditorMode('edit');
     } else {
       setEditorMode('view');
@@ -108,7 +122,9 @@ export default function Detail({
     setAnnotation(item?.user_comment || '');
     setActiveConnectionTab('related');
     setIsAnnotationExpanded(!!item?.user_comment);
-    if (item.id) {
+    
+    // 只有当切换到了不同的笔记时，才加载关联笔记，避免同个笔记内状态更新时重复调用
+    if (isDifferentNote && item.id) {
       loadRelated();
     }
   }, [item]);
@@ -165,51 +181,42 @@ export default function Detail({
   // Ctrl+S 全局保存 & 模式切换快捷键
   const onSaveWrapRef = useRef(onSaveWrap);
   onSaveWrapRef.current = onSaveWrap;
-  const handleKeyCapture = useCallback((e) => {
-    const activeEl = document.activeElement;
-
-    // Ctrl+S 保存（任何模式）
-    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-      if (editorMode !== 'view') {
-        e.preventDefault();
-        onSaveWrapRef.current();
-      }
-      return;
-    }
-
-    // 编辑模式下不拦截任何普通按键——用户正在打字
-    if (editorMode === 'edit' && activeEl.className.includes('tiptap-content')) return;
-
-    // 聚焦在真实输入框（RAW 模式的 textarea 等）时也不拦截
-
-    if (activeEl?.tagName === 'INPUT' || activeEl?.tagName === 'TEXTAREA') return;
-
-    // v / i / r 模式切换快捷键
-    const key = e.key.toLowerCase();
-    const code = e.code
-    console.log('key', e.key, e)
-    if (key === 'i' || code === 'KeyI') {
-      console.log('do i')
-      e.preventDefault();
-      e.stopPropagation();
-      changeMode('edit');
-    } else if (key === 'r' || code === 'KeyR') {
-      e.preventDefault();
-      e.stopPropagation();
-      changeMode('raw');
-    } else if (key === 'v' || code === 'KeyV') {
-      e.preventDefault();
-      e.stopPropagation();
-      changeMode('view');
-    }
-  }, [editorMode, changeMode]);
 
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyCapture, true);
-    return () => {
-      window.removeEventListener('keydown', handleKeyCapture, true);
+    const handler = (e) => {
+      const activeEl = document.activeElement;
+      const isInput = activeEl.tagName === 'INPUT' ||
+                      activeEl.tagName === 'TEXTAREA' ||
+                      activeEl.isContentEditable;
+
+      // Ctrl+S 保存（任何模式）
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        if (editorMode !== 'view') {
+          e.preventDefault();
+          onSaveWrapRef.current();
+        }
+        return;
+      }
+
+      if (!isInput) {
+        const key = e.key.toLowerCase();
+        if (key === 'i') {
+          e.preventDefault();
+          changeMode('edit');
+        } else if (key === 'r') {
+          e.preventDefault();
+          changeMode('raw');
+        } else if (key === 'v') {
+          e.preventDefault();
+          changeMode('view');
+        }
+      }
     };
-  }, [handleKeyCapture]);
+    document.addEventListener('keydown', handler);
+    return () => {
+      document.removeEventListener('keydown', handler);
+    };
+  }, [editorMode, changeMode]);
 
 
   const handleReprocess = async () => {
@@ -416,14 +423,11 @@ export default function Detail({
             {/* 正文 */}
             <div className="mt-1 pt-2 border-t border-borderSubtle -mx-4 px-4 md:-mx-5 md:px-5 lg:-mx-6 lg:px-6">
               <div className="text-textPrimary text-[14px] leading-[1.7] tracking-wide selection:bg-primeAccent selection:text-black">
-                <div style={{ display: (editorMode === 'edit' || editorMode === 'view') ? 'block' : 'none' }}>
+                <div style={{ display: editorMode === 'edit' ? 'block' : 'none' }}>
                   <MarkdownEditor
-                    editable={editorMode === 'edit'}
-                    pseudoEditable={editorMode === 'view'}
                     initialContent={tiptapContent}
                     onUpdate={(md) => { if (editorMode === 'edit') { setEditValue(md); setTiptapContent(md); } }}
                     editorRef={tiptapEditorRef}
-                    className={editorMode === 'view' ? 'markdown-ocr' : ''}
                   />
                 </div>
                 {editorMode === 'raw' && (
@@ -434,6 +438,11 @@ export default function Detail({
                     className="w-full outline-none bg-transparent overflow-hidden whitespace-pre-wrap font-mono text-[13px] text-textSecondary break-words border-none"
                     placeholder="未能提取到或尚未进行 OCR 文本识别..."
                   />
+                )}
+                {editorMode === 'view' && (
+                  <div className="markdown-ocr">
+                    <MarkdownRenderer content={editValue || "未能提取到或尚未进行 OCR 文本识别..."} />
+                  </div>
                 )}
               </div>
             </div>

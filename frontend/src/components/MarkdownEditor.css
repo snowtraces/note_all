@@ -13,11 +13,6 @@
   line-height: 1.8;
 }
 
-/* 伪编辑模式（如预览模式下开启了区块选中）隐藏光标 */
-.tiptap-content.is-pseudo-editable {
-  caret-color: transparent !important;
-}
-
 .markdown-editor-wrapper .tiptap-content {
   min-height: 200px;
 }

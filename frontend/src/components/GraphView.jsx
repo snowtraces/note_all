@@ -180,6 +180,17 @@ export default function GraphView({ onNodeClick, onClose, data: initialData, onD
     }
   }, [loading, renderedData, repelForce, linkDistance]);
 
+  // 5. 根据 active 状态控制 ForceGraph 的渲染动画循环，防止隐藏状态下疯狂消耗 CPU
+  useEffect(() => {
+    if (!fgRef.current) return;
+    if (active) {
+      fgRef.current.resumeAnimation();
+      fgRef.current.d3ReheatSimulation();
+    } else {
+      fgRef.current.pauseAnimation();
+    }
+  }, [active, loading, dimensions.width]);
+
   // 预计算节点度数（连接数），用于对数映射点大小
   const nodeDegrees = useMemo(() => {
     const degrees = new Map();
