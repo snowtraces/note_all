@@ -2,51 +2,26 @@ package synonym
 
 import (
 	"log"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"note_all_backend/global"
 	"note_all_backend/models"
-
-	"github.com/yanyiwu/gojieba"
 )
 
-var jieba *gojieba.Jieba
+// JiebaSegmenter defines the interface for Chinese word segmentation
+type JiebaSegmenter interface {
+	Cut(sentence string, useHmm bool) []string
+	Tag(sentence string) []string
+}
+
+var jieba JiebaSegmenter
 
 func init() {
-	exePath, _ := os.Executable()
-	dictDir := filepath.Join(filepath.Dir(exePath), "libs", "jieba")
-
-	// 如果在可执行文件同级找不到字典文件，则尝试通过当前工作目录向上寻找
-	if _, err := os.Stat(filepath.Join(dictDir, "jieba.dict.utf8")); os.IsNotExist(err) {
-		wd, _ := os.Getwd()
-		curr := wd
-		for i := 0; i < 5; i++ {
-			testDir := filepath.Join(curr, "libs", "jieba")
-			if _, err := os.Stat(filepath.Join(testDir, "jieba.dict.utf8")); err == nil {
-				dictDir = testDir
-				break
-			}
-			parent := filepath.Dir(curr)
-			if parent == curr {
-				break
-			}
-			curr = parent
-		}
-	}
-
-	jieba = gojieba.NewJieba(
-		filepath.Join(dictDir, "jieba.dict.utf8"),
-		filepath.Join(dictDir, "hmm_model.utf8"),
-		filepath.Join(dictDir, "user.dict.utf8"),
-		filepath.Join(dictDir, "idf.utf8"),
-		filepath.Join(dictDir, "stop_words.utf8"),
-	)
+	jieba = initJieba()
 }
 
 // GetJieba 获取全局 Jieba 实例
-func GetJieba() *gojieba.Jieba {
+func GetJieba() JiebaSegmenter {
 	return jieba
 }
 
@@ -57,6 +32,9 @@ func isNoun(pos string) bool {
 
 // RewriteQuery 使用同义词词典重写查询，仅对名词扩展
 func RewriteQuery(query string) []string {
+	if jieba == nil {
+		return []string{query}
+	}
 	// 1. 分词并获取词性
 	segments := jieba.Cut(query, true)
 	posTags := jieba.Tag(query)
