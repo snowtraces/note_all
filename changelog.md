@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - **侧边栏宽度优化**：为了让主内容/编辑区域有更充足的显示空间，将主侧边栏的宽度稍微调小，平板及桌面端宽度由 `md:w-[380px] xl:w-[420px]` 调整为 `md:w-[320px] xl:w-[360px]`。
 
+### Fixed
+- **编辑器尾部空行自适应保持**：在编辑模式下，自动确保编辑器最下方始终存在一个可输入的空行段落。采用 `queueMicrotask` 异步微任务派发与 `compositionend` 输入法生命周期监听，完美避开了拼音输入法干扰与 ProseMirror 嵌套更新报错，且保持输入光标焦点与撤销历史无感稳定。
+
 ## [Unreleased] - 2026-06-07
 
 ### Added

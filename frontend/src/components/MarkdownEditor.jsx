@@ -13,6 +13,31 @@ import { uploadImage } from '../api/noteApi';
 import SlashCommand, { setOnImageUpload, setOnShowHelp } from './SlashCommandExtension';
 import SlashCommandHelpModal from './SlashCommandHelpModal';
 
+
+
+const ensureTrailingEmptyParagraph = (editor) => {
+  if (!editor || !editor.isEditable || editor.view.composing) return;
+  const { state, view } = editor;
+  const { doc, schema } = state;
+  const lastChild = doc.lastChild;
+
+  const isEmptyParagraph = lastChild &&
+                           lastChild.type.name === 'paragraph' &&
+                           lastChild.textContent === '';
+
+  if (!isEmptyParagraph) {
+    const tr = state.tr;
+    const paragraph = schema.nodes.paragraph.createAndFill();
+    if (paragraph) {
+      const { selection } = state;
+      tr.insert(doc.content.size, paragraph);
+      tr.setSelection(selection.map(tr.doc, tr.mapping));
+      tr.setMeta('addToHistory', false);
+      view.dispatch(tr);
+    }
+  }
+};
+
 export default function MarkdownEditor({
   initialContent,
   onUpdate,
@@ -131,10 +156,22 @@ export default function MarkdownEditor({
       SlashCommand,
     ],
     content: initialContent || '',
+    onCreate: ({ editor }) => {
+      if (editor.isEditable) {
+        ensureTrailingEmptyParagraph(editor);
+      }
+    },
     onSelectionUpdate: ({ editor }) => {
       updateTableMenuPos(editor);
     },
     onUpdate: ({ editor }) => {
+      // 始终确保编辑区域底部有一个空段落 (采用 queueMicrotask 异步执行，不阻塞当前 ProseMirror 更新，完美支持 IME 输入法)
+      queueMicrotask(() => {
+        if (editor.isEditable && !editor.view.composing) {
+          ensureTrailingEmptyParagraph(editor);
+        }
+      });
+
       const md = editor.storage.markdown.getMarkdown();
       lastMarkdownRef.current = md;
       updateTableMenuPos(editor);
@@ -158,6 +195,9 @@ export default function MarkdownEditor({
   useEffect(() => {
     if (editor && editor.isEditable !== editable) {
       editor.setEditable(editable);
+      if (editable) {
+        ensureTrailingEmptyParagraph(editor);
+      }
     }
   }, [editor, editable]);
 
@@ -336,6 +376,9 @@ export default function MarkdownEditor({
               parseOptions: { preserveWhitespace: 'full' },
             });
             lastMarkdownRef.current = initialContent;
+            if (editor.isEditable) {
+              ensureTrailingEmptyParagraph(editor);
+            }
           });
         }
       }
@@ -344,7 +387,12 @@ export default function MarkdownEditor({
     syncContent();
 
     const onCompositionEnd = () => {
-      setTimeout(() => { syncContent(); }, 50);
+      setTimeout(() => {
+        syncContent();
+        if (editor.isEditable) {
+          ensureTrailingEmptyParagraph(editor);
+        }
+      }, 50);
     };
     editor.view.dom.addEventListener('compositionend', onCompositionEnd);
     return () => editor.view.dom.removeEventListener('compositionend', onCompositionEnd);
