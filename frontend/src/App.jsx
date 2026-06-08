@@ -665,7 +665,7 @@ function AppContent() {
 
       <div className="flex-1 flex flex-row relative overflow-hidden">
         {/* Sidebar */}
-        <div className={`w-full md:w-[380px] xl:w-[420px] flex-shrink-0 flex-col border-r border-borderSubtle bg-modal relative z-50 transition-all ${
+        <div className={`w-full md:w-[320px] xl:w-[360px] flex-shrink-0 flex-col border-r border-borderSubtle bg-modal relative z-50 transition-all ${
           (selectedItem || viewMode === 'image_gen' || viewMode === 'graph' || viewMode === 'lab' || (viewMode === 'chats' && chatHistory.length > 0)) ? 'hidden md:flex' : 'flex'
         }`}>
           <Sidebar

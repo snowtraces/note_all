@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] - 2026-06-08
+
+### Changed
+- **侧边栏宽度优化**：为了让主内容/编辑区域有更充足的显示空间，将主侧边栏的宽度稍微调小，平板及桌面端宽度由 `md:w-[380px] xl:w-[420px]` 调整为 `md:w-[320px] xl:w-[360px]`。
+
 ## [Unreleased] - 2026-06-07
 
 ### Added
