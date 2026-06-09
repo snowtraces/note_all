@@ -226,6 +226,7 @@ function AppContent() {
   } = useLinkPreview();
 
   const isRoutingRef = useRef(false);
+  const searchTimeoutRef = useRef(null);
 
   const { parseUrlToState, syncStateToUrl } = useHistoryRouter({
     hasUnsavedDetail,
@@ -336,15 +337,29 @@ function AppContent() {
   // 2. 当首次登录或显式切换回收站/搜索指令变化时，负责加载对应数据
   useEffect(() => {
     if (!isLoggedIn) return;
-    if (showTrash) {
-      loadTrashData();
-    } else {
-      executeSearch(query, searchOnlyWiki, 1);
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
-    // 只有在非路由初始化的情况下，切换数据源才清空详情
+    
+    // 只有在非路由初始化的情况下，切换数据源才立即清空详情
     if (!isRoutingRef.current) {
       setSelectedItem(null);
     }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      if (showTrash) {
+        loadTrashData();
+      } else {
+        executeSearch(query, searchOnlyWiki, 1);
+      }
+    }, 500);
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
   }, [isLoggedIn, showTrash, query, searchOnlyWiki]);
 
   // 全局键盘事件监听
@@ -404,6 +419,9 @@ function AppContent() {
   };
 
   const executeSearch = async (q, onlyWiki = searchOnlyWiki, newPage = 1) => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
     if (showTrash) return;
     if (newPage === 1) {
       setLoading(true);
