@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased] - 2026-06-09
 
 ### Added
+- **导入导出功能 (Backup & Restore)**：在“系统核心控制台”配置中新增“导入导出”选项卡，支持批量 ZIP 备份导出、批量 ZIP 导入恢复，以及单个 Markdown 文件的上传导入。
+- **YAML Frontmatter 格式统一**：重构了单篇笔记复制和下载的 Frontmatter 渲染逻辑，包含完整的 `id`、`title`、`ai_title`、`summary`、`tags`、`created_at`/`updated_at` 时间戳、`original_url`、`user_comment`、`file_type`、`storage_id` 以及合成溯源 `parents` 关系链，与后端批量导出的 Markdown 格式完全保持 100% 一致。
+- **离线兼容与附件提取**：批量导出 ZIP 时，自动扫描笔记中嵌入的媒体和文件，并将物理文件提取打包进 `attachments/` 目录中，同时将内容中的 `/api/file/` 相对链接重写为离线阅读器（如 Obsidian）兼容的本地相对链接，在导入时能自动提取并重建物理附件。
 - **Markdown 复制按钮**：在详情页面顶栏“下载为.md”按钮左侧新增“复制.md”按钮，支持一键将 Frontmatter 与正文 Markdown 复制到剪贴板，并配有 Toast 提示反馈。
 
 ### Changed

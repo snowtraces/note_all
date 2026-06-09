@@ -848,3 +848,19 @@ func AppendSynthesizedNote(wikiID string, fragmentIDs []uint, newContent string)
 
 	return nil
 }
+
+// SyncTags is an exported wrapper for syncTags
+func SyncTags(nID uint, tags string) {
+	syncTags(nID, tags)
+}
+
+// SyncLinks is an exported wrapper for syncLinks
+func SyncLinks(nID uint, text string) {
+	syncLinks(nID, text)
+}
+
+// PerformFullAnalysis is an exported wrapper for performFullAnalysis
+func PerformFullAnalysis(nID uint, templateID uint) {
+	performFullAnalysis(nID, templateID)
+}
+

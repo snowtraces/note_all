@@ -35,3 +35,38 @@ export const syncSynonyms = async () => {
     }
     return await res.json();
 };
+
+export const exportNotesZip = async () => {
+    const res = await request(`${API_BASE}/system/export/zip`);
+    if (!res.ok) throw new Error('Failed to export notes');
+    return await res.blob();
+};
+
+export const importNotesZip = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await request(`${API_BASE}/system/import/zip`, {
+        method: 'POST',
+        body: formData,
+    });
+    if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to import ZIP');
+    }
+    return await res.json();
+};
+
+export const importSingleMD = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await request(`${API_BASE}/system/import/md`, {
+        method: 'POST',
+        body: formData,
+    });
+    if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to import MD');
+    }
+    return await res.json();
+};
+

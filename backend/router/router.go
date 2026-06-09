@@ -207,6 +207,10 @@ func SetupRouter() *gin.Engine {
 		apiGroup.POST("/system/embedding/rebuild", systemApi.RebuildEmbeddings)
 		apiGroup.POST("/system/synonym/sync", systemApi.SyncSynonyms)
 		apiGroup.GET("/system/synonym/status", systemApi.GetSynonymStatus)
+		apiGroup.GET("/system/export/zip", systemApi.ExportZip)
+		apiGroup.POST("/system/import/zip", systemApi.ImportZip)
+		apiGroup.POST("/system/import/md", systemApi.ImportMD)
+
 
 		// 12. 定时任务及网页匹配规则管理 (Phase E1)
 		cronApi := new(api.CronApi)

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Palette, FileText, Wrench, Server, Cpu, BookOpen, Bot, Clock, Settings2 } from 'lucide-react';
+import { X, Palette, FileText, Wrench, Server, Cpu, BookOpen, Bot, Clock, Settings2, Database } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
-// 导入模块化后的 9 个选项卡组件
+// 导入模块化后的 10 个选项卡组件
 import AppearanceTab from './settings/AppearanceTab';
 import TemplatesTab from './settings/TemplatesTab';
 import ToolsTab from './settings/ToolsTab';
@@ -12,6 +12,7 @@ import SynonymTab from './settings/SynonymTab';
 import WeixinTab from './settings/WeixinTab';
 import CronTab from './settings/CronTab';
 import ModelConfigTab from './settings/ModelConfigTab';
+import BackupTab from './settings/BackupTab';
 
 // 定义选项卡元数据
 const TABS = [
@@ -24,6 +25,7 @@ const TABS = [
   { id: 'synonym', label: '同义词联想库', icon: BookOpen, description: '哈工大同义词林扩展版同步机制' },
   { id: 'weixin', label: '微信助手 Bot', icon: Bot, description: '微信个人号助手状态、扫码与对话' },
   { id: 'cron', label: '定时计划任务', icon: Clock, description: '管理周期爬虫与邮箱/微信推送' },
+  { id: 'backup', label: '导入导出', icon: Database, description: '全量 ZIP 备份与单个 MD 笔记导入导出' },
 ];
 
 export default function SettingsModal({ onClose, initialTab }) {
@@ -124,6 +126,7 @@ export default function SettingsModal({ onClose, initialTab }) {
             {activeTab === 'synonym' && <SynonymTab />}
             {activeTab === 'weixin' && <WeixinTab />}
             {activeTab === 'cron' && <CronTab />}
+            {activeTab === 'backup' && <BackupTab />}
           </div>
         </div>
       </div>

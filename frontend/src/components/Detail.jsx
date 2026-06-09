@@ -295,22 +295,60 @@ export default function Detail({
     setSelectedItem(nextItem);
   };
 
+  const generateFrontmatter = (item) => {
+    const title = item?.original_name || 'untitled';
+    const aiTitle = item?.ai_title || '';
+    const summary = item?.ai_summary || '';
+    
+    let tagsStr = '[]';
+    if (item?.ai_tags) {
+      const tags = item.ai_tags.split(',').map(t => t.trim()).filter(Boolean);
+      tagsStr = '[' + tags.map(t => `"${t.replace(/"/g, '\\"')}"`).join(', ') + ']';
+    }
+
+    const created_at = item?.created_at || new Date().toISOString();
+    const updated_at = item?.updated_at || new Date().toISOString();
+    const original_url = item?.original_url || '';
+    const is_wiki = !!item?.is_wiki;
+    const is_archived = !!item?.is_archived;
+    const user_comment = item?.user_comment || '';
+    const file_type = item?.file_type || 'text/markdown';
+    const storage_id = item?.storage_id || '';
+
+    let parentsStr = '';
+    if (item?.parents && item.parents.length > 0) {
+      const parentIds = item.parents.map(p => p.id);
+      parentsStr = `\nparents: [${parentIds.join(', ')}]`;
+    }
+
+    const escapeYaml = (str) => {
+      if (!str) return '""';
+      return `"${str.toString().replace(/"/g, '\\"')}"`;
+    };
+
+    return [
+      '---',
+      `id: ${item?.id || 0}`,
+      `title: ${escapeYaml(title)}`,
+      `ai_title: ${escapeYaml(aiTitle)}`,
+      `summary: ${escapeYaml(summary)}`,
+      `tags: ${tagsStr}`,
+      `created_at: ${escapeYaml(created_at)}`,
+      `updated_at: ${escapeYaml(updated_at)}`,
+      `original_url: ${escapeYaml(original_url)}`,
+      `is_wiki: ${is_wiki}`,
+      `is_archived: ${is_archived}`,
+      `user_comment: ${escapeYaml(user_comment)}`,
+      `file_type: ${escapeYaml(file_type)}`,
+      `storage_id: ${escapeYaml(storage_id)}` + parentsStr,
+      '---',
+      '\n'
+    ].join('\n');
+  };
+
   const handleCopyMarkdown = async () => {
     const md = editorMode === 'raw' ? editValue : tiptapContent;
-    const title = item?.ai_title || item?.original_name || 'untitled';
-    const summary = item?.ai_summary || '';
-    const sourceUrl = item?.source_url || '';
-
-    const frontmatter = [
-      '---',
-      `title: "${title}"`,
-      summary && `summary: "${summary}"`,
-      sourceUrl && `source_url: "${sourceUrl}"`,
-      `date: "${new Date().toISOString().split('T')[0]}"`,
-      '---',
-    ].filter(Boolean).join('\n') + '\n\n';
-
-    const fullMd = frontmatter + md;
+    const fullMd = generateFrontmatter(item) + md;
     try {
       await navigator.clipboard.writeText(fullMd);
       showToast('Markdown 内容已复制到剪贴板', { type: 'success', title: '成功' });
@@ -322,20 +360,8 @@ export default function Detail({
 
   const handleDownloadMarkdown = () => {
     const md = editorMode === 'raw' ? editValue : tiptapContent;
+    const fullMd = generateFrontmatter(item) + md;
     const title = item?.ai_title || item?.original_name || 'untitled';
-    const summary = item?.ai_summary || '';
-    const sourceUrl = item?.source_url || '';
-
-    const frontmatter = [
-      '---',
-      `title: "${title}"`,
-      summary && `summary: "${summary}"`,
-      sourceUrl && `source_url: "${sourceUrl}"`,
-      `date: "${new Date().toISOString().split('T')[0]}"`,
-      '---',
-    ].filter(Boolean).join('\n') + '\n\n';
-
-    const fullMd = frontmatter + md;
     const blob = new Blob([fullMd], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -346,6 +372,7 @@ export default function Detail({
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+
 
   return (
     <div
