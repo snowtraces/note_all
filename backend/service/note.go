@@ -7,6 +7,7 @@ import (
 	"log"
 	"mime/multipart"
 	"net/url"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -67,6 +68,107 @@ func syncLinks(nID uint, text string) {
 	}
 }
 
+func isTemporaryFile(filename string, mimeType string) bool {
+	ext := strings.ToLower(filepath.Ext(filename))
+	isPdf := ext == ".pdf" || mimeType == "application/pdf"
+	isDocx := ext == ".docx" || mimeType == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+	textExtensions := map[string]bool{".txt": true, ".ini": true, ".yml": true, ".yaml": true, ".md": true, ".json": true, ".xml": true, ".html": true, ".csv": true}
+	isText := textExtensions[ext] || strings.HasPrefix(mimeType, "text/")
+	return isPdf || isDocx || isText
+}
+
+// extractContentFromStorage 根据文件类型提取文本内容，必要时清理临时文件
+func extractContentFromStorage(note *models.NoteItem) (markdownText, title, summary, tags string, err error) {
+	ext := strings.ToLower(filepath.Ext(note.OriginalName))
+	isImage := strings.HasPrefix(note.FileType, "image/")
+	isPdf := ext == ".pdf" || note.FileType == "application/pdf"
+	isDocx := ext == ".docx" || note.FileType == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+	textExtensions := map[string]bool{".txt": true, ".ini": true, ".yml": true, ".yaml": true, ".md": true, ".json": true, ".xml": true, ".html": true, ".csv": true}
+	isText := textExtensions[ext] || strings.HasPrefix(note.FileType, "text/")
+
+	if !isImage && !isPdf && !isDocx && !isText {
+		return "", "", "", "", nil
+	}
+
+	var fileBlob []byte
+	if strings.HasPrefix(note.StorageID, ".tmp/") || strings.HasPrefix(note.StorageID, ".tmp\\") {
+		fileBlob, err = os.ReadFile(note.StorageID)
+		if err != nil {
+			return "", "", "", "", fmt.Errorf("读取本地临时文件失败: %v", err)
+		}
+	} else {
+		fileReader, err := global.Storage.Open(note.StorageID)
+		if err != nil {
+			return "", "", "", "", fmt.Errorf("无法触达存储获取源文件: %v", err)
+		}
+		fileBlob, err = io.ReadAll(fileReader)
+		fileReader.Close()
+		if err != nil {
+			return "", "", "", "", fmt.Errorf("文件读取异常: %v", err)
+		}
+	}
+
+	if isText {
+		markdownText = string(fileBlob)
+		if ext != ".txt" && ext != ".md" {
+			lang := strings.TrimPrefix(ext, ".")
+			markdownText = fmt.Sprintf("```%s\n%s\n```", lang, markdownText)
+		}
+		log.Printf("[AI 作业] 纯文本读取成功, 记录ID %d", note.ID)
+	} else if isDocx {
+		docxText, err := pkg.ExtractTextFromDocx(fileBlob)
+		if err == nil && strings.TrimSpace(docxText) != "" {
+			markdownText = docxText
+			log.Printf("[AI 作业] DOCX 文本提取成功, 记录ID %d", note.ID)
+		} else {
+			log.Printf("[AI 作业] DOCX 文本提取失败: %v, 记录ID %d", err, note.ID)
+		}
+	} else {
+		ocrResult, err := pkg.ExtractTextFromImage(fileBlob, ext)
+		if err == nil && strings.TrimSpace(ocrResult) != "" && len(strings.TrimSpace(ocrResult)) > 5 {
+			markdownText = ocrResult
+			log.Printf("[AI 作业] OCR/PDF 解析成功, 记录ID %d", note.ID)
+		} else if isImage {
+			log.Printf("[AI 作业] OCR 无文字或失败 (err: %v)，尝试 VLM 视觉兜底, 记录ID %d", err, note.ID)
+			desc, titleStr, summaryStr, tagsStr, vlmErr := pkg.DescribeImageVlm(fileBlob, note.FileType)
+			if vlmErr == nil && desc != "" {
+				markdownText = desc
+				title = titleStr
+				summary = summaryStr
+				tags = tagsStr
+				log.Printf("[AI 作业] VLM 视觉感知成功, 记录ID %d (Summary: %s)", note.ID, summary)
+			} else {
+				log.Printf("[AI 作业] VLM 识别亦失败: %v", vlmErr)
+			}
+		} else {
+			log.Printf("[AI 作业] PDF 解析失败: %v, 记录ID %d", err, note.ID)
+		}
+	}
+
+	if (isPdf || isDocx || isText) && strings.TrimSpace(markdownText) != "" {
+		if strings.HasPrefix(note.StorageID, ".tmp/") || strings.HasPrefix(note.StorageID, ".tmp\\") {
+			if err := os.Remove(note.StorageID); err != nil {
+				log.Printf("[存储清理] 临时原文档删除失败: %v", err)
+			}
+		} else {
+			if err := global.Storage.Delete(note.StorageID); err != nil {
+				log.Printf("[存储清理] 临时原文档删除失败: %v", err)
+			}
+			global.DB.Where("storage_id = ?", note.StorageID).Delete(&models.FileMetadata{})
+		}
+
+		note.StorageID = fmt.Sprintf("text_%d", time.Now().UnixNano())
+		note.FileType = "text/plain"
+		global.DB.Model(&models.NoteItem{}).Where("id = ?", note.ID).Updates(map[string]interface{}{
+			"storage_id": note.StorageID,
+			"file_type":  note.FileType,
+		})
+	}
+
+	return markdownText, title, summary, tags, nil
+}
+
 // performFullAnalysis 封装了 OCR -> VLM 兜底 -> LLM 提炼的全链路逻辑
 func performFullAnalysis(nID uint, templateID uint) {
 	log.Printf("[AI全链路作业] 开始为数据包 (ID:%d) 启动识别与提炼...\n", nID)
@@ -82,41 +184,25 @@ func performFullAnalysis(nID uint, templateID uint) {
 	summary := ""
 	tags := ""
 
-	// 1. 如果是图片且目前没有实质文本内容，尝试识别（OCR -> VLM）
-	if strings.HasPrefix(note.FileType, "image/") && strings.TrimSpace(markdownText) == "" {
-		fileReader, err := global.Storage.Open(note.StorageID)
+	// 1. 如果没有实质文本内容，尝试从原始文件提取（OCR -> VLM 或直接解析）
+	if strings.TrimSpace(markdownText) == "" {
+		mt, t, s, tg, err := extractContentFromStorage(&note)
 		if err != nil {
-			log.Printf("[AI 异常] 无法触达存储获取源文件: %v", err)
+			log.Printf("[AI 异常] %v", err)
 			global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Update("status", "error")
 			return
 		}
-		fileBlob, err := io.ReadAll(fileReader)
-		fileReader.Close()
-		if err != nil {
-			log.Printf("[AI 异常] 文件读取异常: %v", err)
-			global.DB.Model(&models.NoteItem{}).Where("id = ?", nID).Update("status", "error")
-			return
+		if mt != "" {
+			markdownText = mt
 		}
-
-		// 1.1 尝试 OCR
-		ext := filepath.Ext(note.OriginalName)
-		ocrResult, err := pkg.ExtractTextFromImage(fileBlob, ext)
-		if err == nil && strings.TrimSpace(ocrResult) != "" && len(strings.TrimSpace(ocrResult)) > 5 {
-			markdownText = ocrResult
-			log.Printf("[AI 作业] OCR 识别成功, 记录ID %d", nID)
-		} else {
-			// 1.2 OCR 无结果或报错，触发 VLM 兜底
-			log.Printf("[AI 作业] OCR 无文字或失败 (err: %v)，尝试 VLM 视觉兜底, 记录ID %d", err, nID)
-			desc, titleStr, summaryStr, tagsStr, vlmErr := pkg.DescribeImageVlm(fileBlob, note.FileType)
-			if vlmErr == nil && desc != "" {
-				markdownText = desc
-				title = titleStr
-				summary = summaryStr
-				tags = tagsStr
-				log.Printf("[AI 作业] VLM 视觉感知成功, 记录ID %d (Summary: %s)", nID, summary)
-			} else {
-				log.Printf("[AI 作业] VLM 识别亦失败: %v", vlmErr)
-			}
+		if t != "" {
+			title = t
+		}
+		if s != "" {
+			summary = s
+		}
+		if tg != "" {
+			tags = tg
 		}
 	}
 
@@ -179,62 +265,46 @@ func performFullAnalysis(nID uint, templateID uint) {
 
 // UploadAndCreateNote 处理复杂的文件落盘与 DB 生成主线逻辑
 func UploadAndCreateNote(file *multipart.FileHeader) (*models.NoteItem, error) {
-	// 1. 读取 HTTP 表单文件的原始流
 	f, err := file.Open()
 	if err != nil {
 		return nil, fmt.Errorf("无法读取原始文件流: %v", err)
 	}
 	defer f.Close()
 
-	// 2. 存入底层块系统 (snow_storage)，这里要用带时间戳的名称作防重击穿处理，以获取真正的 UUID/UniqueID (即 storageID)
-	secureName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), file.Filename)
-	storageID, err := global.Storage.Save(secureName, f)
-	if err != nil {
-		return nil, fmt.Errorf("底层存储失败: %v", err)
-	}
-
-	// 3. 构建 DB 数据实体 (目前状态为 pending)
 	mimeType := file.Header.Get("Content-Type")
-	note := models.NoteItem{
-		OriginalName: file.Filename,
-		StorageID:    storageID,
-		FileType:     mimeType,
-		FileSize:     file.Size,
-		Status:       "pending",
-	}
-
-	// 4. 落库
-	if err := global.DB.Create(&note).Error; err != nil {
-		return nil, fmt.Errorf("数据库元数据建立失败: %v", err)
-	}
-
-	// 4.5 创建文件元数据记录（用于独立的文件查询）
-	fileMeta := models.FileMetadata{
-		StorageID: storageID,
-		MimeType:  mimeType,
-		FileSize:  file.Size,
-		FileName:  file.Filename,
-	}
-	if err := global.DB.Create(&fileMeta).Error; err != nil {
-		log.Printf("[Upload] 创建文件元数据失败（不影响主流程）: %v", err)
-	}
-	// 5. 将任务发送到后台队列进行阻塞排队处理，避免并发过高触发 OCR/LLM 接口限流 (429)
-	nID := note.ID
-
-	global.WorkerChan <- func() {
-		performFullAnalysis(nID, 0)
-	}
-
-	return &note, nil
+	return CreateNoteFromReader(file.Filename, mimeType, file.Size, f)
 }
 
 // CreateNoteFromReader 从任意 io.Reader 构造笔记并推入 AI 分析队列（供 MCP 推送等接口复用）
 func CreateNoteFromReader(filename string, fileType string, size int64, r io.Reader) (*models.NoteItem, error) {
-	// 1. 存入底层块系统 (snow_storage)
-	secureName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), filename)
-	storageID, err := global.Storage.Save(secureName, r)
-	if err != nil {
-		return nil, fmt.Errorf("底层存储失败: %v", err)
+	isTemp := isTemporaryFile(filename, fileType)
+	var storageID string
+	var err error
+
+	safeFilename := filepath.Base(filename)
+	if safeFilename == "." || safeFilename == "/" || safeFilename == "\\" {
+		safeFilename = "unnamed_file"
+	}
+
+	if isTemp {
+		os.MkdirAll(".tmp", 0755)
+		storageID = filepath.Join(".tmp", fmt.Sprintf("%d_%s", time.Now().UnixNano(), safeFilename))
+		out, err := os.Create(storageID)
+		if err != nil {
+			return nil, fmt.Errorf("创建本地临时文件失败: %v", err)
+		}
+		_, err = io.Copy(out, r)
+		out.Close()
+		if err != nil {
+			return nil, fmt.Errorf("写入本地临时文件失败: %v", err)
+		}
+	} else {
+		// 1. 存入底层块系统 (snow_storage)
+		secureName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), safeFilename)
+		storageID, err = global.Storage.Save(secureName, r)
+		if err != nil {
+			return nil, fmt.Errorf("底层存储失败: %v", err)
+		}
 	}
 
 	// 2. 构建 DB 数据实体 (目前状态为 pending)
@@ -252,14 +322,16 @@ func CreateNoteFromReader(filename string, fileType string, size int64, r io.Rea
 	}
 
 	// 4. 创建文件元数据记录（用于独立的文件查询）
-	fileMeta := models.FileMetadata{
-		StorageID: storageID,
-		MimeType:  fileType,
-		FileSize:  size,
-		FileName:  filename,
-	}
-	if err := global.DB.Create(&fileMeta).Error; err != nil {
-		log.Printf("[CreateNoteFromReader] 创建文件元数据失败（不影响主流程）: %v", err)
+	if !isTemp {
+		fileMeta := models.FileMetadata{
+			StorageID: storageID,
+			MimeType:  fileType,
+			FileSize:  size,
+			FileName:  filename,
+		}
+		if err := global.DB.Create(&fileMeta).Error; err != nil {
+			log.Printf("[CreateNoteFromReader] 创建文件元数据失败（不影响主流程）: %v", err)
+		}
 	}
 
 	// 5. 将任务发送到后台队列进行阻塞排队处理

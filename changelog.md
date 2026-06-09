@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased] - 2026-06-09
 
 ### Added
+- **原生 DOCX 解析与自动编号提取**：后端完全重写了针对 Word `.docx` 格式的原生解析引擎，新增了对 `numbering.xml` 与多级列表的追踪支持，解决了之前由于只读取正文导致标题编号和列表符号丢失的问题，实现了对 `1.1` 等编号标题与 Markdown 的无缝合成。
+- **扩展纯文本提取格式**：前端与后端现已原生支持各类纯文本与代码文件（包括 `.txt`, `.ini`, `.yml`, `.yaml`, `.md`, `.json`, `.xml`, `.csv` 等）的直接解析。针对代码配置文件，解析后会自动用 Markdown 代码块（如 ` ```yml `）将其包裹，实现高亮展示。
+- **纯文本/文档类型的临时落盘优化**：重构了文件上传的底层核心逻辑。针对只需提取一次的临时文本或文档类文件，绕过持久化的 `snow_storage` 块系统和元数据库表，将其改存至独立的本地 `.tmp/` 目录，并在后台异步提取完成后彻底销毁，大大降低了全局存储压力与数据库脏数据的产生。
 - **正文显示排版配置 (Body Text Typography)**：在“外观样式”设置中新增“正文排版配置”功能，内置“默认排版”（16px字号/1.8行高）与“紧凑排版”（14px字号/1.5行高）预设，同时提供“自定义”配置选项。
 - **自定义参数滑块与双列排版 (Custom Sliders & Compact Grid)**：选择自定义后，支持通过 range 滑块自由调节正文字号（12-24px）、行高比例（1.2-2.2）、段落上下间距（0.2-1.5em）及标题上下间距倍数（0.4-1.6x）。参数调节面板在宽屏下采用紧凑的双列网格显示（`grid-cols-2`），并配备带边框背景的高清数值徽标。
 - **排版样式实时预览 (Real-time Style Preview)**：在外观设置右侧增设了独立的“排版及样式实时预览”区域。该预览区使用与主笔记渲染器完全相同的富文本样式类（`.tiptap-content`），可以无感、100%保真地实时呈现字号、行高和间距的调节结果。
@@ -12,6 +15,9 @@ All notable changes to this project will be documented in this file.
 - **YAML Frontmatter 格式统一**：重构了单篇笔记复制和下载的 Frontmatter 渲染逻辑，包含完整的 `id`、`title`、`ai_title`、`summary`、`tags`、`created_at`/`updated_at` 时间戳、`original_url`、`user_comment`、`file_type`、`storage_id` 以及合成溯源 `parents` 关系链，与后端批量导出的 Markdown 格式完全保持 100% 一致。
 - **离线兼容与附件提取**：批量导出 ZIP 时，自动扫描笔记中嵌入的媒体和文件，并将物理文件提取打包进 `attachments/` 目录中，同时将内容中的 `/api/file/` 相对链接重写为离线阅读器（如 Obsidian）兼容的本地相对链接，在导入时能自动提取并重建物理附件。
 - **Markdown 复制按钮**：在详情页面顶栏“下载为.md”按钮左侧新增“复制.md”按钮，支持一键将 Frontmatter 与正文 Markdown 复制到剪贴板，并配有 Toast 提示反馈。
+
+### Security
+- **临时文件写入路径穿越修复**：发现在之前的重构中，恶意用户可以通过构造名为 `../../../` 形式的非法文件名，在上传时造成后端的 `os.Create` 发生目录穿越（Path Traversal），引发任意系统文件覆盖和敏感读取。现已使用 `filepath.Base` 引入严格的强制清洗拦截机制，封堵了该致命漏洞。
 
 ### Changed
 - **顶栏按钮文案简化**：将顶栏的操作按钮文案均简化为两个字（恢复、销毁、删除、复制、下载、分享），使界面更简洁紧凑。

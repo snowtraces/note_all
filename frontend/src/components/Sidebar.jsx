@@ -1,11 +1,12 @@
 import {
   Beaker,
-  BrainCircuit,
+  BookOpen,
+  Check,
   CheckCircle2,
+  ChevronDown,
   Files,
   MessageSquare,
   Network,
-  PenLine,
   Plus,
   RefreshCcw,
   Search,
@@ -13,19 +14,13 @@ import {
   Trash2,
   UploadCloud,
   X,
-  Zap,
-  BookOpen,
-  Check,
-  Wand2,
-  Loader2,
-  ChevronDown
+  Zap
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { deleteChatSession, getChatSessions, getTags, getWikiList } from '../api/noteApi';
 import { generateImage } from '../api/imageGenApi';
+import { deleteChatSession, getChatSessions, getTags, getWikiList } from '../api/noteApi';
 import { useTheme } from '../context/ThemeContext';
-import { promptPresets } from '../constants/promptPresets';
 
 export default function Sidebar({
   searchOnlyWiki,
@@ -752,13 +747,13 @@ export default function Sidebar({
 
       {!showTrash && viewMode === 'notes' && (
         <div className="px-4 pt-4 pb-6 border-t bg-modal shrink-0 border-borderSubtle">
-          <input type="file" ref={fileInputRef} onChange={handleUpload} className="hidden" />
+          <input type="file" accept="image/*,.pdf,.docx,.txt,.ini,.yml,.yaml,.md,.json,.xml,.csv" ref={fileInputRef} onChange={handleUpload} className="hidden" />
 
 
 
           <div className="flex gap-2">
             <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-primeAccent/10 to-transparent border border-borderSubtle py-3 rounded-lg text-textSecondary hover:text-textPrimary transition-all text-[12px]">
-              {uploading ? "吸入中..." : <><UploadCloud size={14} /> 上传图片</>}
+              {uploading ? "吸入中..." : <><UploadCloud size={14} /> 上传文件</>}
             </button>
             <button
               onClick={async () => {
