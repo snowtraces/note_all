@@ -239,13 +239,13 @@ export default function Sidebar({
     return (
       <>
         {tags.slice(0, 3).map((tag, idx) => (
-          <span key={idx} className={`px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${isSelected ? 'bg-primeAccent/20 text-primeAccent' : 'bg-bgHover text-textSecondary'
+          <span key={idx} className={`shrink-0 max-w-[120px] truncate px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${isSelected ? 'bg-primeAccent/20 text-primeAccent' : 'bg-bgHover text-textSecondary'
             }`}>
             #{tag.trim()}
           </span>
         ))}
         {tags.length > 3 && (
-          <span className="text-textTertiary text-[10px] pt-0.5">...</span>
+          <span className="text-textTertiary text-[10px] pt-0.5 shrink-0">...</span>
         )}
       </>
     );
@@ -410,11 +410,11 @@ export default function Sidebar({
                   )}
 
                   {/* 第一行：元信息栏 (标签、日期、操作) */}
-                  <div className="flex justify-between items-end mb-2 mt-0 relative z-10">
-                    <div className="flex flex-wrap gap-1.5 max-h-[44px] overflow-hidden">
+                  <div className="flex justify-between items-center mb-2 mt-0 relative z-10 min-h-[24px]">
+                    <div className="flex flex-nowrap gap-1.5 overflow-hidden flex-1 mr-3 items-center mask-image-r">
                       {renderTags(item.ai_tags, item.id, isSelected)}
                     </div>
-                    <div className="flex items-end gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       {item.parents && item.parents.length > 0 && (
                         <Zap size={10} className="text-primeAccent fill-primeAccent/20 animate-pulse" title="合成生成的知识笔记" />
                       )}
