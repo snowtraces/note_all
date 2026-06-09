@@ -384,8 +384,8 @@ select {
 
 /* OCR 内容区 */
 .markdown-ocr {
-  font-size: 16px;
-  line-height: 1.8;
+  font-size: var(--note-font-size, 16px);
+  line-height: var(--note-line-height, 1.8);
 }
 
 .ai-summary-markdown p {

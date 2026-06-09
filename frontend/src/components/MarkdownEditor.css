@@ -9,8 +9,8 @@
 .tiptap-content {
   padding: 0 12px; /* 增加左右留白，防止选中边框 (Outline) 被截断，并让排版极具呼吸感 */
   caret-color: var(--prime-accent);
-  font-size: 16px;
-  line-height: 1.8;
+  font-size: var(--note-font-size, 16px);
+  line-height: var(--note-line-height, 1.8);
 }
 
 .markdown-editor-wrapper .tiptap-content {
@@ -35,8 +35,8 @@
 /* ============ 文本样式 ============ */
 
 .tiptap-content p {
-  margin: 0.8em 0;
-  line-height: 1.8;
+  margin: var(--note-p-margin, 0.8em) 0;
+  line-height: var(--note-line-height, 1.8);
   color: var(--text-primary);
 }
 
@@ -85,7 +85,7 @@
   font-size: 1.5em;
   font-weight: 700;
   color: var(--text-primary);
-  margin: 1.2em 0 0.6em;
+  margin: var(--note-h1-margin, 1.2em 0 0.6em);
   padding-bottom: 0.3em;
   border-bottom: 1px solid var(--border-subtle);
   letter-spacing: 0.05em;
@@ -96,7 +96,7 @@
   font-size: 1.25em;
   font-weight: 700;
   color: var(--text-primary);
-  margin: 1em 0 0.4em;
+  margin: var(--note-h2-margin, 1em 0 0.4em);
   letter-spacing: 0.03em;
 }
 
@@ -105,7 +105,7 @@
   font-size: 1.125em;
   font-weight: 700;
   color: var(--text-primary);
-  margin: 0.8em 0 0.3em;
+  margin: var(--note-h3-margin, 0.8em 0 0.3em);
 }
 
 /* ============ 列表 ============ */

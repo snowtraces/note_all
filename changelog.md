@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased] - 2026-06-09
 
 ### Added
+- **正文显示排版配置 (Body Text Typography)**：在“外观样式”设置中新增“正文排版配置”功能，内置“默认排版”（16px字号/1.8行高）与“紧凑排版”（14px字号/1.5行高）预设，同时提供“自定义”配置选项。
+- **自定义参数滑块与双列排版 (Custom Sliders & Compact Grid)**：选择自定义后，支持通过 range 滑块自由调节正文字号（12-24px）、行高比例（1.2-2.2）、段落上下间距（0.2-1.5em）及标题上下间距倍数（0.4-1.6x）。参数调节面板在宽屏下采用紧凑的双列网格显示（`grid-cols-2`），并配备带边框背景的高清数值徽标。
+- **排版样式实时预览 (Real-time Style Preview)**：在外观设置右侧增设了独立的“排版及样式实时预览”区域。该预览区使用与主笔记渲染器完全相同的富文本样式类（`.tiptap-content`），可以无感、100%保真地实时呈现字号、行高和间距的调节结果。
 - **导入导出功能 (Backup & Restore)**：在“系统核心控制台”配置中新增“导入导出”选项卡，支持批量 ZIP 备份导出、批量 ZIP 导入恢复，以及单个 Markdown 文件的上传导入。
 - **YAML Frontmatter 格式统一**：重构了单篇笔记复制和下载的 Frontmatter 渲染逻辑，包含完整的 `id`、`title`、`ai_title`、`summary`、`tags`、`created_at`/`updated_at` 时间戳、`original_url`、`user_comment`、`file_type`、`storage_id` 以及合成溯源 `parents` 关系链，与后端批量导出的 Markdown 格式完全保持 100% 一致。
 - **离线兼容与附件提取**：批量导出 ZIP 时，自动扫描笔记中嵌入的媒体和文件，并将物理文件提取打包进 `attachments/` 目录中，同时将内容中的 `/api/file/` 相对链接重写为离线阅读器（如 Obsidian）兼容的本地相对链接，在导入时能自动提取并重建物理附件。
