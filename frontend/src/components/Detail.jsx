@@ -366,25 +366,25 @@ export default function Detail({
               <button
                 onClick={() => handleRestore(item.id)}
                 className="px-2 md:px-4 py-1.5 bg-primeAccent/20 text-primeAccent hover:bg-primeAccent/30 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/30 shadow-lg shadow-primeAccent/5"
-                title="撤销删除"
+                title="恢复"
               >
-                <ArchiveRestore size={14} /> <span className="hidden md:inline">撤销删除</span>
+                <ArchiveRestore size={14} /> <span className="hidden md:inline">恢复</span>
               </button>
               <button
                 onClick={() => handleDelete(item.id, true)}
                 className="px-2 md:px-4 py-1.5 bg-red-500/20 text-red-500 hover:bg-red-500/30 hover:text-red-400 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-red-500/30 shadow-lg shadow-red-500/10"
-                title="彻底摧毁"
+                title="销毁"
               >
-                <Trash2 size={14} /> <span className="hidden md:inline">彻底摧毁</span>
+                <Trash2 size={14} /> <span className="hidden md:inline">销毁</span>
               </button>
             </>
           ) : (
             <button
               onClick={() => handleDelete(item.id)}
               className="px-2 md:px-4 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-red-500/20"
-              title="移入垃圾篓"
+              title="删除"
             >
-              <Trash2 size={14} /> <span className="hidden md:inline">移入垃圾篓</span>
+              <Trash2 size={14} /> <span className="hidden md:inline">删除</span>
             </button>
           )}
 
@@ -395,21 +395,21 @@ export default function Detail({
                 className="px-2 md:px-4 py-1.5 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/20"
                 title="复制Markdown"
               >
-                <Copy size={14} /> <span className="hidden md:inline">复制.md</span>
+                <Copy size={14} /> <span className="hidden md:inline">复制</span>
               </button>
               <button
                 onClick={handleDownloadMarkdown}
                 className="px-2 md:px-4 py-1.5 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/20"
                 title="下载为Markdown"
               >
-                <Download size={14} /> <span className="hidden md:inline">下载为.md</span>
+                <Download size={14} /> <span className="hidden md:inline">下载</span>
               </button>
               <button
                 onClick={() => setShowShareModal(true)}
                 className="px-2 md:px-4 py-1.5 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/20"
                 title="分享碎片"
               >
-                <Share2 size={14} /> <span className="hidden md:inline">分享碎片</span>
+                <Share2 size={14} /> <span className="hidden md:inline">分享</span>
               </button>
             </>
           )}

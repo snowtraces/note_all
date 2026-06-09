@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 ### Added
 - **Markdown 复制按钮**：在详情页面顶栏“下载为.md”按钮左侧新增“复制.md”按钮，支持一键将 Frontmatter 与正文 Markdown 复制到剪贴板，并配有 Toast 提示反馈。
 
+### Changed
+- **顶栏按钮文案简化**：将顶栏的操作按钮文案均简化为两个字（恢复、销毁、删除、复制、下载、分享），使界面更简洁紧凑。
+
 ## [Unreleased] - 2026-06-08
 
 ### Changed
