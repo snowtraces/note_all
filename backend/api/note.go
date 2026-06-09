@@ -216,35 +216,60 @@ func (a *NoteApi) Search(c *gin.Context) {
 			}
 		}
 	}
+	
+	pageStr := c.Query("page")
+	pageSizeStr := c.Query("page_size")
+	page, _ := strconv.Atoi(pageStr)
+	if page < 1 {
+		page = 1
+	}
+	pageSize, _ := strconv.Atoi(pageSizeStr)
+	if pageSize <= 0 {
+		pageSize = 20
+	} else if pageSize > 100 {
+		pageSize = 100
+	}
+
+	var results []service.SearchResult
+	var total int64
+	var err error
 
 	if strings.TrimSpace(keyword) == "" {
 		// 无参数搜索时，默认返回最近更新的 20 条已分析笔记
 		var notes []models.NoteItem
 		// 必须 Preload Tags，否则前端 renderTags 会报错或显示无标签
 		dbQuery := global.DB.Preload("Tags").Where("status IN ? AND is_archived = ?", []string{"analyzed", "done"}, false)
+		countQuery := global.DB.Model(&models.NoteItem{}).Where("status IN ? AND is_archived = ?", []string{"analyzed", "done"}, false)
+		
 		if onlyWiki {
 			dbQuery = dbQuery.Where("is_wiki = ?", true)
+			countQuery = countQuery.Where("is_wiki = ?", true)
 		}
-		dbQuery.Order("updated_at DESC").Limit(20).Find(&notes)
+		countQuery.Count(&total)
 
-		results := make([]service.SearchResult, 0)
+		dbQuery.Order("updated_at DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&notes)
+
+		results = make([]service.SearchResult, 0, len(notes))
 		for _, n := range notes {
 			results = append(results, service.SearchResult{
 				NoteItem: n,
 				Score:    1.0, // 提供基础分值
 			})
 		}
-		c.JSON(http.StatusOK, gin.H{"data": results})
-		return
+	} else {
+		results, total, err = service.HybridSearch(keyword, page, pageSize, onlyWiki)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "检索失败: " + err.Error()})
+			return
+		}
 	}
 
-	results, err := service.HybridSearch(keyword, 20, onlyWiki)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "检索失败: " + err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"data": results})
+	c.JSON(http.StatusOK, gin.H{
+		"data":     results,
+		"total":    total,
+		"page":     page,
+		"has_more": int64(page*pageSize) < total,
+	})
 }
 
 // SoftDelete 逻辑删除（移至回收站）

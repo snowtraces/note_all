@@ -15,12 +15,15 @@ All notable changes to this project will be documented in this file.
 - **YAML Frontmatter 格式统一**：重构了单篇笔记复制和下载的 Frontmatter 渲染逻辑，包含完整的 `id`、`title`、`ai_title`、`summary`、`tags`、`created_at`/`updated_at` 时间戳、`original_url`、`user_comment`、`file_type`、`storage_id` 以及合成溯源 `parents` 关系链，与后端批量导出的 Markdown 格式完全保持 100% 一致。
 - **离线兼容与附件提取**：批量导出 ZIP 时，自动扫描笔记中嵌入的媒体和文件，并将物理文件提取打包进 `attachments/` 目录中，同时将内容中的 `/api/file/` 相对链接重写为离线阅读器（如 Obsidian）兼容的本地相对链接，在导入时能自动提取并重建物理附件。
 - **Markdown 复制按钮**：在详情页面顶栏“下载为.md”按钮左侧新增“复制.md”按钮，支持一键将 Frontmatter 与正文 Markdown 复制到剪贴板，并配有 Toast 提示反馈。
+- **全局搜索与笔记列表深度分页**：后端重构了混合搜索逻辑（HybridSearch），通过内存动态切片支持了带偏移量的 `page` 和 `page_size` 分页查询。同时在 API 层面添加了单页拉取上限的安全边界防护。
+- **侧边栏无缝无限加载**：前端使用 `IntersectionObserver` 实现了主列表侧边栏滚动到底部时的自动无缝加载（Infinite Scroll）机制，在状态栏精确显示了后端的真实总量统计，彻底移除了早先 20 条硬编码截断带来的浏览死角。
 
 ### Security
 - **临时文件写入路径穿越修复**：发现在之前的重构中，恶意用户可以通过构造名为 `../../../` 形式的非法文件名，在上传时造成后端的 `os.Create` 发生目录穿越（Path Traversal），引发任意系统文件覆盖和敏感读取。现已使用 `filepath.Base` 引入严格的强制清洗拦截机制，封堵了该致命漏洞。
 
 ### Changed
 - **顶栏按钮文案简化**：将顶栏的操作按钮文案均简化为两个字（恢复、销毁、删除、复制、下载、分享），使界面更简洁紧凑。
+- **Search API 架构精简重构**：对后端的查询 API 进行了深度的代码简化。移除了查询空值时的冗余构造循环，使用底层统一的 JSON 数据输出结构，并修复了 GORM 对象链条中 Count 查询复用导致的上下文污染漏洞。
 
 ## [Unreleased] - 2026-06-08
 

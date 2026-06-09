@@ -133,12 +133,12 @@ func BackfillNoteChunks() error {
 }
 
 // HybridSearch 单关键词混合检索
-func HybridSearch(query string, limit int, onlyWiki bool) ([]SearchResult, error) {
-	return BatchHybridSearch([]string{query}, limit, onlyWiki)
+func HybridSearch(query string, page int, pageSize int, onlyWiki bool) ([]SearchResult, int64, error) {
+	return BatchHybridSearch([]string{query}, page, pageSize, onlyWiki)
 }
 
 // BatchHybridSearch 批量混合检索，合并多关键词查询
-func BatchHybridSearch(queries []string, limit int, onlyWiki bool) ([]SearchResult, error) {
+func BatchHybridSearch(queries []string, page int, pageSize int, onlyWiki bool) ([]SearchResult, int64, error) {
 	// 1. 分片级向量检索 (只对第一个 query)
 	vectorScores := make(map[uint]float32)
 	if len(queries) > 0 {
@@ -159,7 +159,7 @@ func BatchHybridSearch(queries []string, limit int, onlyWiki bool) ([]SearchResu
 				// 使用分片向量表进行检索
 				vecSQL := `
 					SELECT nc.id as chunk_id, nc.note_id, nc.content, nc.heading, nc.chunk_index, v.distance
-					FROM vector_full_scan('note_chunk_embeddings', 'embedding', ?, 50) AS v
+					FROM vector_full_scan('note_chunk_embeddings', 'embedding', ?, 200) AS v
 					JOIN note_chunk_embeddings AS ce ON ce.id = v.rowid
 					JOIN note_chunks AS nc ON nc.id = ce.chunk_id
 					JOIN note_items AS n ON n.id = nc.note_id
@@ -242,7 +242,7 @@ func BatchHybridSearch(queries []string, limit int, onlyWiki bool) ([]SearchResu
 			ID    uint
 			Score float32
 		}
-		global.DB.Raw("SELECT rowid as id, -bm25(note_fts) as score FROM note_fts WHERE note_fts MATCH ? ORDER BY score DESC LIMIT 50", ftsQuery).Scan(&ftsResults)
+		global.DB.Raw("SELECT rowid as id, -bm25(note_fts) as score FROM note_fts WHERE note_fts MATCH ? ORDER BY score DESC LIMIT 200", ftsQuery).Scan(&ftsResults)
 		for _, r := range ftsResults {
 			if existing, ok := ftsScores[r.ID]; !ok || r.Score > existing {
 				ftsScores[r.ID] = r.Score
@@ -299,7 +299,7 @@ func BatchHybridSearch(queries []string, limit int, onlyWiki bool) ([]SearchResu
 	}
 
 	if len(ids) == 0 {
-		return []SearchResult{}, nil
+		return []SearchResult{}, 0, nil
 	}
 
 	// 5. 获取笔记详情
@@ -345,11 +345,23 @@ func BatchHybridSearch(queries []string, limit int, onlyWiki bool) ([]SearchResu
 		return results[i].Score > results[j].Score
 	})
 
-	if len(results) > limit {
-		results = results[:limit]
+	total := int64(len(results))
+	
+	offset := (page - 1) * pageSize
+	if offset < 0 {
+		offset = 0
 	}
+	if offset > int(total) {
+		offset = int(total)
+	}
+	end := offset + pageSize
+	if end > int(total) {
+		end = int(total)
+	}
+	
+	results = results[offset:end]
 
-	return results, nil
+	return results, total, nil
 }
 
 // IntentDetection 意图检测

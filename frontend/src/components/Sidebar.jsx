@@ -34,6 +34,9 @@ export default function Sidebar({
   handleSearch,
   loading,
   results,
+  total,
+  hasMore,
+  handleLoadMore,
   selectedItem,
   setSelectedItem,
   uploading,
@@ -138,6 +141,28 @@ export default function Sidebar({
   );
 
   const [activeIndex, setActiveIndex] = useState(-1);
+
+  // 观察无限滚动的 ref
+  const loadMoreRef = useRef(null);
+  
+  useEffect(() => {
+    if (!hasMore || loading) return;
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          handleLoadMore();
+        }
+      },
+      { root: null, rootMargin: '100px', threshold: 0.1 }
+    );
+    
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+    
+    return () => observer.disconnect();
+  }, [hasMore, loading, handleLoadMore]);
   useEffect(() => { setActiveIndex(-1); }, [query]);
 
   // 拉取标签
@@ -247,7 +272,7 @@ export default function Sidebar({
           {/* Item Count or Status */}
           <div className="flex items-center gap-2">
             <span className="text-[10px] tabular-nums font-mono text-textTertiary uppercase tracking-widest px-1.5 py-0.5 rounded-md border border-borderSubtle/50 bg-bgHover/50">
-              {displayedResults.length} {searchOnlyWiki && viewMode === 'notes' ? 'WIKIS' : 'FRAGMENTS'}
+              {total || displayedResults.length} {searchOnlyWiki && viewMode === 'notes' ? 'WIKIS' : 'FRAGMENTS'}
             </span>
           </div>
         </div>
@@ -430,6 +455,26 @@ export default function Sidebar({
                 </div>
               );
             })}
+            {hasMore && (
+              <div ref={loadMoreRef} className="py-6 flex justify-center items-center shrink-0">
+                {loading ? (
+                  <div className="flex items-center gap-2 text-[11px] text-textMuted uppercase tracking-widest">
+                    <RefreshCcw size={12} className="animate-spin text-primeAccent" /> Loading...
+                  </div>
+                ) : (
+                  <button onClick={handleLoadMore} className="text-[10px] uppercase tracking-widest text-primeAccent hover:underline transition-all">
+                    向下滚动加载更多
+                  </button>
+                )}
+              </div>
+            )}
+            {!hasMore && displayedResults.length > 0 && (
+              <div className="py-6 flex justify-center shrink-0">
+                <span className="text-[10px] uppercase tracking-widest text-textTertiary font-mono">
+                  — END OF LIST —
+                </span>
+              </div>
+            )}
             {/* 列表底部雅致留白，保障最末卡片与底部上传面板有高雅的视觉呼吸感 */}
             <div className="h-6 shrink-0" />
           </>

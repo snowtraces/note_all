@@ -113,6 +113,9 @@ function AppContent() {
   const [query, setQuery] = useState('');
   const [searchOnlyWiki, setSearchOnlyWiki] = useState(false);
   const [results, setResults] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -336,7 +339,7 @@ function AppContent() {
     if (showTrash) {
       loadTrashData();
     } else {
-      executeSearch(query, searchOnlyWiki);
+      executeSearch(query, searchOnlyWiki, 1);
     }
     // 只有在非路由初始化的情况下，切换数据源才清空详情
     if (!isRoutingRef.current) {
@@ -400,16 +403,36 @@ function AppContent() {
     setLoading(false);
   };
 
-  const executeSearch = async (q, onlyWiki = searchOnlyWiki) => {
+  const executeSearch = async (q, onlyWiki = searchOnlyWiki, newPage = 1) => {
     if (showTrash) return;
-    setLoading(true);
+    if (newPage === 1) {
+      setLoading(true);
+    }
     try {
-      const data = await searchNotes(q, onlyWiki);
-      setResults(data);
+      const data = await searchNotes(q, onlyWiki, newPage);
+      if (newPage === 1) {
+        setResults(data.data);
+      } else {
+        setResults(prev => {
+          // 避免重复，基于 ID 过滤
+          const existingIds = new Set(prev.map(item => item.id));
+          const newItems = data.data.filter(item => !existingIds.has(item.id));
+          return [...prev, ...newItems];
+        });
+      }
+      setPage(newPage);
+      setHasMore(data.hasMore);
+      setTotal(data.total);
     } catch (e) {
       console.error(e);
     }
     setLoading(false);
+  };
+
+  const handleLoadMore = () => {
+    if (!loading && hasMore) {
+      executeSearch(query, searchOnlyWiki, page + 1);
+    }
   };
 
 
@@ -677,9 +700,12 @@ function AppContent() {
             setShowTrash={setShowTrash}
             query={query}
             setQuery={setQuery}
-            handleSearch={executeSearch}
+            handleSearch={(q, onlyWiki) => executeSearch(q, onlyWiki, 1)}
             loading={loading}
             results={results}
+            total={total}
+            hasMore={hasMore}
+            handleLoadMore={handleLoadMore}
             selectedItem={selectedItem}
             setSelectedItem={guardedSetSelectedItem}
             uploading={uploading}

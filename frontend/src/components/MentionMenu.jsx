@@ -68,7 +68,7 @@ const MentionMenu = ({
       setLoading(true);
       try {
         const results = await searchNotes(q);
-        setItems(results.slice(0, 10).map(r => ({
+        setItems(results.data.slice(0, 10).map(r => ({
           id: r.id,
           title: r.ai_title || r.original_name,
           desc: r.ai_summary || '查看详情',

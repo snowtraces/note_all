@@ -6,10 +6,14 @@ export const getTrash = async () => {
   return data.data || [];
 };
 
-export const searchNotes = async (query, onlyWiki = false) => {
-  const res = await request(`/api/search?q=${encodeURIComponent(query)}&only_wiki=${onlyWiki}`);
+export const searchNotes = async (query, onlyWiki = false, page = 1) => {
+  const res = await request(`/api/search?q=${encodeURIComponent(query)}&only_wiki=${onlyWiki}&page=${page}`);
   const data = await res.json();
-  return data.data || [];
+  return {
+    data: data.data || [],
+    hasMore: data.has_more || false,
+    total: data.total || 0
+  };
 };
 
 export const getNote = async (id) => {
