@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, act } from 'react';
-import { BrainCircuit, Sparkles, X, ArchiveRestore, Trash2, RefreshCw, ChevronLeft, ChevronDown, Share2, Download, List, PanelRightClose, Search, ChevronUp } from 'lucide-react';
+import { BrainCircuit, Sparkles, X, ArchiveRestore, Trash2, RefreshCw, ChevronLeft, ChevronDown, Share2, Download, List, PanelRightClose, Search, ChevronUp, Copy } from 'lucide-react';
 import ContentToolbar from './ContentToolbar';
 import EditorToolbar from './EditorToolbar';
 import MarkdownEditor from './MarkdownEditor';
@@ -11,6 +11,7 @@ import { getTemplates } from '../api/templateApi';
 import ShareModal from './ShareModal';
 import DetailSidebar from './DetailSidebar';
 import useImageLocalization from '../hooks/useImageLocalization';
+import { useToast } from '../context/ToastContext';
 
 export default function Detail({
   item,
@@ -24,6 +25,7 @@ export default function Detail({
   onUnsavedChange,
   onSaveRef,
 }) {
+  const { showToast } = useToast();
   const editBaseline = useRef(item?.ocr_text || '');
   const contentScrollRef = useRef(null);
   const tiptapEditorRef = useRef(null);
@@ -293,6 +295,31 @@ export default function Detail({
     setSelectedItem(nextItem);
   };
 
+  const handleCopyMarkdown = async () => {
+    const md = editorMode === 'raw' ? editValue : tiptapContent;
+    const title = item?.ai_title || item?.original_name || 'untitled';
+    const summary = item?.ai_summary || '';
+    const sourceUrl = item?.source_url || '';
+
+    const frontmatter = [
+      '---',
+      `title: "${title}"`,
+      summary && `summary: "${summary}"`,
+      sourceUrl && `source_url: "${sourceUrl}"`,
+      `date: "${new Date().toISOString().split('T')[0]}"`,
+      '---',
+    ].filter(Boolean).join('\n') + '\n\n';
+
+    const fullMd = frontmatter + md;
+    try {
+      await navigator.clipboard.writeText(fullMd);
+      showToast('Markdown 内容已复制到剪贴板', { type: 'success', title: '成功' });
+    } catch (err) {
+      console.error('Failed to copy markdown: ', err);
+      showToast('复制失败: ' + err.message, { type: 'error', title: '错误' });
+    }
+  };
+
   const handleDownloadMarkdown = () => {
     const md = editorMode === 'raw' ? editValue : tiptapContent;
     const title = item?.ai_title || item?.original_name || 'untitled';
@@ -363,6 +390,13 @@ export default function Detail({
 
           {!showTrash && (
             <>
+              <button
+                onClick={handleCopyMarkdown}
+                className="px-2 md:px-4 py-1.5 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/20"
+                title="复制Markdown"
+              >
+                <Copy size={14} /> <span className="hidden md:inline">复制.md</span>
+              </button>
               <button
                 onClick={handleDownloadMarkdown}
                 className="px-2 md:px-4 py-1.5 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/20"

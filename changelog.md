@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] - 2026-06-09
+
+### Added
+- **Markdown 复制按钮**：在详情页面顶栏“下载为.md”按钮左侧新增“复制.md”按钮，支持一键将 Frontmatter 与正文 Markdown 复制到剪贴板，并配有 Toast 提示反馈。
+
 ## [Unreleased] - 2026-06-08
 
 ### Changed
