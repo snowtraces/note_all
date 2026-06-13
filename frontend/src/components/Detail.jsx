@@ -12,6 +12,7 @@ import ShareModal from './ShareModal';
 import DetailSidebar from './DetailSidebar';
 import useImageLocalization from '../hooks/useImageLocalization';
 import { useToast } from '../context/ToastContext';
+import { convertHtmlTablesToMarkdown } from '../utils/markdownUtils';
 
 export default function Detail({
   item,
@@ -164,9 +165,16 @@ export default function Detail({
   const onSaveWrap = async () => {
     if (!handleUpdateText || !item || isSaving) return;
     setIsSaving(true);
-    await handleUpdateText(item.id, editValue);
+    let textToSave = editValue;
+    // 保存前尽可能将 table 标签转换为 Markdown
+    textToSave = convertHtmlTablesToMarkdown(textToSave);
+    if (textToSave !== editValue) {
+      setEditValue(textToSave);
+      setTiptapContent(textToSave);
+    }
+    await handleUpdateText(item.id, textToSave);
     setIsSaving(false);
-    editBaseline.current = editValue;
+    editBaseline.current = textToSave;
   };
 
   const changeMode = useCallback((newMode) => {
@@ -285,7 +293,14 @@ export default function Detail({
     if (onSaveRef) {
       onSaveRef.current = async () => {
         setIsSaving(true);
-        await handleUpdateText(item.id, editValue);
+        let textToSave = editValue;
+        // 保存前尽可能将 table 标签转换为 Markdown
+        textToSave = convertHtmlTablesToMarkdown(textToSave);
+        if (textToSave !== editValue) {
+          setEditValue(textToSave);
+          setTiptapContent(textToSave);
+        }
+        await handleUpdateText(item.id, textToSave);
         setIsSaving(false);
       };
     }

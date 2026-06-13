@@ -2,8 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - 2026-06-09
+## [Unreleased] - 2026-06-13
 
+### Added
+- **原生 Markdown 表格转换**：在保存时自动将富文本或粘贴产生的 `<table>` HTML 标签转为原生 Markdown 表格语法，并安全剥离无用的块级元素，保持换行结构（`<br>`）支持，实现无缝的 Markdown 书写体验。
+
+## [Unreleased] - 2026-06-09
 ### Added
 - **原生 DOCX 解析与自动编号提取**：后端完全重写了针对 Word `.docx` 格式的原生解析引擎，新增了对 `numbering.xml` 与多级列表的追踪支持，解决了之前由于只读取正文导致标题编号和列表符号丢失的问题，实现了对 `1.1` 等编号标题与 Markdown 的无缝合成。
 - **扩展纯文本提取格式**：前端与后端现已原生支持各类纯文本与代码文件（包括 `.txt`, `.ini`, `.yml`, `.yaml`, `.md`, `.json`, `.xml`, `.csv` 等）的直接解析。针对代码配置文件，解析后会自动用 Markdown 代码块（如 ` ```yml `）将其包裹，实现高亮展示。
