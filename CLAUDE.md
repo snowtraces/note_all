@@ -22,3 +22,8 @@
 - **后端**: Go + Gin + GORM + SQLite (FTS5)
 - **向量嵌入**: Python Flask + sentence-transformers (BGE-small-zh-v1.5)
 - **SSE 推送**: SSEBus
+
+## 开发要求
+
+### 前端样式
+- 要考虑深色、浅色模式适配

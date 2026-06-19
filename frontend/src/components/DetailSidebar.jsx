@@ -316,41 +316,43 @@ function WikiSidebarContent({
         handleCopy={handleCopy}
       />
 
-      {/* 顶部标题栏 */}
-      <div className="shrink-0 px-4 py-3 border-b border-borderSubtle/60 flex items-center justify-between bg-sidebar/50">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <div className="p-1.5 rounded-lg bg-primeAccent/10 border border-primeAccent/20 shrink-0">
-            <GitBranch size={12} className="text-primeAccent" />
-          </div>
-          <span className="text-[11px] font-bold tracking-widest font-mono uppercase text-textSecondary/80 truncate">溯源档案</span>
-        </div>
-        <div className="flex items-center gap-1.5 min-w-0">
-          {parents.length > 0 && (
-            <span className="hidden sm:inline-block text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-primeAccent/10 text-primeAccent border border-primeAccent/20 mr-1 shrink-0">
-              {parents.length} 个来源
-            </span>
-          )}
-          <HeaderActions
-            item={item}
-            showTrash={showTrash}
-            handleRestore={handleRestore}
-            handleDelete={handleDelete}
-            onClose={onClose}
-            handleCopyMarkdown={handleCopyMarkdown}
-            handleDownloadMarkdown={handleDownloadMarkdown}
-            handleShare={handleShare}
-            externalImages={externalImages}
-            localImages={localImages}
-            isLocalizing={isLocalizing}
-            localizingProgress={localizingProgress}
-            totalImagesToLocalize={totalImagesToLocalize}
-            onLocalizeImages={onLocalizeImages}
-          />
-        </div>
+      {/* 顶部标题栏 - 只保留操作按钮 */}
+      <div className="shrink-0 px-4 py-3 border-b border-borderSubtle/60 flex items-center justify-end bg-sidebar/50">
+        <HeaderActions
+          item={item}
+          showTrash={showTrash}
+          handleRestore={handleRestore}
+          handleDelete={handleDelete}
+          onClose={onClose}
+          handleCopyMarkdown={handleCopyMarkdown}
+          handleDownloadMarkdown={handleDownloadMarkdown}
+          handleShare={handleShare}
+          externalImages={externalImages}
+          localImages={localImages}
+          isLocalizing={isLocalizing}
+          localizingProgress={localizingProgress}
+          totalImagesToLocalize={totalImagesToLocalize}
+          onLocalizeImages={onLocalizeImages}
+        />
       </div>
 
       {/* 溯源碎片列表 */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-3 flex flex-col gap-2.5">
+
+        {/* 溯源档案标题行 */}
+        <div className="flex items-center justify-between px-1 py-1.5">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-1.5 rounded-lg bg-primeAccent/10 border border-primeAccent/20 shrink-0">
+              <GitBranch size={12} className="text-primeAccent" />
+            </div>
+            <span className="text-[11px] font-bold tracking-widest font-mono uppercase text-textSecondary/80 truncate">溯源档案</span>
+          </div>
+          {parents.length > 0 && (
+            <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-primeAccent/10 text-primeAccent border border-primeAccent/20 shrink-0">
+              {parents.length} 个来源
+            </span>
+          )}
+        </div>
 
         {parents.length === 0 ? (
           /* 空态 */
@@ -368,7 +370,7 @@ function WikiSidebarContent({
               <button
                 key={p.id}
                 onClick={() => setPreviewItem(p)}
-                className="w-full rounded-xl border border-borderSubtle bg-sidebar/40 hover:border-primeAccent/20 hover:bg-sidebar/70 transition-all duration-200 px-3 py-2.5 flex items-start gap-2.5 group/card text-left"
+                className="w-full rounded-xl border border-borderSubtle bg-card hover:border-primeAccent/20 transition-all duration-200 px-3 py-2.5 flex items-start gap-2.5 group/card text-left"
               >
                 {/* 序号徽章 */}
                 <span className="shrink-0 mt-0.5 w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-extrabold font-mono bg-primeAccent/10 border border-primeAccent/20 text-primeAccent/60 group-hover/card:bg-primeAccent/15 group-hover/card:text-primeAccent transition-colors">
@@ -551,7 +553,7 @@ function NormalSidebarContent({
                       <Link size={10} className="text-primeAccent" /> 相关笔记
                     </div>
                   )}
-                  <div className="bg-sidebar border border-borderSubtle rounded-xl divide-y divide-borderSubtle overflow-hidden">
+                  <div className="bg-card border border-borderSubtle rounded-xl divide-y divide-borderSubtle overflow-hidden">
                     {relatedItems.map(rel => (
                       <div
                         key={rel.id}
