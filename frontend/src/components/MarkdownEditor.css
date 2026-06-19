@@ -519,10 +519,6 @@
 
 /* ============ 工具栏 ============ */
 
-.editor-toolbar {
-  font-size: 13px;
-}
-
 .toolbar-btn {
   display: flex;
   align-items: center;

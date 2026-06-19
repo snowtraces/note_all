@@ -125,115 +125,6 @@ function TocOverlay({ showToC, setShowToC, tocContent, tocContainerRef }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// AI 总结与重处理卡片组件
-// ─────────────────────────────────────────────────────────────────────────────
-function AISummaryCard({
-  item,
-  selectedTemplateId,
-  onSelectTemplate,
-  isReprocessing,
-  onReprocess,
-  templates
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef(null);
-
-  // 点击外部关闭下拉菜单
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    }
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isOpen]);
-
-  if (!item) return null;
-
-  const currentTemplate = templates?.find(t => t.id === selectedTemplateId);
-  const currentTemplateName = currentTemplate ? currentTemplate.name : '默认模板';
-
-  return (
-    <div className="group/ai w-full bg-card border border-borderSubtle rounded-xl p-3.5 transition-all duration-300 hover:border-primeAccent/30 relative flex flex-col gap-2.5 shadow-sm select-none">
-      {/* 卡片内部最顶部：左侧为 AI 徽章，右侧为 AI 控制按钮 */}
-      <div className="flex items-center justify-between gap-2 min-h-[24px]">
-        <div className="flex items-center gap-1.5">
-          <span className="shrink-0 flex items-center gap-1 text-[9px] font-bold font-mono uppercase tracking-widest text-primeAccent/60 border border-primeAccent/20 px-1.5 py-0.5 rounded bg-primeAccent/5">
-            <Sparkles size={8} className="text-primeAccent animate-pulse" /> AI 智能助手
-          </span>
-        </div>
-
-        {/* AI 重处理模板选择和按钮，hover时渐显，当下拉框打开时保持显现 */}
-        <div className={`flex items-center gap-1 transition-all duration-300 shrink-0 ${
-          isOpen ? 'opacity-100' : 'opacity-0 group-hover/ai:opacity-100 transform translate-x-1 group-hover/ai:translate-x-0'
-        }`}>
-          <div className="flex items-center bg-sidebar/60 backdrop-blur-md border border-borderSubtle/60 rounded-lg p-0.5 shadow-sm hover:border-primeAccent/30 transition-colors relative" ref={dropdownRef}>
-            <div className="relative">
-              <button
-                onClick={() => !isReprocessing && setIsOpen(!isOpen)}
-                disabled={isReprocessing}
-                className="flex items-center justify-between gap-2 text-textSecondary hover:text-primeAccent text-[10px] font-semibold px-3 py-1 rounded-md hover:bg-bgHover transition-colors min-w-[90px] max-w-[130px] cursor-pointer"
-                title="选择 AI 处理模板"
-              >
-                <span className="truncate">{currentTemplateName}</span>
-                <ChevronDown size={10} className={`text-textSecondary/50 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180 text-primeAccent' : ''}`} />
-              </button>
-
-              {/* 自定义 Dropdown Options 面板 */}
-              {isOpen && (
-                <div className="absolute right-0 mt-1.5 w-[140px] bg-panel/95 backdrop-blur-xl border border-borderSubtle/60 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in zoom-in-95 duration-150 origin-top-right">
-                  {templates && templates.map(t => (
-                    <button
-                      key={t.id}
-                      onClick={() => {
-                        onSelectTemplate && onSelectTemplate(t.id);
-                        setIsOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-1.5 text-[10px] transition-colors flex items-center justify-between ${
-                        selectedTemplateId === t.id
-                          ? 'text-primeAccent font-bold bg-primeAccent/5'
-                          : 'text-textSecondary hover:text-textPrimary hover:bg-bgHover'
-                      }`}
-                    >
-                      <span className="truncate pr-1">{t.name}</span>
-                      {selectedTemplateId === t.id && <div className="w-1.5 h-1.5 rounded-full bg-primeAccent" />}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="w-[1px] h-3 bg-borderSubtle/50 mx-0.5 shrink-0" />
-            <button
-              onClick={onReprocess}
-              disabled={isReprocessing}
-              className="flex items-center justify-center p-1 text-textSecondary hover:text-primeAccent transition-colors rounded-md active:scale-90"
-              title="立即重新 AI 处理"
-            >
-              <RefreshCw size={12} className={isReprocessing ? 'animate-spin text-primeAccent' : ''} />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* 卡片内部第二行：AI 标题独占一行 */}
-      <h3 className="text-[12px] font-bold text-textPrimary leading-snug">
-        {item.ai_title || item.original_name || '未命名笔记'}
-      </h3>
-
-      {/* 卡片内部第三行：摘要正文 */}
-      <div className="text-[11px] text-textSecondary leading-relaxed border-t border-borderSubtle/40 pt-2 line-clamp-3">
-        {item.ai_summary || (item.status === 'processing' ? 'AI 正在提取摘要...' : '暂无 AI 摘要记录')}
-      </div>
-    </div>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 文档操作面板
@@ -406,12 +297,7 @@ function WikiSidebarContent({
   onClose,
   showTrash,
   handleRestore,
-  handleDelete,
-  selectedTemplateId,
-  onSelectTemplate,
-  isReprocessing,
-  onReprocess,
-  templates
+  handleDelete
 }) {
   const { previewItem, setPreviewItem, copiedId, handleCopy } = usePreview();
 
@@ -465,14 +351,6 @@ function WikiSidebarContent({
 
       {/* 溯源碎片列表 */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-3 flex flex-col gap-2.5">
-        <AISummaryCard
-          item={item}
-          selectedTemplateId={selectedTemplateId}
-          onSelectTemplate={onSelectTemplate}
-          isReprocessing={isReprocessing}
-          onReprocess={onReprocess}
-          templates={templates}
-        />
 
         {parents.length === 0 ? (
           /* 空态 */
@@ -557,12 +435,7 @@ function NormalSidebarContent({
   onClose,
   showTrash,
   handleRestore,
-  handleDelete,
-  selectedTemplateId,
-  onSelectTemplate,
-  isReprocessing,
-  onReprocess,
-  templates
+  handleDelete
 }) {
   const { previewItem, setPreviewItem, copiedId, handleCopy } = usePreview();
 
@@ -575,12 +448,12 @@ function NormalSidebarContent({
   return (
     <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 bg-panel/80 flex flex-col flex-none h-auto lg:h-full relative border-t lg:border-t-0 lg:border-l border-borderSubtle">
       <PreviewOverlay 
-        previewItem={previewItem} 
-        setPreviewItem={setPreviewItem} 
-        onNavigate={onNavigate} 
-        copiedId={copiedId} 
-        handleCopy={handleCopy} 
-      />
+         previewItem={previewItem} 
+         setPreviewItem={setPreviewItem} 
+         onNavigate={onNavigate} 
+         copiedId={copiedId} 
+         handleCopy={handleCopy} 
+       />
       <TocOverlay showToC={showToC} setShowToC={setShowToC} tocContent={tocContent} tocContainerRef={tocContainerRef} />
       
       {/* 顶部标题栏 */}
@@ -605,14 +478,6 @@ function NormalSidebarContent({
 
       {/* 可滚动内容区 */}
       <div className="flex-none lg:flex-1 overflow-visible lg:overflow-y-auto p-5 custom-scrollbar scrollbar-hide flex flex-col gap-4">
-        <AISummaryCard
-          item={item}
-          selectedTemplateId={selectedTemplateId}
-          onSelectTemplate={onSelectTemplate}
-          isReprocessing={isReprocessing}
-          onReprocess={onReprocess}
-          templates={templates}
-        />
 
         {/* 区块 1: 源视觉预览 */}
         {item.file_type?.includes('image') && (

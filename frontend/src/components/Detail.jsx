@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef, useCallback, act } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { BrainCircuit, Sparkles, X, ArchiveRestore, Trash2, RefreshCw, ChevronLeft, ChevronDown, Share2, Download, List, PanelRightClose, Search, ChevronUp, Copy, Save, XCircle } from 'lucide-react';
-import { EDITOR_MODES } from '../constants/editorModes';
-import EditorToolbar from './EditorToolbar';
+import DetailToolbar from './DetailToolbar';
 import MarkdownEditor from './MarkdownEditor';
 import MarkdownRenderer from './MarkdownRenderer';
 import RawEditor from './RawEditor';
@@ -10,10 +9,115 @@ import { getRelatedNotes, reprocessNote, getNote } from '../api/noteApi';
 import { getTemplates } from '../api/templateApi';
 import ShareModal from './ShareModal';
 import DetailSidebar from './DetailSidebar';
-import ContentToolbar from './ContentToolbar';
 import useImageLocalization from '../hooks/useImageLocalization';
 import { useToast } from '../context/ToastContext';
 import { convertHtmlTablesToMarkdown } from '../utils/markdownUtils';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI 总结与重处理卡片组件 (回滚至正文顶部，不限制三行高度)
+// ─────────────────────────────────────────────────────────────────────────────
+function AISummaryCard({
+  item,
+  selectedTemplateId,
+  onSelectTemplate,
+  isReprocessing,
+  onReprocess,
+  templates
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // 点击外部关闭下拉菜单
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  if (!item) return null;
+
+  const currentTemplate = templates?.find(t => t.id === selectedTemplateId);
+  const currentTemplateName = currentTemplate ? currentTemplate.name : '默认模板';
+
+  return (
+    <div className="group/ai mb-2 px-1 py-0.5 transition-all opacity-60 hover:opacity-100">
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-baseline gap-2">
+          <span className="shrink-0 flex items-center gap-1 text-[9px] font-bold font-mono uppercase tracking-widest text-primeAccent/40 border border-primeAccent/10 px-1 rounded bg-primeAccent/[0.02]">
+            <Sparkles size={8} /> AI
+          </span>
+          <h1 className="text-lg font-bold text-textSecondary leading-tight">
+            {item.ai_title || item.original_name || '未命名笔记'}
+          </h1>
+        </div>
+
+        {/* 重处理控制 - hover时渐显，下拉框打开时保持显现 */}
+        <div className={`flex items-center gap-1 transition-all duration-300 shrink-0 ${
+          isOpen ? 'opacity-100' : 'opacity-0 group-hover/ai:opacity-100 transform translate-x-1 group-hover/ai:translate-x-0'
+        }`}>
+          <div className="flex items-center bg-sidebar/40 backdrop-blur-md border border-borderSubtle rounded-lg px-1.5 py-0.5 shadow-sm hover:border-primeAccent/30 transition-colors relative" ref={dropdownRef}>
+            <div className="relative">
+              <button
+                onClick={() => !isReprocessing && setIsOpen(!isOpen)}
+                disabled={isReprocessing}
+                className="flex items-center justify-between gap-2 text-textSecondary hover:text-primeAccent text-[10px] font-semibold px-3 py-1 rounded-md hover:bg-bgHover transition-colors min-w-[90px] max-w-[130px] cursor-pointer"
+                title="选择 AI 处理模板"
+              >
+                <span className="truncate">{currentTemplateName}</span>
+                <ChevronDown size={10} className={`text-textSecondary/50 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180 text-primeAccent' : ''}`} />
+              </button>
+
+              {/* 自定义 Dropdown Options 面板 */}
+              {isOpen && (
+                <div className="absolute right-0 mt-1.5 w-[140px] bg-panel/95 backdrop-blur-xl border border-borderSubtle/60 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in zoom-in-95 duration-150 origin-top-right">
+                  {templates && templates.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => {
+                        onSelectTemplate && onSelectTemplate(t.id);
+                        setIsOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-1.5 text-[10px] transition-colors flex items-center justify-between ${
+                        selectedTemplateId === t.id
+                          ? 'text-primeAccent font-bold bg-primeAccent/5'
+                          : 'text-textSecondary hover:text-textPrimary hover:bg-bgHover'
+                      }`}
+                    >
+                      <span className="truncate pr-1">{t.name}</span>
+                      {selectedTemplateId === t.id && <div className="w-1.5 h-1.5 rounded-full bg-primeAccent" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="w-[1px] h-3 bg-borderSubtle/50 mx-1 shrink-0" />
+            <button
+              onClick={onReprocess}
+              disabled={isReprocessing}
+              className="flex items-center justify-center p-1 text-textSecondary hover:text-primeAccent transition-colors rounded-md active:scale-90"
+              title="立即重新 AI 处理"
+            >
+              <RefreshCw size={12} className={isReprocessing ? 'animate-spin text-primeAccent' : ''} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="text-[12px] text-textSecondary/40 leading-relaxed italic mt-1">
+        {item.ai_summary || (item.status === 'processing' ? 'AI 正在提取摘要...' : '暂无 AI 摘要记录')}
+      </div>
+    </div>
+  );
+}
 
 export default function Detail({
   item,
@@ -428,8 +532,16 @@ export default function Detail({
             ref={contentScrollRef}
             className="flex-1 pt-2 px-4 md:pt-3 md:px-5 lg:pt-4 lg:px-6 pb-4 md:pb-5 lg:pb-6 overflow-visible lg:overflow-y-auto custom-scrollbar raw-textarea-scroll-container"
           >
+            <AISummaryCard
+              item={item}
+              selectedTemplateId={selectedTemplateId}
+              onSelectTemplate={setSelectedTemplateId}
+              isReprocessing={isReprocessing}
+              onReprocess={handleReprocess}
+              templates={templates}
+            />
             {/* 正文 */}
-            <div className="-mx-4 px-4 md:-mx-5 md:px-5 lg:-mx-6 lg:px-6">
+            <div className="mt-1 pt-2 border-t border-borderSubtle -mx-4 px-4 md:-mx-5 md:px-5 lg:-mx-6 lg:px-6">
               <div className="text-textPrimary text-[14px] leading-[1.7] tracking-wide selection:bg-primeAccent selection:text-black">
                 <div style={{ display: editorMode === 'edit' ? 'block' : 'none' }}>
                   <MarkdownEditor
@@ -460,20 +572,9 @@ export default function Detail({
             </div>
           </div>
 
-          {/* 编辑器格式化工具条 */}
-          {editorMode === 'edit' && (
-            <EditorToolbar
-              editor={tiptapEditorRef.current}
-              editorMode={editorMode}
-              onModeChange={changeMode}
-              hasUnsavedChanges={hasUnsaved}
-              isSaving={isSaving}
-              onSave={onSaveWrap}
-            />
-          )}
-
-          {/* 底部工具栏 */}
-          <ContentToolbar
+          {/* 统一工具条 */}
+          <DetailToolbar
+            editor={tiptapEditorRef.current}
             item={item}
             externalImages={imgLoc.externalImages}
             localImages={imgLoc.localImages}
@@ -481,13 +582,11 @@ export default function Detail({
             localizingProgress={imgLoc.localizingProgress}
             totalImagesToLocalize={imgLoc.totalImagesToLocalize}
             editorMode={editorMode}
+            onModeChange={changeMode}
             hasUnsavedChanges={hasUnsaved}
             isSaving={isSaving}
-            onLocalizeImages={imgLoc.localizeImages}
-            onModeChange={changeMode}
             onSave={onSaveWrap}
-            
-            // Search Props
+            onLocalizeImages={imgLoc.localizeImages}
             isSearchActive={isSearchActive}
             searchQuery={searchQuery}
             totalMatches={totalMatches}
@@ -546,11 +645,6 @@ export default function Detail({
           handleRestore={handleRestore}
           handleDelete={handleDelete}
           onClose={() => handleClose(null)}
-          selectedTemplateId={selectedTemplateId}
-          onSelectTemplate={setSelectedTemplateId}
-          isReprocessing={isReprocessing}
-          onReprocess={handleReprocess}
-          templates={templates}
         />
       </div>
       {showShareModal && <ShareModal item={item} onClose={() => setShowShareModal(false)} />}
