@@ -10,7 +10,7 @@ function PreviewOverlay({ previewItem, setPreviewItem, onNavigate, copiedId, han
   if (!previewItem) return null;
 
   return (
-    <div className="absolute top-0 bottom-0 right-0 lg:right-[280px] xl:right-[320px] w-[600px] bg-panel/95 backdrop-blur-xl border-r border-borderSubtle/60 shadow-2xl flex flex-col animate-in slide-in-from-left duration-300 z-40">
+    <div className="absolute top-0 bottom-0 right-0 lg:right-[280px] xl:right-[360px] w-[600px] bg-panel/95 backdrop-blur-xl border-r border-borderSubtle/60 shadow-2xl flex flex-col animate-in slide-in-from-left duration-300 z-40">
       {/* 头部 */}
       <div className="px-5 py-3 border-b border-borderSubtle/40 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
@@ -108,14 +108,14 @@ function usePreview() {
 function TocOverlay({ showToC, setShowToC, tocContent, tocContainerRef }) {
   if (!showToC) return null;
   return (
-    <div className="absolute inset-0 z-30 bg-main/80 backdrop-blur-xl flex flex-col animate-in slide-in-from-right duration-300">
-      <div className="px-3 py-2.5 border-b border-borderSubtle/40 flex items-center justify-between shrink-0">
-        <span className="text-[11px] text-textSecondary/70 font-bold tracking-widest font-mono uppercase">大纲导读</span>
+    <div className="absolute inset-0 z-30 bg-main/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-right duration-300">
+      <div className="px-4 py-3 border-b border-borderSubtle/40 flex items-center justify-between shrink-0">
+        <span className="text-[12px] text-textSecondary font-bold tracking-wider font-mono uppercase">大纲导读</span>
         <button
           onClick={() => setShowToC(false)}
-          className="text-textSecondary/40 hover:text-red-400 transition-colors bg-sidebar/50 p-1 rounded-md border border-borderSubtle/40"
+          className="text-textSecondary/40 hover:text-red-400 transition-colors bg-sidebar/50 p-1.5 rounded-md border border-borderSubtle/40"
         >
-          <X size={11} />
+          <X size={12} />
         </button>
       </div>
       <div className="flex-1 overflow-y-auto custom-scrollbar py-1">
@@ -304,20 +304,20 @@ function WikiSidebarContent({
   const parents = item.parents || [];
 
   return (
-    <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 bg-panel/80 flex flex-col flex-none h-auto lg:h-full relative border-t lg:border-t-0 lg:border-l border-borderSubtle">
+    <div className="w-full lg:w-[280px] xl:w-[360px] shrink-0 flex flex-col flex-none h-auto lg:h-full relative border-t lg:border-t-0 lg:border-l border-borderSubtle" style={{ backgroundColor: 'var(--bg-base)' }}>
       <TocOverlay showToC={showToC} setShowToC={setShowToC} tocContent={tocContent} tocContainerRef={tocContainerRef} />
 
       {/* 溯源预览浮动框 - 着右侧边栏左边缘 */}
-      <PreviewOverlay 
-        previewItem={previewItem} 
-        setPreviewItem={setPreviewItem} 
-        onNavigate={onNavigate} 
-        copiedId={copiedId} 
-        handleCopy={handleCopy} 
+      <PreviewOverlay
+        previewItem={previewItem}
+        setPreviewItem={setPreviewItem}
+        onNavigate={onNavigate}
+        copiedId={copiedId}
+        handleCopy={handleCopy}
       />
 
       {/* 顶部标题栏 */}
-      <div className="shrink-0 px-4 py-3 border-b border-borderSubtle/60 flex items-center justify-between bg-sidebar/30">
+      <div className="shrink-0 px-4 py-3 border-b border-borderSubtle/60 flex items-center justify-between bg-sidebar/50">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <div className="p-1.5 rounded-lg bg-primeAccent/10 border border-primeAccent/20 shrink-0">
             <GitBranch size={12} className="text-primeAccent" />
@@ -446,18 +446,18 @@ function NormalSidebarContent({
   const showParents = hasParents && (!hasRelated || activeConnectionTab === 'lineage');
 
   return (
-    <div className="w-full lg:w-[280px] xl:w-[320px] shrink-0 bg-panel/80 flex flex-col flex-none h-auto lg:h-full relative border-t lg:border-t-0 lg:border-l border-borderSubtle">
-      <PreviewOverlay 
-         previewItem={previewItem} 
-         setPreviewItem={setPreviewItem} 
-         onNavigate={onNavigate} 
-         copiedId={copiedId} 
-         handleCopy={handleCopy} 
+    <div className="w-full lg:w-[280px] xl:w-[360px] shrink-0 flex flex-col flex-none h-auto lg:h-full relative border-t lg:border-t-0 lg:border-l border-borderSubtle" style={{ backgroundColor: 'var(--bg-base)' }}>
+      <PreviewOverlay
+         previewItem={previewItem}
+         setPreviewItem={setPreviewItem}
+         onNavigate={onNavigate}
+         copiedId={copiedId}
+         handleCopy={handleCopy}
        />
       <TocOverlay showToC={showToC} setShowToC={setShowToC} tocContent={tocContent} tocContainerRef={tocContainerRef} />
-      
+
       {/* 顶部标题栏 */}
-      <div className="shrink-0 px-4 py-3 border-b border-borderSubtle/60 flex items-center justify-end bg-sidebar/30">
+      <div className="shrink-0 px-4 py-3 border-b border-borderSubtle/60 flex items-center justify-end bg-sidebar/50">
         <HeaderActions
           item={item}
           showTrash={showTrash}

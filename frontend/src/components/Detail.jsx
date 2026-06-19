@@ -502,8 +502,6 @@ export default function Detail({
       <div className="flex flex-1 overflow-y-auto lg:overflow-hidden flex-col lg:flex-row relative">
         {/* 正文区域 */}
         <div className="flex-none lg:flex-1 lg:min-w-0 h-auto lg:h-full flex flex-col lg:border-r border-borderSubtle bg-main relative">
-          
-          {/* 悬浮返回按钮（仅在移动端显示，用于关闭详情页） */}
           <button
             onClick={() => handleClose(null)}
             className="md:hidden absolute top-4 left-4 z-40 p-2 rounded-full bg-sidebar/80 backdrop-blur-md border border-borderSubtle text-textSecondary hover:text-textPrimary hover:bg-bgHover shadow-lg"

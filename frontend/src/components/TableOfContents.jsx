@@ -183,10 +183,10 @@ export default function TableOfContents({ content, containerRef, onNavigate, con
             
             <div className="flex items-center gap-1.5 overflow-hidden w-full">
               {/* 微型标题级别徽章 */}
-              <span className={`font-mono text-[9px] font-bold tracking-tighter shrink-0 pt-0.5 transition-colors ${isActive ? 'text-primeAccent/70' : 'text-textMuted group-hover:text-textTertiary'}`}>
+              <span className={`font-mono text-[10px] font-bold tracking-tighter shrink-0 pt-0.5 transition-colors ${isActive ? 'text-primeAccent/70' : 'text-textSecondary'}`}>
                 H{heading.level}
               </span>
-              <span className={`text-[12px] leading-snug truncate tracking-wide transition-all ${isActive ? 'font-semibold text-primeAccent' : 'font-normal text-textTertiary group-hover:text-textPrimary'}`}>
+              <span className={`text-[13px] leading-snug truncate tracking-wide transition-all ${isActive ? 'font-semibold text-primeAccent' : 'font-normal text-textSecondary group-hover:text-textPrimary'}`}>
                 {heading.text}
               </span>
             </div>
