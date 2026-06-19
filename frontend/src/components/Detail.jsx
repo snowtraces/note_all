@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, act } from 'react';
-import { BrainCircuit, Sparkles, X, ArchiveRestore, Trash2, RefreshCw, ChevronLeft, ChevronDown, Share2, Download, List, PanelRightClose, Search, ChevronUp, Copy } from 'lucide-react';
-import ContentToolbar from './ContentToolbar';
+import { BrainCircuit, Sparkles, X, ArchiveRestore, Trash2, RefreshCw, ChevronLeft, ChevronDown, Share2, Download, List, PanelRightClose, Search, ChevronUp, Copy, Save, XCircle } from 'lucide-react';
+import { EDITOR_MODES } from '../constants/editorModes';
 import EditorToolbar from './EditorToolbar';
 import MarkdownEditor from './MarkdownEditor';
 import MarkdownRenderer from './MarkdownRenderer';
@@ -10,6 +10,7 @@ import { getRelatedNotes, reprocessNote, getNote } from '../api/noteApi';
 import { getTemplates } from '../api/templateApi';
 import ShareModal from './ShareModal';
 import DetailSidebar from './DetailSidebar';
+import ContentToolbar from './ContentToolbar';
 import useImageLocalization from '../hooks/useImageLocalization';
 import { useToast } from '../context/ToastContext';
 import { convertHtmlTablesToMarkdown } from '../utils/markdownUtils';
@@ -393,82 +394,21 @@ export default function Detail({
     <div
       className="w-full h-full flex flex-col animate-in fade-in zoom-in-95 duration-300"
     >
-      {/* 顶栏控制 */}
-      <div className="flex items-center justify-between px-4 md:px-5 py-2.5 border-b border-borderSubtle bg-main shrink-0">
-        <div className="font-medium text-textPrimary tracking-wide flex items-center gap-1 md:gap-2 text-[15px]">
-          <button onClick={() => handleClose(null)} className="md:hidden p-1 -ml-1 mr-1 text-textTertiary hover:text-white transition-colors">
-            <ChevronLeft size={24} />
-          </button>
-          <BrainCircuit size={18} className="text-primeAccent hidden md:block" />
-          <span className="truncate text-sm md:text-[15px]">碎片的完整映射</span>
-        </div>
-        <div className="flex gap-2 md:gap-3">
-          {showTrash ? (
-            <>
-              <button
-                onClick={() => handleRestore(item.id)}
-                className="px-2 md:px-4 py-1.5 bg-primeAccent/20 text-primeAccent hover:bg-primeAccent/30 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/30 shadow-lg shadow-primeAccent/5"
-                title="恢复"
-              >
-                <ArchiveRestore size={14} /> <span className="hidden md:inline">恢复</span>
-              </button>
-              <button
-                onClick={() => handleDelete(item.id, true)}
-                className="px-2 md:px-4 py-1.5 bg-red-500/20 text-red-500 hover:bg-red-500/30 hover:text-red-400 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-red-500/30 shadow-lg shadow-red-500/10"
-                title="销毁"
-              >
-                <Trash2 size={14} /> <span className="hidden md:inline">销毁</span>
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={() => handleDelete(item.id)}
-              className="px-2 md:px-4 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-red-500/20"
-              title="删除"
-            >
-              <Trash2 size={14} /> <span className="hidden md:inline">删除</span>
-            </button>
-          )}
-
-          {!showTrash && (
-            <>
-              <button
-                onClick={handleCopyMarkdown}
-                className="px-2 md:px-4 py-1.5 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/20"
-                title="复制Markdown"
-              >
-                <Copy size={14} /> <span className="hidden md:inline">复制</span>
-              </button>
-              <button
-                onClick={handleDownloadMarkdown}
-                className="px-2 md:px-4 py-1.5 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/20"
-                title="下载为Markdown"
-              >
-                <Download size={14} /> <span className="hidden md:inline">下载</span>
-              </button>
-              <button
-                onClick={() => setShowShareModal(true)}
-                className="px-2 md:px-4 py-1.5 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 transition-colors rounded-lg flex items-center gap-1.5 text-xs font-medium border border-primeAccent/20"
-                title="分享碎片"
-              >
-                <Share2 size={14} /> <span className="hidden md:inline">分享</span>
-              </button>
-            </>
-          )}
-          <button
-            onClick={() => handleClose(null)}
-            className="hidden md:block p-1.5 rounded-full transition-colors ml-2 bg-bgSubtle hover:bg-bgHover text-textTertiary hover:text-textPrimary"
-            title="关闭详情视图 (Esc)"
-          >
-            <X size={18} />
-          </button>
-        </div>
-      </div>
-
       {/* 内容区 */}
-      <div className="flex flex-1 overflow-y-auto lg:overflow-hidden flex-col lg:flex-row">
+      <div className="flex flex-1 overflow-y-auto lg:overflow-hidden flex-col lg:flex-row relative">
         {/* 正文区域 */}
         <div className="flex-none lg:flex-1 lg:min-w-0 h-auto lg:h-full flex flex-col lg:border-r border-borderSubtle bg-main relative">
+          
+          {/* 悬浮返回按钮（仅在移动端显示，用于关闭详情页） */}
+          <button
+            onClick={() => handleClose(null)}
+            className="md:hidden absolute top-4 left-4 z-40 p-2 rounded-full bg-sidebar/80 backdrop-blur-md border border-borderSubtle text-textSecondary hover:text-textPrimary hover:bg-bgHover shadow-lg"
+            title="返回列表"
+          >
+            <ChevronLeft size={20} />
+          </button>
+
+
 
           {/* 大纲吸附按钮 */}
           {(editorMode === 'view' || editorMode === 'edit') && (
@@ -488,56 +428,8 @@ export default function Detail({
             ref={contentScrollRef}
             className="flex-1 pt-2 px-4 md:pt-3 md:px-5 lg:pt-4 lg:px-6 pb-4 md:pb-5 lg:pb-6 overflow-visible lg:overflow-y-auto custom-scrollbar raw-textarea-scroll-container"
           >
-            {/* AI 智能解析区块 */}
-            <div className="group mb-2 px-1 py-0.5 transition-all opacity-60 hover:opacity-100">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-baseline gap-2">
-                  <span className="shrink-0 flex items-center gap-1 text-[9px] font-bold font-mono uppercase tracking-widest text-primeAccent/40 border border-primeAccent/10 px-1 rounded bg-primeAccent/[0.02]">
-                    <Sparkles size={8} /> AI
-                  </span>
-                  <h1 className="text-lg font-bold text-textSecondary leading-tight">
-                    {item.ai_title || item.original_name || '未命名笔记'}
-                  </h1>
-                </div>
-
-                {/* 重处理控制 */}
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-1 group-hover:translate-x-0">
-                  <div className="flex items-center bg-sidebar/40 backdrop-blur-md border border-borderSubtle rounded-lg px-1.5 py-0.5 shadow-sm hover:border-primeAccent/30 transition-colors">
-                    <div className="relative flex items-center">
-                      <select
-                        value={selectedTemplateId}
-                        onChange={(e) => setSelectedTemplateId(e.target.value)}
-                        disabled={isReprocessing}
-                        className="bg-transparent text-textSecondary text-[10px] font-medium rounded pl-1 pr-3.5 outline-none focus:text-primeAccent max-w-[85px] truncate border-none cursor-pointer appearance-none"
-                        title="选择 AI 处理模板"
-                      >
-                        <option value="" className="bg-header text-textPrimary">默认模板</option>
-                        {templates.map(t => (
-                          <option key={t.id} value={t.id} className="bg-header text-textPrimary">{t.name}</option>
-                        ))}
-                      </select>
-                      <ChevronDown size={10} className="absolute right-0 pointer-events-none text-textSecondary/40" />
-                    </div>
-                    <div className="w-[1px] h-3 bg-borderSubtle/50 mx-1 shrink-0" />
-                    <button
-                      onClick={handleReprocess}
-                      disabled={isReprocessing}
-                      className="flex items-center justify-center p-1 text-textSecondary hover:text-primeAccent transition-colors rounded-md"
-                      title="立即重新 AI 处理"
-                    >
-                      <RefreshCw size={12} className={isReprocessing ? 'animate-spin text-primeAccent' : ''} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="text-[12px] text-textSecondary/40 leading-relaxed italic mt-1">
-                {item.ai_summary || (item.status === 'processing' ? 'AI 正在提取摘要...' : '暂无 AI 摘要记录')}
-              </div>
-            </div>
-
             {/* 正文 */}
-            <div className="mt-1 pt-2 border-t border-borderSubtle -mx-4 px-4 md:-mx-5 md:px-5 lg:-mx-6 lg:px-6">
+            <div className="-mx-4 px-4 md:-mx-5 md:px-5 lg:-mx-6 lg:px-6">
               <div className="text-textPrimary text-[14px] leading-[1.7] tracking-wide selection:bg-primeAccent selection:text-black">
                 <div style={{ display: editorMode === 'edit' ? 'block' : 'none' }}>
                   <MarkdownEditor
@@ -580,49 +472,42 @@ export default function Detail({
             />
           )}
 
-          {/* 底部内容工具条 */}
-          {editorMode !== 'edit' && (
-            <ContentToolbar
-              item={item}
-              externalImages={imgLoc.externalImages}
-              localImages={imgLoc.localImages}
-              isLocalizing={imgLoc.isLocalizing}
-              localizingProgress={imgLoc.localizingProgress}
-              totalImagesToLocalize={imgLoc.totalImagesToLocalize}
-              editorMode={editorMode}
-              reprocessStatus={reprocessStatus}
-              templates={templates}
-              selectedTemplateId={selectedTemplateId}
-              isReprocessing={isReprocessing}
-              hasUnsavedChanges={hasUnsaved}
-              isSaving={isSaving}
-              onLocalizeImages={imgLoc.localizeImages}
-              onModeChange={changeMode}
-              onSelectTemplate={setSelectedTemplateId}
-              onReprocess={handleReprocess}
-              onSave={onSaveWrap}
-              
-              isSearchActive={isSearchActive}
-              searchQuery={searchQuery}
-              totalMatches={totalMatches}
-              activeSearchIndex={activeSearchIndex}
-              searchInputRef={searchInputRef}
-              isRegex={isRegex}
-              onSearchQueryChange={(q) => { setSearchQuery(q); setActiveSearchIndex(0); }}
-              onSearchClose={() => { setIsSearchActive(false); setSearchQuery(''); }}
-              onToggleRegex={() => { 
-                setIsRegex(r => {
-                  const next = !r;
-                  localStorage.setItem('note_search_is_regex', next);
-                  return next;
-                }); 
-                setActiveSearchIndex(0); 
-              }}
-              onSearchNext={handleSearchNext}
-              onSearchPrev={handleSearchPrev}
-              onSearchKeyDown={handleSearchKeyDown}
-            />
-          )}
+          {/* 底部工具栏 */}
+          <ContentToolbar
+            item={item}
+            externalImages={imgLoc.externalImages}
+            localImages={imgLoc.localImages}
+            isLocalizing={imgLoc.isLocalizing}
+            localizingProgress={imgLoc.localizingProgress}
+            totalImagesToLocalize={imgLoc.totalImagesToLocalize}
+            editorMode={editorMode}
+            hasUnsavedChanges={hasUnsaved}
+            isSaving={isSaving}
+            onLocalizeImages={imgLoc.localizeImages}
+            onModeChange={changeMode}
+            onSave={onSaveWrap}
+            
+            // Search Props
+            isSearchActive={isSearchActive}
+            searchQuery={searchQuery}
+            totalMatches={totalMatches}
+            activeSearchIndex={activeSearchIndex}
+            searchInputRef={searchInputRef}
+            onSearchQueryChange={(val) => { setSearchQuery(val); setActiveSearchIndex(0); }}
+            onSearchClose={() => { setIsSearchActive(false); setSearchQuery(''); }}
+            onSearchNext={handleSearchNext}
+            onSearchPrev={handleSearchPrev}
+            onSearchKeyDown={handleSearchKeyDown}
+            isRegex={isRegex}
+            onToggleRegex={() => {
+              setIsRegex(r => {
+                const next = !r;
+                localStorage.setItem('note_search_is_regex', next);
+                return next;
+              });
+              setActiveSearchIndex(0);
+            }}
+          />
         </div>
 
         {/* 侧边栏 */}
@@ -648,6 +533,24 @@ export default function Detail({
           tocContent={editValue}
           tocContainerRef={contentScrollRef}
           isSubmittingStatus={isSubmittingStatus}
+          handleCopyMarkdown={handleCopyMarkdown}
+          handleDownloadMarkdown={handleDownloadMarkdown}
+          handleShare={() => setShowShareModal(true)}
+          externalImages={imgLoc.externalImages}
+          localImages={imgLoc.localImages}
+          isLocalizing={imgLoc.isLocalizing}
+          localizingProgress={imgLoc.localizingProgress}
+          totalImagesToLocalize={imgLoc.totalImagesToLocalize}
+          onLocalizeImages={imgLoc.localizeImages}
+          showTrash={showTrash}
+          handleRestore={handleRestore}
+          handleDelete={handleDelete}
+          onClose={() => handleClose(null)}
+          selectedTemplateId={selectedTemplateId}
+          onSelectTemplate={setSelectedTemplateId}
+          isReprocessing={isReprocessing}
+          onReprocess={handleReprocess}
+          templates={templates}
         />
       </div>
       {showShareModal && <ShareModal item={item} onClose={() => setShowShareModal(false)} />}

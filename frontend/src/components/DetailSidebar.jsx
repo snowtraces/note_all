@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Image as ImageIcon, Link, Zap, RefreshCw, CheckCircle2, ClipboardEdit, Eye, ChevronDown, ChevronUp, X, BookOpen, Copy, ArrowUpRight, FileText, GitBranch } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Image as ImageIcon, Link, Zap, RefreshCw, CheckCircle2, ClipboardEdit, Eye, ChevronDown, ChevronUp, X, BookOpen, Copy, ArrowUpRight, FileText, GitBranch, Download, Share2, ExternalLink, ImageDown, Trash2, ArchiveRestore, Sparkles } from 'lucide-react';
 import TableOfContents from './TableOfContents';
 import MarkdownRenderer from './MarkdownRenderer';
 
@@ -126,9 +126,293 @@ function TocOverlay({ showToC, setShowToC, tocContent, tocContainerRef }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// AI 总结与重处理卡片组件
+// ─────────────────────────────────────────────────────────────────────────────
+function AISummaryCard({
+  item,
+  selectedTemplateId,
+  onSelectTemplate,
+  isReprocessing,
+  onReprocess,
+  templates
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // 点击外部关闭下拉菜单
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  if (!item) return null;
+
+  const currentTemplate = templates?.find(t => t.id === selectedTemplateId);
+  const currentTemplateName = currentTemplate ? currentTemplate.name : '默认模板';
+
+  return (
+    <div className="group/ai w-full bg-card border border-borderSubtle rounded-xl p-3.5 transition-all duration-300 hover:border-primeAccent/30 relative flex flex-col gap-2.5 shadow-sm select-none">
+      {/* 卡片内部最顶部：左侧为 AI 徽章，右侧为 AI 控制按钮 */}
+      <div className="flex items-center justify-between gap-2 min-h-[24px]">
+        <div className="flex items-center gap-1.5">
+          <span className="shrink-0 flex items-center gap-1 text-[9px] font-bold font-mono uppercase tracking-widest text-primeAccent/60 border border-primeAccent/20 px-1.5 py-0.5 rounded bg-primeAccent/5">
+            <Sparkles size={8} className="text-primeAccent animate-pulse" /> AI 智能助手
+          </span>
+        </div>
+
+        {/* AI 重处理模板选择和按钮，hover时渐显，当下拉框打开时保持显现 */}
+        <div className={`flex items-center gap-1 transition-all duration-300 shrink-0 ${
+          isOpen ? 'opacity-100' : 'opacity-0 group-hover/ai:opacity-100 transform translate-x-1 group-hover/ai:translate-x-0'
+        }`}>
+          <div className="flex items-center bg-sidebar/60 backdrop-blur-md border border-borderSubtle/60 rounded-lg p-0.5 shadow-sm hover:border-primeAccent/30 transition-colors relative" ref={dropdownRef}>
+            <div className="relative">
+              <button
+                onClick={() => !isReprocessing && setIsOpen(!isOpen)}
+                disabled={isReprocessing}
+                className="flex items-center justify-between gap-2 text-textSecondary hover:text-primeAccent text-[10px] font-semibold px-3 py-1 rounded-md hover:bg-bgHover transition-colors min-w-[90px] max-w-[130px] cursor-pointer"
+                title="选择 AI 处理模板"
+              >
+                <span className="truncate">{currentTemplateName}</span>
+                <ChevronDown size={10} className={`text-textSecondary/50 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180 text-primeAccent' : ''}`} />
+              </button>
+
+              {/* 自定义 Dropdown Options 面板 */}
+              {isOpen && (
+                <div className="absolute right-0 mt-1.5 w-[140px] bg-panel/95 backdrop-blur-xl border border-borderSubtle/60 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in zoom-in-95 duration-150 origin-top-right">
+                  {templates && templates.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => {
+                        onSelectTemplate && onSelectTemplate(t.id);
+                        setIsOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-1.5 text-[10px] transition-colors flex items-center justify-between ${
+                        selectedTemplateId === t.id
+                          ? 'text-primeAccent font-bold bg-primeAccent/5'
+                          : 'text-textSecondary hover:text-textPrimary hover:bg-bgHover'
+                      }`}
+                    >
+                      <span className="truncate pr-1">{t.name}</span>
+                      {selectedTemplateId === t.id && <div className="w-1.5 h-1.5 rounded-full bg-primeAccent" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="w-[1px] h-3 bg-borderSubtle/50 mx-0.5 shrink-0" />
+            <button
+              onClick={onReprocess}
+              disabled={isReprocessing}
+              className="flex items-center justify-center p-1 text-textSecondary hover:text-primeAccent transition-colors rounded-md active:scale-90"
+              title="立即重新 AI 处理"
+            >
+              <RefreshCw size={12} className={isReprocessing ? 'animate-spin text-primeAccent' : ''} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 卡片内部第二行：AI 标题独占一行 */}
+      <h3 className="text-[12px] font-bold text-textPrimary leading-snug">
+        {item.ai_title || item.original_name || '未命名笔记'}
+      </h3>
+
+      {/* 卡片内部第三行：摘要正文 */}
+      <div className="text-[11px] text-textSecondary leading-relaxed border-t border-borderSubtle/40 pt-2 line-clamp-3">
+        {item.ai_summary || (item.status === 'processing' ? 'AI 正在提取摘要...' : '暂无 AI 摘要记录')}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 文档操作面板
+// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// 顶部微动作面板组件 (集成全部文档相关管理、导出操作)
+// ─────────────────────────────────────────────────────────────────────────────
+function HeaderActions({
+  item,
+  showTrash,
+  handleRestore,
+  handleDelete,
+  onClose,
+  handleCopyMarkdown,
+  handleDownloadMarkdown,
+  handleShare,
+  externalImages,
+  localImages,
+  isLocalizing,
+  localizingProgress,
+  totalImagesToLocalize,
+  onLocalizeImages
+}) {
+  const hasExternalImages = externalImages?.length > 0;
+  const totalImgCount = (externalImages?.length || 0) + (localImages?.length || 0);
+
+  return (
+    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none flex-nowrap min-w-0 justify-end w-full select-none py-0.5">
+      {/* 图片本地化 */}
+      {!showTrash && totalImgCount > 0 && onLocalizeImages && (
+        <button
+          onClick={onLocalizeImages}
+          disabled={isLocalizing || !hasExternalImages}
+          className={`w-[30px] h-[30px] rounded-lg transition-all border flex items-center justify-center shrink-0 shadow-sm active:scale-95 ${
+            !hasExternalImages
+              ? 'bg-green-500/5 text-green-400 border-green-500/20'
+              : 'bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border-orange-500/25 hover:border-orange-500/40'
+          }`}
+          title={
+            !hasExternalImages
+              ? "图片已全部本地化"
+              : isLocalizing
+              ? `图片本地化中 (${localizingProgress}/${totalImagesToLocalize})`
+              : `图片本地化: 已本地化 ${localImages?.length}/${totalImgCount} 张`
+          }
+        >
+          <ImageDown size={13} className={isLocalizing ? 'animate-pulse' : ''} />
+        </button>
+      )}
+
+      {/* 直达原文 */}
+      {!showTrash && item?.original_url && (
+        <a
+          href={item.original_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-[30px] h-[30px] rounded-lg transition-all bg-primeAccent/5 hover:bg-primeAccent/15 text-primeAccent border border-primeAccent/25 hover:border-primeAccent/40 flex items-center justify-center shrink-0 active:scale-95 shadow-sm"
+          title="直达源网址"
+        >
+          <ExternalLink size={13} />
+        </a>
+      )}
+
+      {/* 分享 */}
+      {!showTrash && handleShare && (
+        <button
+          onClick={handleShare}
+          className="w-[30px] h-[30px] rounded-lg transition-all bg-primeAccent/5 hover:bg-primeAccent/15 text-primeAccent border border-primeAccent/25 hover:border-primeAccent/40 flex items-center justify-center shrink-0 active:scale-95 shadow-sm"
+          title="分享碎片"
+        >
+          <Share2 size={13} />
+        </button>
+      )}
+
+      {/* 下载 Markdown */}
+      {!showTrash && handleDownloadMarkdown && (
+        <button
+          onClick={handleDownloadMarkdown}
+          className="w-[30px] h-[30px] rounded-lg transition-all bg-primeAccent/5 hover:bg-primeAccent/15 text-primeAccent border border-primeAccent/25 hover:border-primeAccent/40 flex items-center justify-center shrink-0 active:scale-95 shadow-sm"
+          title="下载 Markdown"
+        >
+          <Download size={13} />
+        </button>
+      )}
+
+      {/* 复制 Markdown */}
+      {!showTrash && handleCopyMarkdown && (
+        <button
+          onClick={handleCopyMarkdown}
+          className="w-[30px] h-[30px] rounded-lg transition-all bg-primeAccent/5 hover:bg-primeAccent/15 text-primeAccent border border-primeAccent/25 hover:border-primeAccent/40 flex items-center justify-center shrink-0 active:scale-95 shadow-sm"
+          title="复制 Markdown"
+        >
+          <Copy size={13} />
+        </button>
+      )}
+
+      {/* 回收站/删除操作 */}
+      {showTrash ? (
+        <>
+          {handleRestore && (
+            <button
+              onClick={() => handleRestore(item.id)}
+              className="px-2.5 py-1 rounded-lg transition-all bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-500/25 flex items-center gap-1.5 shrink-0 text-[11px] font-bold h-[30px] shadow-sm active:scale-95"
+              title="恢复文档"
+            >
+              <ArchiveRestore size={13} />
+              <span>恢复</span>
+            </button>
+          )}
+          {handleDelete && (
+            <button
+              onClick={() => handleDelete(item.id, true)}
+              className="px-2.5 py-1 rounded-lg transition-all bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/25 flex items-center gap-1.5 shrink-0 text-[11px] font-bold h-[30px] shadow-sm active:scale-95"
+              title="彻底销毁"
+            >
+              <Trash2 size={13} />
+              <span>销毁</span>
+            </button>
+          )}
+        </>
+      ) : (
+        handleDelete && (
+          <button
+            onClick={() => handleDelete(item.id)}
+            className="w-[30px] h-[30px] rounded-lg transition-all bg-red-500/5 hover:bg-red-500/15 text-red-400 hover:text-red-500 border border-red-500/20 hover:border-red-500/35 flex items-center justify-center shrink-0 active:scale-95 shadow-sm"
+            title="删除碎片"
+          >
+            <Trash2 size={13} />
+          </button>
+        )
+      )}
+
+      {/* 分隔线 */}
+      <div className="w-[1px] h-4 bg-borderSubtle/50 mx-0.5 shrink-0" />
+
+      {/* 关闭按钮 */}
+      {onClose && (
+        <button
+          onClick={onClose}
+          className="p-1.5 rounded-lg transition-all bg-bgSubtle hover:bg-red-500/10 text-textTertiary hover:text-red-400 border border-borderSubtle/50 flex items-center justify-center w-[30px] h-[30px] shrink-0 active:scale-95"
+          title="关闭详情视图 (Esc)"
+        >
+          <X size={13} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Wiki 专属溯源面板
 // ─────────────────────────────────────────────────────────────────────────────
-function WikiSidebarContent({ item, onNavigate, showToC, setShowToC, tocContent, tocContainerRef }) {
+function WikiSidebarContent({ 
+  item, 
+  onNavigate, 
+  showToC, 
+  setShowToC, 
+  tocContent, 
+  tocContainerRef,
+  handleCopyMarkdown,
+  handleDownloadMarkdown,
+  handleShare,
+  externalImages,
+  localImages,
+  isLocalizing,
+  localizingProgress,
+  totalImagesToLocalize,
+  onLocalizeImages,
+  onClose,
+  showTrash,
+  handleRestore,
+  handleDelete,
+  selectedTemplateId,
+  onSelectTemplate,
+  isReprocessing,
+  onReprocess,
+  templates
+}) {
   const { previewItem, setPreviewItem, copiedId, handleCopy } = usePreview();
 
   const parents = item.parents || [];
@@ -148,28 +432,55 @@ function WikiSidebarContent({ item, onNavigate, showToC, setShowToC, tocContent,
 
       {/* 顶部标题栏 */}
       <div className="shrink-0 px-4 py-3 border-b border-borderSubtle/60 flex items-center justify-between bg-sidebar/30">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-primeAccent/10 border border-primeAccent/20">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className="p-1.5 rounded-lg bg-primeAccent/10 border border-primeAccent/20 shrink-0">
             <GitBranch size={12} className="text-primeAccent" />
           </div>
-          <span className="text-[11px] font-bold tracking-widest font-mono uppercase text-textSecondary/80">溯源档案</span>
+          <span className="text-[11px] font-bold tracking-widest font-mono uppercase text-textSecondary/80 truncate">溯源档案</span>
         </div>
-        {parents.length > 0 && (
-          <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-primeAccent/10 text-primeAccent border border-primeAccent/20">
-            {parents.length} 个来源
-          </span>
-        )}
+        <div className="flex items-center gap-1.5 min-w-0">
+          {parents.length > 0 && (
+            <span className="hidden sm:inline-block text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-primeAccent/10 text-primeAccent border border-primeAccent/20 mr-1 shrink-0">
+              {parents.length} 个来源
+            </span>
+          )}
+          <HeaderActions
+            item={item}
+            showTrash={showTrash}
+            handleRestore={handleRestore}
+            handleDelete={handleDelete}
+            onClose={onClose}
+            handleCopyMarkdown={handleCopyMarkdown}
+            handleDownloadMarkdown={handleDownloadMarkdown}
+            handleShare={handleShare}
+            externalImages={externalImages}
+            localImages={localImages}
+            isLocalizing={isLocalizing}
+            localizingProgress={localizingProgress}
+            totalImagesToLocalize={totalImagesToLocalize}
+            onLocalizeImages={onLocalizeImages}
+          />
+        </div>
       </div>
 
       {/* 溯源碎片列表 */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-3 flex flex-col gap-2">
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-3 flex flex-col gap-2.5">
+        <AISummaryCard
+          item={item}
+          selectedTemplateId={selectedTemplateId}
+          onSelectTemplate={onSelectTemplate}
+          isReprocessing={isReprocessing}
+          onReprocess={onReprocess}
+          templates={templates}
+        />
+
         {parents.length === 0 ? (
           /* 空态 */
           <div className="flex-1 flex flex-col items-center justify-center py-16 text-center px-4">
             <div className="w-12 h-12 rounded-2xl bg-primeAccent/5 border border-primeAccent/10 flex items-center justify-center mb-4">
               <FileText size={20} className="text-primeAccent/30" />
             </div>
-            <p className="text-[11px] text-textSecondary/40 leading-relaxed">此 Wiki 暂无关联来源碎片</p>
+            <p className="text-[11px] text-textSecondary/65 leading-relaxed">此 Wiki 暂无关联来源碎片</p>
           </div>
         ) : (
           parents.map((p, idx) => {
@@ -187,11 +498,11 @@ function WikiSidebarContent({ item, onNavigate, showToC, setShowToC, tocContent,
                 </span>
 
                 <div className="flex-1 min-w-0">
-                  <p className="text-[11px] leading-snug line-clamp-2 text-textSecondary group-hover/card:text-textPrimary transition-colors">
+                  <p className="text-[11px] leading-snug line-clamp-2 text-textPrimary group-hover/card:text-primeAccent transition-colors">
                     {p.ai_summary || p.original_name || '未命名碎片'}
                   </p>
                   {p.original_name && p.ai_summary && (
-                    <p className="mt-1 text-[9px] font-mono text-textSecondary/50 truncate">{p.original_name}</p>
+                    <p className="mt-1 text-[9px] font-mono text-textSecondary truncate">{p.original_name}</p>
                   )}
                 </div>
 
@@ -203,6 +514,9 @@ function WikiSidebarContent({ item, onNavigate, showToC, setShowToC, tocContent,
             );
           })
         )}
+        
+
+
         {/* 底部留白 */}
         <div className="h-4 shrink-0" />
       </div>
@@ -231,6 +545,24 @@ function NormalSidebarContent({
   tocContainerRef,
   handleUpdateStatus,
   isSubmittingStatus,
+  handleCopyMarkdown,
+  handleDownloadMarkdown,
+  handleShare,
+  externalImages,
+  localImages,
+  isLocalizing,
+  localizingProgress,
+  totalImagesToLocalize,
+  onLocalizeImages,
+  onClose,
+  showTrash,
+  handleRestore,
+  handleDelete,
+  selectedTemplateId,
+  onSelectTemplate,
+  isReprocessing,
+  onReprocess,
+  templates
 }) {
   const { previewItem, setPreviewItem, copiedId, handleCopy } = usePreview();
 
@@ -250,8 +582,38 @@ function NormalSidebarContent({
         handleCopy={handleCopy} 
       />
       <TocOverlay showToC={showToC} setShowToC={setShowToC} tocContent={tocContent} tocContainerRef={tocContainerRef} />
+      
+      {/* 顶部标题栏 */}
+      <div className="shrink-0 px-4 py-3 border-b border-borderSubtle/60 flex items-center justify-end bg-sidebar/30">
+        <HeaderActions
+          item={item}
+          showTrash={showTrash}
+          handleRestore={handleRestore}
+          handleDelete={handleDelete}
+          onClose={onClose}
+          handleCopyMarkdown={handleCopyMarkdown}
+          handleDownloadMarkdown={handleDownloadMarkdown}
+          handleShare={handleShare}
+          externalImages={externalImages}
+          localImages={localImages}
+          isLocalizing={isLocalizing}
+          localizingProgress={localizingProgress}
+          totalImagesToLocalize={totalImagesToLocalize}
+          onLocalizeImages={onLocalizeImages}
+        />
+      </div>
+
       {/* 可滚动内容区 */}
       <div className="flex-none lg:flex-1 overflow-visible lg:overflow-y-auto p-5 custom-scrollbar scrollbar-hide flex flex-col gap-4">
+        <AISummaryCard
+          item={item}
+          selectedTemplateId={selectedTemplateId}
+          onSelectTemplate={onSelectTemplate}
+          isReprocessing={isReprocessing}
+          onReprocess={onReprocess}
+          templates={templates}
+        />
+
         {/* 区块 1: 源视觉预览 */}
         {item.file_type?.includes('image') && (
           <div className="w-full h-[160px] shrink-0 bg-sidebar border border-borderSubtle rounded-xl flex items-center justify-center relative overflow-hidden group text-center">
@@ -276,7 +638,7 @@ function NormalSidebarContent({
                 </span>
               ))
             ) : (
-              <span className="text-textSecondary/30 text-[10px] italic">无标签记录</span>
+              <span className="text-textSecondary text-[10px] italic">无标签记录</span>
             )}
           </div>
 
@@ -285,7 +647,7 @@ function NormalSidebarContent({
           <div className="text-textSecondary text-[11px] font-mono flex items-center justify-between">
             <span>{item.created_at || item.CreatedAt ? new Date(item.created_at || item.CreatedAt).toLocaleString('zh-CN', { hour12: false }) : '未知时间'}</span>
             {item.file_type && (
-              <span className="uppercase text-textSecondary/40">{item.file_type.split('/').pop() || item.file_type}</span>
+              <span className="uppercase text-textSecondary">{item.file_type.split('/').pop() || item.file_type}</span>
             )}
           </div>
         </div>
@@ -320,7 +682,7 @@ function NormalSidebarContent({
               {showRelated && (
                 <>
                   {!showTabs && (
-                    <div className="text-[10px] text-textSecondary/50 uppercase mb-2 font-mono flex items-center gap-2">
+                    <div className="text-[10px] text-textSecondary uppercase mb-2 font-mono flex items-center gap-2">
                       <Link size={10} className="text-primeAccent" /> 相关笔记
                     </div>
                   )}
@@ -331,10 +693,10 @@ function NormalSidebarContent({
                         onClick={() => setPreviewItem(rel)}
                         className="p-3 hover:bg-primeAccent/5 transition-colors cursor-pointer group/rel"
                       >
-                        <div className="text-[11px] text-textSecondary/70 group-hover/rel:text-textPrimary transition-colors line-clamp-2 leading-snug">
+                        <div className="text-[11px] text-textPrimary group-hover/rel:text-primeAccent transition-colors line-clamp-2 leading-snug">
                           {rel.ai_summary || rel.original_name}
                         </div>
-                        <div className="mt-2 text-[9px] font-mono text-textSecondary/20 group-hover/rel:text-primeAccent/50 transition-colors">
+                        <div className="mt-2 text-[9px] font-mono text-textSecondary group-hover/rel:text-primeAccent transition-colors">
                           {new Date(rel.created_at || rel.CreatedAt).toLocaleDateString()}
                         </div>
                       </div>
@@ -346,7 +708,7 @@ function NormalSidebarContent({
               {showParents && (
                 <>
                   {!showTabs && (
-                    <div className="text-[10px] text-textSecondary/50 uppercase mb-2 font-mono flex items-center gap-2">
+                    <div className="text-[10px] text-textSecondary uppercase mb-2 font-mono flex items-center gap-2">
                       <Zap size={10} className="text-primeAccent" /> 知识合成谱系
                     </div>
                   )}
@@ -368,6 +730,9 @@ function NormalSidebarContent({
             </div>
           </div>
         )}
+
+
+
       </div>
 
       {/* 区块 4: 可折叠批注区 - sticky 底部 */}
@@ -377,20 +742,20 @@ function NormalSidebarContent({
           className="w-full flex items-center justify-between px-5 py-3 hover:bg-primeAccent/5 transition-colors group"
         >
           <div className="flex items-center gap-2">
-            <ClipboardEdit size={13} className="text-primeAccent/70" />
-            <span className="text-[11px] text-textSecondary/70 uppercase font-mono tracking-wider group-hover:text-textPrimary transition-colors">手动批注与回响</span>
+            <ClipboardEdit size={13} className="text-primeAccent" />
+            <span className="text-[11px] text-textSecondary uppercase font-mono tracking-wider group-hover:text-textPrimary transition-colors">手动批注与回响</span>
             {!isAnnotationExpanded && annotation && annotation.trim() && (
               <span className="w-2 h-2 rounded-full bg-primeAccent animate-pulse shadow-[0_0_6px_var(--prime-accent)]" title="已有批注" />
             )}
           </div>
           <div className="flex items-center gap-1.5">
             {!isAnnotationExpanded && (
-              <span className="text-[10px] text-textSecondary/30 font-mono uppercase group-hover:text-textSecondary/50 transition-colors">展开</span>
+              <span className="text-[10px] text-textSecondary font-mono uppercase group-hover:text-textSecondary transition-colors">展开</span>
             )}
             {isAnnotationExpanded ? (
-              <ChevronUp size={14} className="text-textSecondary/50" />
+              <ChevronUp size={14} className="text-textSecondary" />
             ) : (
-              <ChevronDown size={14} className="text-textSecondary/50 group-hover:text-textSecondary transition-colors" />
+              <ChevronDown size={14} className="text-textSecondary group-hover:text-textSecondary transition-colors" />
             )}
           </div>
         </button>
@@ -434,14 +799,7 @@ function NormalSidebarContent({
 export default function DetailSidebar(props) {
   if (props.item?.is_wiki) {
     return (
-      <WikiSidebarContent
-        item={props.item}
-        onNavigate={props.onNavigate}
-        showToC={props.showToC}
-        setShowToC={props.setShowToC}
-        tocContent={props.tocContent}
-        tocContainerRef={props.tocContainerRef}
-      />
+      <WikiSidebarContent {...props} />
     );
   }
 
