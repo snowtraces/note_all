@@ -401,6 +401,13 @@ select {
   font-weight: 500;
 }
 
+.markdown-content mark[style*="background-color"],
+.markdown-ocr mark[style*="background-color"],
+.markdown-content mark[style*="background-color"] *,
+.markdown-ocr mark[style*="background-color"] * {
+  color: #ffffff !important;
+}
+
 .markdown-content mark,
 .markdown-ocr mark {
   color: inherit;

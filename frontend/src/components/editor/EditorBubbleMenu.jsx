@@ -13,12 +13,12 @@ const TEXT_COLORS = [
 
 const HIGHLIGHT_COLORS = [
   { name: '默认', value: '', color: 'transparent' },
-  { name: '红底', value: 'rgba(239, 68, 68, 0.4)', color: 'rgba(239, 68, 68, 0.4)' },
-  { name: '橙底', value: 'rgba(249, 115, 22, 0.4)', color: 'rgba(249, 115, 22, 0.4)' },
-  { name: '黄底', value: 'rgba(234, 179, 8, 0.4)', color: 'rgba(234, 179, 8, 0.4)' },
-  { name: '绿底', value: 'rgba(16, 185, 129, 0.4)', color: 'rgba(16, 185, 129, 0.4)' },
-  { name: '蓝底', value: 'rgba(59, 130, 246, 0.4)', color: 'rgba(59, 130, 246, 0.4)' },
-  { name: '紫底', value: 'rgba(168, 85, 247, 0.4)', color: 'rgba(168, 85, 247, 0.4)' }
+  { name: '红底', value: 'rgba(239, 68, 68, 1)', color: 'rgba(239, 68, 68, 1)' },
+  { name: '橙底', value: 'rgba(249, 115, 22, 1)', color: 'rgba(249, 115, 22, 1)' },
+  { name: '黄底', value: 'rgba(234, 179, 8, 1)', color: 'rgba(234, 179, 8, 1)' },
+  { name: '绿底', value: 'rgba(16, 185, 129, 1)', color: 'rgba(16, 185, 129, 1)' },
+  { name: '蓝底', value: 'rgba(59, 130, 246, 1)', color: 'rgba(59, 130, 246, 1)' },
+  { name: '紫底', value: 'rgba(168, 85, 247, 1)', color: 'rgba(168, 85, 247, 1)' }
 ];
 
 const FormatButton = ({ editor, command, isActiveName, Icon, title }) => (
@@ -33,20 +33,20 @@ const FormatButton = ({ editor, command, isActiveName, Icon, title }) => (
 
 const ColorPicker = ({ editor, type, colors, Icon, title, shapeClass }) => {
   const isText = type === 'textStyle';
-  
+
   // Custom check for "default/transparent" color
   const checkActive = (val) => {
     if (!val) {
-       // If checking for default, it's active if no specific color is set
-       if (isText) {
-          return !editor.getAttributes('textStyle').color;
-       } else {
-          return !editor.getAttributes('highlight').color;
-       }
+      // If checking for default, it's active if no specific color is set
+      if (isText) {
+        return !editor.getAttributes('textStyle').color;
+      } else {
+        return !editor.getAttributes('highlight').color;
+      }
     }
     return editor.isActive(type, { color: val });
   };
-  
+
   const handleSelect = (val) => {
     if (isText) {
       val ? editor.chain().focus().setColor(val).run() : editor.chain().focus().unsetColor().run();
@@ -68,7 +68,7 @@ const ColorPicker = ({ editor, type, colors, Icon, title, shapeClass }) => {
             className={`w-6 h-6 rounded-md transition-all active:scale-[0.9] flex items-center justify-center hover:bg-bgHover ${checkActive(c.value) ? 'ring-1 ring-primeAccent/50 bg-bgSubtle' : ''}`}
             title={c.name}
           >
-            <div 
+            <div
               className={`w-3.5 h-3.5 ${shapeClass} ${c.value ? '' : 'border-[1.5px] border-textMuted bg-transparent relative after:content-[""] after:absolute after:w-[120%] after:h-[1.5px] after:bg-textMuted after:rotate-45 after:top-1/2 after:left-1/2 after:-translate-x-1/2 after:-translate-y-1/2'}`}
               style={{ backgroundColor: c.color !== 'transparent' ? c.color : undefined }}
             />
@@ -82,8 +82,8 @@ const ColorPicker = ({ editor, type, colors, Icon, title, shapeClass }) => {
 export default function EditorBubbleMenu({ editor }) {
   if (!editor) return null;
   return (
-    <BubbleMenu 
-      editor={editor} 
+    <BubbleMenu
+      editor={editor}
       tippyOptions={{ duration: 150, placement: 'top', animation: 'shift-away' }}
       className="flex items-center gap-1 bg-modal/95 backdrop-blur-md border border-borderSubtle rounded-xl shadow-lg p-1.5 z-50 overflow-hidden custom-scrollbar"
     >
@@ -94,24 +94,24 @@ export default function EditorBubbleMenu({ editor }) {
 
       <div className="w-px h-4 bg-borderSubtle mx-1" />
 
-      <ColorPicker 
-        editor={editor} 
-        type="textStyle" 
-        colors={TEXT_COLORS} 
-        Icon={Baseline} 
-        title="文字颜色" 
-        shapeClass="rounded-full" 
+      <ColorPicker
+        editor={editor}
+        type="textStyle"
+        colors={TEXT_COLORS}
+        Icon={Baseline}
+        title="文字颜色"
+        shapeClass="rounded-full"
       />
 
       <div className="w-px h-4 bg-borderSubtle mx-1" />
 
-      <ColorPicker 
-        editor={editor} 
-        type="highlight" 
-        colors={HIGHLIGHT_COLORS} 
-        Icon={Highlighter} 
-        title="背景高亮" 
-        shapeClass="rounded-sm" 
+      <ColorPicker
+        editor={editor}
+        type="highlight"
+        colors={HIGHLIGHT_COLORS}
+        Icon={Highlighter}
+        title="背景高亮"
+        shapeClass="rounded-sm"
       />
     </BubbleMenu>
   );

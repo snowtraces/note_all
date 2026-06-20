@@ -73,6 +73,11 @@
   border-radius: 2px;
 }
 
+.tiptap-content mark[style*="background-color"],
+.tiptap-content mark[style*="background-color"] * {
+  color: #ffffff !important;
+}
+
 .tiptap-content mark {
   box-decoration-break: clone;
 }
