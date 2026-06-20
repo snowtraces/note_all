@@ -57,7 +57,7 @@ export default function PublicSharePage({ shareId }) {
    }
 
    return (
-      <div className="min-h-screen w-full bg-sidebar text-textPrimary font-sans selection:bg-primeAccent selection:text-white-fixed pb-20 overflow-x-hidden">
+      <div className="min-h-screen w-full bg-sidebar text-textPrimary font-sans pb-20 overflow-x-hidden">
          {/* Top Branding Section */}
          <div className="w-full h-[300px] absolute top-0 left-0 bg-gradient-to-b from-primeAccent/10 to-transparent pointer-events-none"></div>
 
@@ -157,7 +157,7 @@ export default function PublicSharePage({ shareId }) {
                      <h4 className="text-[11px] text-textTertiary uppercase tracking-[0.1em] font-mono">原始记录全貌 · FULL INTELLECT</h4>
                      <div className="flex-1 h-px bg-borderSubtle"></div>
                   </div>
-                  <div className="rounded-[28px] p-5 lg:p-6 text-textPrimary/90 text-[15px] leading-8 font-normal selection:bg-primeAccent selection:text-white markdown-ocr bg-card border border-borderSubtle">
+                  <div className="rounded-[28px] p-5 lg:p-6 text-textPrimary/90 text-[15px] leading-8 font-normal markdown-ocr bg-card border border-borderSubtle">
                      <MarkdownRenderer content={item.ocr_text} />
                   </div>
                </div>

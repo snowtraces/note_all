@@ -49,7 +49,6 @@
 
 .tiptap-content strong {
   font-weight: 700;
-  color: var(--text-primary);
 }
 
 .tiptap-content em {
@@ -69,12 +68,12 @@
 
 .tiptap-content mark:not([style*="background-color"]) {
   background-color: var(--prime-accent);
-}
-
-.tiptap-content mark {
   color: #ffffff !important;
   padding: 0.1em 0.3em;
   border-radius: 2px;
+}
+
+.tiptap-content mark {
   box-decoration-break: clone;
 }
 

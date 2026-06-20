@@ -284,6 +284,17 @@ select {
   background: color-mix(in srgb, var(--text-primary), transparent 60%);
 }
 
+/* ============ 选中文本样式 (Text Selection) ============ */
+::selection {
+  background-color: color-mix(in srgb, var(--prime-accent), transparent 80%);
+  color: inherit;
+}
+
+[data-mode="dark"] ::selection {
+  background-color: color-mix(in srgb, var(--prime-accent), transparent 75%);
+  color: inherit;
+}
+
 /* ============ Markdown 内容区 (Grayscale Background with Accent Decorations) ============ */
 .markdown-content {
   @apply leading-relaxed;
@@ -381,14 +392,21 @@ select {
   margin: 0 0.125rem;
 }
 
-.markdown-content mark,
-.markdown-ocr mark {
+.markdown-content mark:not([style*="background-color"]),
+.markdown-ocr mark:not([style*="background-color"]) {
   background: var(--prime-accent);
   color: #ffffff !important;
   padding: 0.125rem 0.25rem;
   border-radius: 0.25rem;
   font-weight: 500;
 }
+
+.markdown-content mark,
+.markdown-ocr mark {
+  color: inherit;
+}
+
+
 
 /* OCR 内容区 */
 .markdown-ocr {

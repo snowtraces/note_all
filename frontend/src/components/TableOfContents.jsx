@@ -13,6 +13,7 @@ export default function TableOfContents({ content, containerRef, onNavigate, con
       .replace(/(\*|_)(.*?)\1/g, '$2')     // italic
       .replace(/\[(.*?)\]\(.*?\)/g, '$1')  // links
       .replace(/`(.*?)`/g, '$1')           // inline code
+      .replace(/<\/?[^>]+(>|$)/g, '')      // HTML tags
       .trim();
   };
 

@@ -8,12 +8,11 @@ import GlobalDragHandle from 'tiptap-extension-global-drag-handle';
 
 import { getCommonExtensions } from './editor/commonExtensions';
 import { AutoWrapSelection } from './editor/AutoWrapSelection';
+import EditorBubbleMenu from './editor/EditorBubbleMenu';
 
 import { uploadImage } from '../api/noteApi';
 import SlashCommand, { setOnImageUpload, setOnShowHelp } from './SlashCommandExtension';
 import SlashCommandHelpModal from './SlashCommandHelpModal';
-
-
 
 const ensureTrailingEmptyParagraph = (editor) => {
   if (!editor || !editor.isEditable || editor.view.composing) return;
@@ -69,6 +68,20 @@ export default function MarkdownEditor({
     } catch (err) { }
   }, []);
 
+  const handleImageFile = useCallback((file, view, insertFn) => {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64 = reader.result.split(',')[1];
+        const result = await (onImageUpload || uploadImage)(base64, file.type);
+        view.dispatch(insertFn(view.state.tr, view.state.schema.nodes.image.create({ src: result.url })));
+      } catch (err) {
+        console.error('Image upload failed:', err);
+      }
+    };
+    reader.readAsDataURL(file);
+  }, [onImageUpload]);
+
   const handleDrop = useCallback((view, event, _slice, _moved) => {
     const files = event.dataTransfer?.files;
     if (!files || files.length === 0) return false;
@@ -78,32 +91,14 @@ export default function MarkdownEditor({
       if (!file.type.startsWith('image/')) continue;
       event.preventDefault();
       handled = true;
-
-      const processUpload = async () => {
-        try {
-          const reader = new FileReader();
-          reader.onload = async () => {
-            const base64 = reader.result.split(',')[1];
-            const result = await (onImageUpload || uploadImage)(base64, file.type);
-            const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
-            if (pos) {
-              view.dispatch(
-                view.state.tr.insert(
-                  pos.pos,
-                  view.state.schema.nodes.image.create({ src: result.url })
-                )
-              );
-            }
-          };
-          reader.readAsDataURL(file);
-        } catch (err) {
-          console.error('Image drop upload failed:', err);
-        }
-      };
-      processUpload();
+      const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
+      
+      handleImageFile(file, view, (tr, imageNode) => {
+        return pos ? tr.insert(pos.pos, imageNode) : tr;
+      });
     }
     return handled;
-  }, [onImageUpload]);
+  }, [handleImageFile]);
 
   const handlePaste = useCallback((view, event) => {
     const items = event.clipboardData?.items;
@@ -112,34 +107,18 @@ export default function MarkdownEditor({
     let handled = false;
     for (const item of items) {
       if (!item.type.startsWith('image/')) continue;
-
       const file = item.getAsFile();
       if (!file) continue;
 
       event.preventDefault();
       handled = true;
-
-      const processUpload = async () => {
-        try {
-          const reader = new FileReader();
-          reader.onload = async () => {
-            const base64 = reader.result.split(',')[1];
-            const result = await (onImageUpload || uploadImage)(base64, file.type);
-            view.dispatch(
-              view.state.tr.replaceSelectionWith(
-                view.state.schema.nodes.image.create({ src: result.url })
-              )
-            );
-          };
-          reader.readAsDataURL(file);
-        } catch (err) {
-          console.error('Image paste upload failed:', err);
-        }
-      };
-      processUpload();
+      
+      handleImageFile(file, view, (tr, imageNode) => {
+        return tr.replaceSelectionWith(imageNode);
+      });
     }
     return handled;
-  }, [onImageUpload]);
+  }, [handleImageFile]);
 
   const editor = useEditor({
     editable: editable,
@@ -423,6 +402,7 @@ export default function MarkdownEditor({
         activeTableWrapper
       )}
       <div className="tiptap-editor-container relative">
+        <EditorBubbleMenu editor={editor} />
         <EditorContent editor={editor} className="tiptap-content-area" />
         <div id="tiptap-bubble-menu-container" />
       </div>

@@ -536,7 +536,7 @@ export default function Detail({
             />
             {/* 正文 */}
             <div className="mt-1 pt-2 border-t border-borderSubtle -mx-4 px-4 md:-mx-5 md:px-5 lg:-mx-6 lg:px-6">
-              <div className="text-textPrimary text-[14px] leading-[1.7] tracking-wide selection:bg-primeAccent selection:text-black">
+              <div className="text-textPrimary text-[14px] leading-[1.7] tracking-wide">
                 <div style={{ display: editorMode === 'edit' ? 'block' : 'none' }}>
                   <MarkdownEditor
                     initialContent={tiptapContent}

@@ -44,7 +44,11 @@ const TiptapImageComponent = ({ node, updateAttributes, editor }) => {
           src={fullSrc}
           alt={node.attrs.alt || ''}
           className="tiptap-image rounded-lg shadow-sm group-hover:shadow-md transition-shadow duration-300 block"
-          style={{ width: width === 'auto' ? 'auto' : '100%', maxHeight: '80vh' }}
+          style={{ 
+            width: width === 'auto' ? 'auto' : '100%', 
+            height: 'auto',
+            maxHeight: width === 'auto' ? '80vh' : undefined
+          }}
           loading="lazy"
         />
 

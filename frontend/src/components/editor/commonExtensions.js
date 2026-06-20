@@ -8,6 +8,8 @@ import { TaskList } from '@tiptap/extension-task-list';
 import { TaskItem } from '@tiptap/extension-task-item';
 import { Highlight } from '@tiptap/extension-highlight';
 import { Typography } from '@tiptap/extension-typography';
+import { Color } from '@tiptap/extension-color';
+import { TextStyle } from '@tiptap/extension-text-style';
 import { Markdown } from 'tiptap-markdown';
 
 import { CustomImage } from './TiptapImage';
@@ -37,6 +39,8 @@ export function getCommonExtensions({ markdownClipboard = false } = {}) {
     TaskList,
     TaskItem.configure({ nested: true }),
     Highlight.configure({ multicolor: true }),
+    TextStyle,
+    Color,
     Typography,
     CustomCodeBlock,
     InlineMathDecorations,

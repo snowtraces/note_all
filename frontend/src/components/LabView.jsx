@@ -183,7 +183,7 @@ export default function LabView({
                                 </button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar select-text selection:bg-primeAccent/20">
+                            <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar select-text">
                                 <h2 className="text-xl font-extrabold text-textPrimary mb-6 border-b border-borderSubtle pb-4 tracking-wide leading-relaxed">
                                     {result.title}
                                 </h2>
