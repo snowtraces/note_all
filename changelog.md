@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] - 2026-06-20
+
+### Changed
+- **详情页操作按钮平铺展示**：取消了右侧边栏 HeaderActions 的 ⋯ 折叠溢出菜单，将下载 Markdown 和复制 Markdown 按钮平铺展示在头部，采用统一尺寸的图标设计，方便一键快捷操作。
+- **功能按钮职责归口与重复去除**：在底部工具栏右侧恢复了“图片本地化”按钮，并配合当前状态（无外部图片显示绿色、有外部图片显示橙色）显示不同的提示。同时彻底移除了右侧边栏中重复的“图片本地化”入口。
+- **数据流与 Props 传参瘦身**：在 `Detail.jsx` 与 `DetailSidebar.jsx` (包含 HeaderActions、WikiSidebarContent、NormalSidebarContent) 中清理了 6 个无用的图片本地化相关 Props 与局部变量定义，简化了组件数据流通路，消除了无用组件的重复订阅重绘开销。
+- **图标引入清理**：移处理了组件中因重构而遗留的未使用 lucide-react 图标（`MoreHorizontal` 与 `ExternalLink`）的导入。
+
 ## [Unreleased] - 2026-06-19
 
 ### Added

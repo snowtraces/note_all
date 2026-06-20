@@ -6,7 +6,7 @@ import {
   Quote, Code, CodeSquare,
   Link, Image as ImageIcon, Table as TableIcon,
   Highlighter, Save,
-  ExternalLink, ImageDown, ChevronUp, ChevronDown, XCircle,
+  ImageDown, ChevronUp, ChevronDown, XCircle,
 } from 'lucide-react';
 import { EDITOR_MODES } from '../constants/editorModes';
 import { triggerImageUpload } from './SlashCommandExtension';
@@ -212,24 +212,9 @@ export default function DetailToolbar({
 
       {/* Raw: keyboard shortcut hints */}
       {editorMode === 'raw' && !isSearchActive && (
-        <div className="hidden md:flex items-center gap-2 text-[10px] text-textSecondary/50 bg-sidebar/30 border border-borderSubtle/30 px-2.5 py-0.5 rounded-lg shadow-sm animate-in fade-in duration-300">
+        <div className="hidden md:flex items-center gap-2 text-[11px] text-textSecondary/50 bg-sidebar/30 border border-borderSubtle/30 px-2.5 py-1 rounded-lg shadow-sm animate-in fade-in duration-300">
           <div className="flex items-center gap-1 shrink-0">
-            <kbd className="px-1.5 py-0.5 bg-sidebar border border-borderSubtle rounded font-mono text-[9px] text-textPrimary shadow-sm">Ctrl + B</kbd>
-            <span className="text-textTertiary">加粗</span>
-          </div>
-          <span className="text-borderSubtle/50 font-light select-none">/</span>
-          <div className="flex items-center gap-1 shrink-0">
-            <kbd className="px-1.5 py-0.5 bg-sidebar border border-borderSubtle rounded font-mono text-[9px] text-textPrimary shadow-sm">Ctrl + I</kbd>
-            <span className="text-textTertiary">块选择</span>
-          </div>
-          <span className="text-borderSubtle/50 font-light select-none">/</span>
-          <div className="flex items-center gap-1 shrink-0">
-            <kbd className="px-1.5 py-0.5 bg-sidebar border border-borderSubtle rounded font-mono text-[9px] text-textPrimary shadow-sm">Ctrl + K</kbd>
-            <span className="text-textTertiary">链接</span>
-          </div>
-          <span className="text-borderSubtle/50 font-light select-none">/</span>
-          <div className="flex items-center gap-1 shrink-0">
-            <kbd className="px-1.5 py-0.5 bg-sidebar border border-borderSubtle rounded font-mono text-[9px] text-textPrimary shadow-sm">Ctrl + S</kbd>
+            <kbd className="px-1.5 py-0.5 bg-sidebar border border-borderSubtle rounded font-mono text-[10px] text-textPrimary shadow-sm">Ctrl + S</kbd>
             <span className="text-textTertiary">保存</span>
           </div>
         </div>
@@ -237,23 +222,15 @@ export default function DetailToolbar({
 
       {/* ─── Right: always-visible controls ─── */}
       <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar min-w-0 ml-auto shrink-0">
-        {item?.original_url && (
-          <a href={item.original_url} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-2 py-1 bg-primeAccent/10 hover:bg-primeAccent/20 text-primeAccent transition-colors rounded text-[10px] font-mono border border-primeAccent/20 shrink-0"
-            title="直达原文">
-            <ExternalLink size={13} /> 源网址
-          </a>
-        )}
-
-        {(externalImages.length > 0 || localImages.length > 0) && (
-          <button onClick={onLocalizeImages} disabled={isLocalizing || externalImages.length === 0}
-            className={`flex items-center gap-1.5 px-2 py-1 transition-colors rounded text-[10px] font-mono shrink-0 ${externalImages.length === 0
-              ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+        {((externalImages?.length || 0) > 0 || (localImages?.length || 0) > 0) && (
+          <button onClick={onLocalizeImages} disabled={isLocalizing || !externalImages?.length}
+            className={`flex items-center gap-1.5 px-2 py-1 transition-colors rounded text-[10px] font-mono shrink-0 ${!externalImages?.length
+              ? 'bg-green-500/10 text-green-400 border border-green-500/20 cursor-default'
               : 'bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/20'
               }`}
-            title={externalImages.length === 0 ? "图片已全部本地化" : "本地化第三方图片"}>
+            title={!externalImages?.length ? "图片已全部本地化" : "本地化第三方图片"}>
             <ImageDown size={13} className={isLocalizing ? 'animate-pulse' : ''} />
-            {isLocalizing ? `本地化中 ${localizingProgress}/${totalImagesToLocalize}` : `图片 ${localImages.length}/${externalImages.length + localImages.length}`}
+            {isLocalizing ? `本地化中 ${localizingProgress}/${totalImagesToLocalize}` : `图片 ${localImages?.length || 0}/${(externalImages?.length || 0) + (localImages?.length || 0)}`}
           </button>
         )}
 

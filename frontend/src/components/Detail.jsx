@@ -48,21 +48,17 @@ function AISummaryCard({
   const currentTemplateName = currentTemplate ? currentTemplate.name : '默认模板';
 
   return (
-    <div className="group/ai mb-2 px-1 py-0.5 transition-all opacity-60 hover:opacity-100">
+    <div className="group/ai mb-2 px-1 py-0.5 transition-all">
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-baseline gap-2">
-          <span className="shrink-0 flex items-center gap-1 text-[9px] font-bold font-mono uppercase tracking-widest text-primeAccent/40 border border-primeAccent/10 px-1 rounded bg-primeAccent/[0.02]">
-            <Sparkles size={8} /> AI
-          </span>
+          <Sparkles size={12} className="text-primeAccent/50 shrink-0" />
           <h1 className="text-lg font-bold text-textSecondary leading-tight">
             {item.ai_title || item.original_name || '未命名笔记'}
           </h1>
         </div>
 
         {/* 重处理控制 - hover时渐显，下拉框打开时保持显现 */}
-        <div className={`flex items-center gap-1 transition-all duration-300 shrink-0 ${
-          isOpen ? 'opacity-100' : 'opacity-0 group-hover/ai:opacity-100 transform translate-x-1 group-hover/ai:translate-x-0'
-        }`}>
+        <div className="flex items-center gap-1 shrink-0">
           <div className="flex items-center bg-sidebar/40 backdrop-blur-md border border-borderSubtle rounded-lg px-1.5 py-0.5 shadow-sm hover:border-primeAccent/30 transition-colors relative" ref={dropdownRef}>
             <div className="relative">
               <button
@@ -112,7 +108,7 @@ function AISummaryCard({
         </div>
       </div>
 
-      <div className="text-[12px] text-textSecondary/40 leading-relaxed italic mt-1">
+      <div className="text-[12px] text-textSecondary leading-relaxed mt-1">
         {item.ai_summary || (item.status === 'processing' ? 'AI 正在提取摘要...' : '暂无 AI 摘要记录')}
       </div>
     </div>
@@ -516,9 +512,9 @@ export default function Detail({
           {(editorMode === 'view' || editorMode === 'edit') && (
             <button
               onClick={() => setShowToC(!showToC)}
-              className={`absolute right-0 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center transition-all duration-300 ${showToC
-                ? 'w-7 h-24 bg-primeAccent/30 backdrop-blur-md border border-primeAccent/40 rounded-l-lg text-primeAccent shadow-lg'
-                : 'w-5 h-14 bg-sidebar/80 backdrop-blur-sm border border-borderSubtle rounded-l-md text-textTertiary hover:text-primeAccent hover:bg-primeAccent/10 hover:border-primeAccent/20 shadow-md hover:shadow-lg'
+              className={`absolute right-0 top-1/2 -translate-y-1/2 z-20 w-6 h-16 flex items-center justify-center transition-all duration-300 rounded-l-md border ${showToC
+                ? 'bg-primeAccent/20 border-primeAccent/30 text-primeAccent'
+                : 'bg-sidebar/80 border-borderSubtle text-textTertiary hover:text-primeAccent hover:bg-primeAccent/10'
                 }`}
               title={showToC ? '收起大纲' : '展开大纲'}
             >
@@ -633,12 +629,6 @@ export default function Detail({
           handleCopyMarkdown={handleCopyMarkdown}
           handleDownloadMarkdown={handleDownloadMarkdown}
           handleShare={() => setShowShareModal(true)}
-          externalImages={imgLoc.externalImages}
-          localImages={imgLoc.localImages}
-          isLocalizing={imgLoc.isLocalizing}
-          localizingProgress={imgLoc.localizingProgress}
-          totalImagesToLocalize={imgLoc.totalImagesToLocalize}
-          onLocalizeImages={imgLoc.localizeImages}
           showTrash={showTrash}
           handleRestore={handleRestore}
           handleDelete={handleDelete}

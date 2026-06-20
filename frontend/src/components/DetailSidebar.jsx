@@ -140,41 +140,11 @@ function HeaderActions({
   onClose,
   handleCopyMarkdown,
   handleDownloadMarkdown,
-  handleShare,
-  externalImages,
-  localImages,
-  isLocalizing,
-  localizingProgress,
-  totalImagesToLocalize,
-  onLocalizeImages
+  handleShare
 }) {
-  const hasExternalImages = externalImages?.length > 0;
-  const totalImgCount = (externalImages?.length || 0) + (localImages?.length || 0);
 
   return (
     <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none flex-nowrap min-w-0 justify-end w-full select-none py-0.5">
-      {/* 图片本地化 */}
-      {!showTrash && totalImgCount > 0 && onLocalizeImages && (
-        <button
-          onClick={onLocalizeImages}
-          disabled={isLocalizing || !hasExternalImages}
-          className={`w-[30px] h-[30px] rounded-lg transition-all border flex items-center justify-center shrink-0 shadow-sm active:scale-95 ${
-            !hasExternalImages
-              ? 'bg-green-500/5 text-green-400 border-green-500/20'
-              : 'bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border-orange-500/25 hover:border-orange-500/40'
-          }`}
-          title={
-            !hasExternalImages
-              ? "图片已全部本地化"
-              : isLocalizing
-              ? `图片本地化中 (${localizingProgress}/${totalImagesToLocalize})`
-              : `图片本地化: 已本地化 ${localImages?.length}/${totalImgCount} 张`
-          }
-        >
-          <ImageDown size={13} className={isLocalizing ? 'animate-pulse' : ''} />
-        </button>
-      )}
-
       {/* 直达原文 */}
       {!showTrash && item?.original_url && (
         <a
@@ -220,6 +190,8 @@ function HeaderActions({
           <Copy size={13} />
         </button>
       )}
+
+
 
       {/* 回收站/删除操作 */}
       {showTrash ? (
@@ -288,12 +260,6 @@ function WikiSidebarContent({
   handleCopyMarkdown,
   handleDownloadMarkdown,
   handleShare,
-  externalImages,
-  localImages,
-  isLocalizing,
-  localizingProgress,
-  totalImagesToLocalize,
-  onLocalizeImages,
   onClose,
   showTrash,
   handleRestore,
@@ -327,12 +293,6 @@ function WikiSidebarContent({
           handleCopyMarkdown={handleCopyMarkdown}
           handleDownloadMarkdown={handleDownloadMarkdown}
           handleShare={handleShare}
-          externalImages={externalImages}
-          localImages={localImages}
-          isLocalizing={isLocalizing}
-          localizingProgress={localizingProgress}
-          totalImagesToLocalize={totalImagesToLocalize}
-          onLocalizeImages={onLocalizeImages}
         />
       </div>
 
@@ -342,14 +302,12 @@ function WikiSidebarContent({
         {/* 溯源档案标题行 */}
         <div className="flex items-center justify-between px-1 py-1.5">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="p-1.5 rounded-lg bg-primeAccent/10 border border-primeAccent/20 shrink-0">
-              <GitBranch size={12} className="text-primeAccent" />
-            </div>
-            <span className="text-[11px] font-bold tracking-widest font-mono uppercase text-textSecondary/80 truncate">溯源档案</span>
+            <GitBranch size={12} className="text-primeAccent shrink-0" />
+            <span className="text-[12px] font-semibold text-textSecondary truncate">溯源档案</span>
           </div>
           {parents.length > 0 && (
-            <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-primeAccent/10 text-primeAccent border border-primeAccent/20 shrink-0">
-              {parents.length} 个来源
+            <span className="text-[11px] text-textTertiary shrink-0">
+              ({parents.length})
             </span>
           )}
         </div>
@@ -428,12 +386,6 @@ function NormalSidebarContent({
   handleCopyMarkdown,
   handleDownloadMarkdown,
   handleShare,
-  externalImages,
-  localImages,
-  isLocalizing,
-  localizingProgress,
-  totalImagesToLocalize,
-  onLocalizeImages,
   onClose,
   showTrash,
   handleRestore,
@@ -469,12 +421,6 @@ function NormalSidebarContent({
           handleCopyMarkdown={handleCopyMarkdown}
           handleDownloadMarkdown={handleDownloadMarkdown}
           handleShare={handleShare}
-          externalImages={externalImages}
-          localImages={localImages}
-          isLocalizing={isLocalizing}
-          localizingProgress={localizingProgress}
-          totalImagesToLocalize={totalImagesToLocalize}
-          onLocalizeImages={onLocalizeImages}
         />
       </div>
 
@@ -610,15 +556,13 @@ function NormalSidebarContent({
         >
           <div className="flex items-center gap-2">
             <ClipboardEdit size={13} className="text-primeAccent" />
-            <span className="text-[11px] text-textSecondary uppercase font-mono tracking-wider group-hover:text-textPrimary transition-colors">手动批注与回响</span>
+            <span className="text-[11px] text-textSecondary uppercase font-mono tracking-wider group-hover:text-textPrimary transition-colors">批注</span>
             {!isAnnotationExpanded && annotation && annotation.trim() && (
               <span className="w-2 h-2 rounded-full bg-primeAccent animate-pulse shadow-[0_0_6px_var(--prime-accent)]" title="已有批注" />
             )}
           </div>
           <div className="flex items-center gap-1.5">
-            {!isAnnotationExpanded && (
-              <span className="text-[10px] text-textSecondary font-mono uppercase group-hover:text-textSecondary transition-colors">展开</span>
-            )}
+
             {isAnnotationExpanded ? (
               <ChevronUp size={14} className="text-textSecondary" />
             ) : (
@@ -648,9 +592,9 @@ function NormalSidebarContent({
               {isSubmittingStatus ? (
                 <RefreshCw size={14} className="animate-spin" />
               ) : item.status === 'done' ? (
-                <><CheckCircle2 size={14} /> 已存入常驻记忆</>
+                <><CheckCircle2 size={14} /> 已标记完成</>
               ) : (
-                <><Eye size={14} /> 标注为已读并保存</>
+                <><Eye size={14} /> 标记完成</>
               )}
             </button>
           </div>

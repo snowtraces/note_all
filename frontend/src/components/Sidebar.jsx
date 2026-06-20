@@ -271,8 +271,8 @@ export default function Sidebar({
 
           {/* Item Count or Status */}
           <div className="flex items-center gap-2">
-            <span className="text-[10px] tabular-nums font-mono text-textTertiary uppercase tracking-widest px-1.5 py-0.5 rounded-md border border-borderSubtle/50 bg-bgHover/50">
-              {total || displayedResults.length} {searchOnlyWiki && viewMode === 'notes' ? 'WIKIS' : 'FRAGMENTS'}
+            <span className="text-[12px] text-textTertiary">
+              {total || displayedResults.length} 条
             </span>
           </div>
         </div>
@@ -409,46 +409,41 @@ export default function Sidebar({
                     </div>
                   )}
 
-                  {/* 第一行：元信息栏 (标签、日期、操作) */}
-                  <div className="flex justify-between items-center mb-2 mt-0 relative z-10 min-h-[24px]">
-                    <div className="flex flex-nowrap gap-1.5 overflow-hidden flex-1 mr-3 items-center mask-image-r">
-                      {renderTags(item.ai_tags, item.id, isSelected)}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {item.parents && item.parents.length > 0 && (
-                        <Zap size={10} className="text-primeAccent fill-primeAccent/20 animate-pulse" title="合成生成的知识笔记" />
-                      )}
-                      <div className="text-textMuted text-[10px] font-mono flex-shrink-0 flex items-center gap-1">
-                        {item.status === 'done' && <CheckCircle2 size={10} className="text-green-500/60" />}
-                        {item.created_at || item.CreatedAt
-                          ? new Date(item.created_at || item.CreatedAt).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
-                          : '刚刚'}
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleLabItem(item.id);
-                        }}
-                        title={labBasket?.includes(item.id) ? "从实验室移除" : "加入实验室素材"}
-                        className={`p-1 rounded-lg transition-all ${labBasket?.includes(item.id)
-                          ? 'bg-primeAccent text-white-fixed scale-110 shadow shadow-primeAccent/40'
-                          : 'bg-sidebar text-textSecondary/20 hover:text-primeAccent hover:bg-primeAccent/10 opacity-40 group-hover:opacity-100'
-                          }`}
-                      >
-                        <Beaker size={12} />
-                      </button>
-                    </div>
+                  {/* 标题 + 日期 */}
+                  <div className="flex justify-between items-start gap-3 relative z-10">
+                    <h3 className={`text-[14px] font-bold line-clamp-1 transition-colors ${isSelected ? 'text-primeAccent' : 'text-textPrimary group-hover:text-primeAccent/80'}`}>
+                      {cardTitle}
+                    </h3>
+                    <span className="text-textMuted text-[11px] shrink-0 pt-0.5">
+                      {item.created_at || item.CreatedAt
+                        ? new Date(item.created_at || item.CreatedAt).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+                        : '刚刚'}
+                    </span>
                   </div>
 
-                  {/* 第二行：高尚精致的卡片标题 */}
-                  <h3 className={`text-[14px] font-bold tracking-wide mb-1.5 line-clamp-1 transition-colors relative z-10 ${isSelected ? 'text-primeAccent' : 'text-textPrimary group-hover:text-primeAccent/80'
-                    }`}>
-                    {cardTitle}
-                  </h3>
-
-                  {/* 第三行：清爽优雅的卡片摘要 */}
-                  <div className="text-textSecondary text-[12px] leading-relaxed font-normal line-clamp-2 relative z-10">
+                  {/* 摘要 */}
+                  <div className="text-textSecondary text-[12px] leading-relaxed line-clamp-2 relative z-10 mt-1.5">
                     {cardSummary}
+                  </div>
+
+                  {/* 标签 + 操作 */}
+                  <div className="flex justify-between items-center mt-2 relative z-10">
+                    <div className="flex flex-nowrap gap-1.5 overflow-hidden flex-1 mr-2 items-center">
+                      {renderTags(item.ai_tags, item.id, isSelected)}
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleLabItem(item.id);
+                      }}
+                      title={labBasket?.includes(item.id) ? "从实验室移除" : "加入实验室素材"}
+                      className={`p-1 rounded-lg transition-colors ${labBasket?.includes(item.id)
+                        ? 'bg-primeAccent text-white-fixed'
+                        : 'text-textTertiary hover:text-primeAccent hover:bg-primeAccent/10 opacity-0 group-hover:opacity-100'
+                        }`}
+                    >
+                      <Beaker size={12} />
+                    </button>
                   </div>
 
 
@@ -458,21 +453,19 @@ export default function Sidebar({
             {hasMore && (
               <div ref={loadMoreRef} className="py-6 flex justify-center items-center shrink-0">
                 {loading ? (
-                  <div className="flex items-center gap-2 text-[11px] text-textMuted uppercase tracking-widest">
-                    <RefreshCcw size={12} className="animate-spin text-primeAccent" /> Loading...
+                  <div className="flex items-center gap-2 text-[12px] text-textMuted">
+                    <RefreshCcw size={12} className="animate-spin text-primeAccent" /> 加载中...
                   </div>
                 ) : (
-                  <button onClick={handleLoadMore} className="text-[10px] uppercase tracking-widest text-primeAccent hover:underline transition-all">
-                    向下滚动加载更多
+                  <button onClick={handleLoadMore} className="text-[12px] text-primeAccent hover:underline transition-all">
+                    加载更多
                   </button>
                 )}
               </div>
             )}
             {!hasMore && displayedResults.length > 0 && (
-              <div className="py-6 flex justify-center shrink-0">
-                <span className="text-[10px] uppercase tracking-widest text-textTertiary font-mono">
-                  — END OF LIST —
-                </span>
+              <div className="py-4 flex justify-center shrink-0">
+                <div className="w-12 h-px bg-borderSubtle" />
               </div>
             )}
             {/* 列表底部雅致留白，保障最末卡片与底部上传面板有高雅的视觉呼吸感 */}
@@ -797,7 +790,7 @@ export default function Sidebar({
 
 
           <div className="flex gap-2">
-            <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-primeAccent/10 to-transparent border border-borderSubtle py-3 rounded-lg text-textSecondary hover:text-textPrimary transition-all text-[12px]">
+            <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="flex-1 flex items-center justify-center gap-2 border border-borderSubtle py-3 rounded-lg text-textSecondary hover:text-textPrimary hover:bg-bgHover transition-all text-[12px]">
               {uploading ? "吸入中..." : <><UploadCloud size={14} /> 上传文件</>}
             </button>
             <button
