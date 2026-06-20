@@ -56,6 +56,7 @@ export function useHistoryRouter({
   }, []);
 
   const syncStateToUrl = useCallback((viewMode, showTrash, selectedItem, currentSessionId) => {
+    if (window.location.pathname.startsWith('/s/')) return;
     let targetPath = '/';
     
     if (viewMode === 'notes') {

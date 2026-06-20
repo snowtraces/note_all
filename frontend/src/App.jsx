@@ -666,11 +666,6 @@ function AppContent() {
     setLabBasket(prev => prev.filter(i => i !== id));
   };
 
-  const urlPath = window.location.pathname;
-  if (urlPath.startsWith('/s/')) {
-    const shareId = urlPath.split('/')[2];
-    return <PublicSharePage shareId={shareId} />;
-  }
 
   if (isAuthChecking) {
     return (
@@ -1023,9 +1018,13 @@ function AppContent() {
 
 // 外层 App 组件，提供 ToastProvider
 function App() {
+  const urlPath = window.location.pathname;
+  const isShare = urlPath.startsWith('/s/');
+  const shareId = isShare ? urlPath.split('/')[2] : null;
+
   return (
     <ToastProvider>
-      <AppContent />
+      {isShare ? <PublicSharePage shareId={shareId} /> : <AppContent />}
     </ToastProvider>
   );
 }

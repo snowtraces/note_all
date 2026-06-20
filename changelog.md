@@ -19,6 +19,11 @@ All notable changes to this project will be documented in this file.
 - **数据流与 Props 传参瘦身**：在 `Detail.jsx` 与 `DetailSidebar.jsx` (包含 HeaderActions、WikiSidebarContent、NormalSidebarContent) 中清理了 6 个无用的图片本地化相关 Props 与局部变量定义，简化了组件数据流通路，消除了无用组件的重复订阅重绘开销。
 - **图标引入清理**：移处理了组件中因重构而遗留的未使用 lucide-react 图标（`MoreHorizontal` 与 `ExternalLink`）的导入。
 
+### Fixed
+- **分享页面重定向与目录宽度优化**：
+  - 修复了已登录用户访问公开分享页面时，主应用状态同步逻辑（`syncStateToUrl`）触发重定向至 `/notes` 的问题。通过将分享路由判定移至最外层 `App` 组件并加入防御性拦截，实现了分享页面与主应用的完全解耦。
+  - 优化了公开分享页面右侧的目录导航栏宽度，将原本固定的 `w-52`（208px）拓宽为响应式的 `w-64 xl:w-72`，在不同分辨率屏幕下提供更充裕的展示空间，避免较长目录文字被过度截断。
+
 ## [Unreleased] - 2026-06-19
 
 ### Added

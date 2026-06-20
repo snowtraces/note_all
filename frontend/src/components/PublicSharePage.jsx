@@ -84,7 +84,7 @@ export default function PublicSharePage({ shareId }) {
          {(item.ocr_text || item.ai_summary) && (
             <>
               {showToC ? (
-                <aside className="hidden lg:block fixed right-6 top-24 w-52 border rounded-2xl backdrop-blur-sm z-20 animate-in slide-in-from-right duration-300 bg-bgSubtle border-borderSubtle shadow-xl">
+                <aside className="hidden lg:block fixed right-6 top-24 w-64 xl:w-72 border rounded-2xl backdrop-blur-sm z-20 animate-in slide-in-from-right duration-300 bg-bgSubtle border-borderSubtle shadow-xl">
                   <div className="px-4 py-3 border-b flex items-center justify-between border-borderSubtle">
                     <div className="flex items-center gap-2 text-textTertiary">
                       <List size={14} />
