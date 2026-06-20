@@ -4,7 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - 2026-06-20
 
+### Added
+- **前端设计系统与开发指南**：引入了纯文本设计系统 `DESIGN.md`，规范了色彩、排版、间距、圆角、阴影和组件交互样式字典；创建了 `AGENTS.md` 开发入口指南，规范代理人开发流程并建立了交付前自查清单，从源头杜绝样式漂移。
+- **完全移除 CLAUDE.md**：彻底清除了根目录下的 `CLAUDE.md`，将所有项目架构、技术栈、核心指令等全量并入 `AGENTS.md`，达成了单一事实来源（SSOT）的目标。
+
 ### Changed
+- **全局发光阴影与主题联动**：在 `index.css` 中引入动态 RGB 通道变量 `--prime-accent-rgb`，让暗色重载发光阴影色动态跟随激活主题变化，修复了切换午夜蓝或森林绿主题时阴影仍呈现赛博青色的色彩穿帮问题。
+- **亮色模式文字对比度优化**：优化了亮色模式下的文字对比度与色系统合度，将主文字色提升为护眼深灰 `#0f172a` (Slate 900)，副文字色改为 `#334155` (Slate 700)，去除了硬黑的生硬刺眼感。
+- **中文字号限制与排版防变形**：修正了 `DetailToolbar`、`EmptyState`、`ShareModal` 中中文按钮文字误用 `text-[10px]` 的隐患，提升为标准 `text-xs`，规避了 Chrome 等浏览器中文 12px 最小限制引起的按钮受挤压形变。
+- **消除原生弹窗与二次确认重构**：完全移除了 `NavRail` 与 `ShareModal` 中突兀的原生 `window.alert` / `window.confirm`，改用 `useToast` 进行异步通知；将退出登录与撤销分享重构为带 3 秒防覆盖逻辑注释的 inline 红色发光脉冲二次确认动效。
+- **全局交互下压微动效**：为侧栏导航、各个设置按钮、操作按钮及灵感素材卡片统一加注了 `active:scale-[0.98]` (或 `active:scale-95`/`active:scale-90`) 的点击物理微缩放动效。
 - **详情页操作按钮平铺展示**：取消了右侧边栏 HeaderActions 的 ⋯ 折叠溢出菜单，将下载 Markdown 和复制 Markdown 按钮平铺展示在头部，采用统一尺寸的图标设计，方便一键快捷操作。
 - **功能按钮职责归口与重复去除**：在底部工具栏右侧恢复了“图片本地化”按钮，并配合当前状态（无外部图片显示绿色、有外部图片显示橙色）显示不同的提示。同时彻底移除了右侧边栏中重复的“图片本地化”入口。
 - **数据流与 Props 传参瘦身**：在 `Detail.jsx` 与 `DetailSidebar.jsx` (包含 HeaderActions、WikiSidebarContent、NormalSidebarContent) 中清理了 6 个无用的图片本地化相关 Props 与局部变量定义，简化了组件数据流通路，消除了无用组件的重复订阅重绘开销。

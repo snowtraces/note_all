@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { X, Link as LinkIcon, Copy, Trash2, CheckCircle2, Clock, Globe, Shield, Loader2 } from 'lucide-react';
 import { createShare, revokeShare, getNoteShares } from '../api/shareApi';
+import { useToast } from '../context/ToastContext';
 
 export default function ShareModal({ item, onClose }) {
   const [loading, setLoading] = useState(true);
   const [shares, setShares] = useState([]);
   const [creating, setCreating] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
+  const [confirmingRevokeId, setConfirmingRevokeId] = useState(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     loadShares();
@@ -28,19 +31,32 @@ export default function ShareModal({ item, onClose }) {
     try {
       await createShare(item.id);
       await loadShares();
+      showToast("创建分享成功", { type: "success", title: "成功" });
     } catch (e) {
-      alert("创建分享失败: " + e.message);
+      showToast("创建分享失败: " + e.message, { type: "error", title: "错误" });
     }
     setCreating(false);
   };
 
+  // 撤销分享点击处理器：引入3秒内的防误触二次确认机制
+  const handleRevokeClick = (id) => {
+    if (confirmingRevokeId !== id) {
+      setConfirmingRevokeId(id);
+      // 3秒后自动重置确认状态，使用 functional update 确保在此期间未切换至其他 ID 时才重置
+      setTimeout(() => setConfirmingRevokeId(prev => prev === id ? null : prev), 3000);
+      return;
+    }
+    handleRevoke(id);
+  };
+
+  // 执行物理撤销分享 API 调用
   const handleRevoke = async (id) => {
-    if (!window.confirm("确定要撤销此分享链接吗？撤销后外部将无法访问。")) return;
     try {
       await revokeShare(id);
       setShares(prev => prev.filter(s => s.id !== id));
+      showToast("撤销分享成功", { type: "success", title: "成功" });
     } catch (e) {
-      alert("撤销失败");
+      showToast("撤销分享失败: " + e.message, { type: "error", title: "错误" });
     }
   };
 
@@ -68,7 +84,7 @@ export default function ShareModal({ item, onClose }) {
             </h2>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full text-textSecondary/40 hover:text-textPrimary transition-all"
+              className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full text-textSecondary/40 hover:text-textPrimary transition-all active:scale-95"
             >
               <X size={20} />
             </button>
@@ -93,7 +109,7 @@ export default function ShareModal({ item, onClose }) {
             <button
               onClick={handleCreate}
               disabled={creating}
-              className="bg-primeAccent text-white-fixed dark:text-black font-bold text-[11px] px-5 py-2.5 rounded-xl hover:shadow-[0_0_20px_color-mix(in_srgb,var(--prime-accent),transparent_80%)] transition-all flex items-center gap-2 disabled:opacity-50"
+              className="bg-primeAccent text-white-fixed dark:text-black font-bold text-xs px-5 py-2.5 rounded-xl hover:shadow-[0_0_20px_rgba(var(--prime-accent-rgb),0.25)] transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50"
             >
               {creating ? <Loader2 className="animate-spin w-3 h-3" /> : <LinkIcon size={14} />}
               创建新链接
@@ -135,15 +151,19 @@ export default function ShareModal({ item, onClose }) {
                       <div className="flex items-center gap-2 absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => copyToClipboard(share.id)}
-                          className="p-2.5 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 rounded-xl transition-all"
+                          className="p-2.5 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 rounded-xl transition-all active:scale-90"
                           title="复制链接"
                         >
                           {copiedId === share.id ? <CheckCircle2 size={16} /> : <Copy size={16} />}
                         </button>
                         <button
-                          onClick={() => handleRevoke(share.id)}
-                          className="p-2.5 bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded-xl transition-all"
-                          title="撤销分享"
+                          onClick={() => handleRevokeClick(share.id)}
+                          className={`p-2.5 rounded-xl transition-all active:scale-90 ${
+                            confirmingRevokeId === share.id
+                              ? 'bg-red-500 text-white-fixed shadow-lg shadow-red-500/25 animate-pulse'
+                              : 'bg-red-500/10 text-red-500 hover:bg-red-500/20'
+                          }`}
+                          title={confirmingRevokeId === share.id ? "再次点击以确认撤销" : "撤销分享"}
                         >
                           <Trash2 size={16} />
                         </button>

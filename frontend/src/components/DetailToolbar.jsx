@@ -236,7 +236,7 @@ export default function DetailToolbar({
 
         {hasUnsavedChanges && (
           <button onClick={onSave} disabled={isSaving}
-            className="flex items-center gap-1.5 px-3 py-1 bg-primeAccent/20 text-primeAccent hover:bg-primeAccent hover:text-white transition-all rounded text-[10px] font-bold border border-primeAccent/30 backdrop-blur shadow-lg disabled:opacity-50">
+            className="flex items-center gap-1.5 px-3 py-1 bg-primeAccent/20 text-primeAccent hover:bg-primeAccent hover:text-white transition-all rounded text-xs font-bold border border-primeAccent/30 backdrop-blur shadow-lg disabled:opacity-50">
             <Save size={13} />
             {isSaving ? '保存中...' : '保存'}
           </button>

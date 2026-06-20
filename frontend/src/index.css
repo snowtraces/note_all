@@ -7,6 +7,8 @@
 :root {
   /* 基础品牌变量 */
   --prime-accent: rgb(102, 252, 241);
+  --prime-accent-rgb: 102, 252, 241;
+  --color-prime-accent-rgb: var(--prime-accent-rgb);
   --prime-accent-dim: #45a29e;
 
   /* 统一暗色模式背景 (所有主题通用) */
@@ -35,8 +37,8 @@
   --light-bg-code: #f8fafc;
   --light-bg-code-header: #f1f5f9;
   --light-bg-graph: #ffffff;
-  --light-text-primary: #000000;
-  --light-text-secondary: #4b5563;
+  --light-text-primary: #0f172a;
+  --light-text-secondary: #334155;
   --light-border-subtle: #e5e7eb;
 }
 
@@ -103,33 +105,39 @@
 /* 赛博朋克：暗色使用霓虹青，亮色使用深青以防刺眼 */
 [data-theme="cyber"] {
   --prime-accent: rgb(102, 252, 241);
+  --prime-accent-rgb: 102, 252, 241;
   --prime-accent-dim: #45a29e;
 }
 
 [data-theme="cyber"][data-mode="light"] {
   --prime-accent: #0891b2;
+  --prime-accent-rgb: 8, 145, 178;
   --prime-accent-dim: #0e7490;
 }
 
 /* 午夜蓝调：亮色使用更稳重的深蓝色 */
 [data-theme="blue"] {
   --prime-accent: rgb(59, 130, 246);
+  --prime-accent-rgb: 59, 130, 246;
   --prime-accent-dim: #2563eb;
 }
 
 [data-theme="blue"][data-mode="light"] {
   --prime-accent: #2563eb;
+  --prime-accent-rgb: 37, 99, 235;
   --prime-accent-dim: #1d4ed8;
 }
 
 /* 森林绿意：亮色使用更沉稳的翠绿色 */
 [data-theme="forest"] {
   --prime-accent: rgb(16, 185, 129);
+  --prime-accent-rgb: 16, 185, 129;
   --prime-accent-dim: #059669;
 }
 
 [data-theme="forest"][data-mode="light"] {
   --prime-accent: #059669;
+  --prime-accent-rgb: 5, 150, 105;
   --prime-accent-dim: #047857;
 }
 
@@ -192,15 +200,15 @@
 }
 
 [data-mode="dark"] .shadow-lg {
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.9), 0 0 10px rgba(102, 252, 241, 0.05) !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.9), 0 0 10px rgba(var(--prime-accent-rgb), 0.05) !important;
 }
 
 [data-mode="dark"] .shadow-xl {
-  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 1), 0 0 15px rgba(102, 252, 241, 0.08) !important;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 1), 0 0 15px rgba(var(--prime-accent-rgb), 0.08) !important;
 }
 
 [data-mode="dark"] .shadow-2xl {
-  box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 1), 0 0 25px rgba(102, 252, 241, 0.12) !important;
+  box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 1), 0 0 25px rgba(var(--prime-accent-rgb), 0.12) !important;
 }
 
 /* 核心识别增强：锐利边框方案 (不放光，无脏感) */

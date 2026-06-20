@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Library,
   Network,
@@ -25,6 +25,17 @@ export default function NavRail({
 }) {
   const { mode } = useTheme();
   const isLight = mode === 'light';
+  const [confirmLogout, setConfirmLogout] = useState(false);
+
+  // 退出登录点击处理器：引入3秒防误触二次确认，变红高亮闪烁，超时后自动重置
+  const handleLogoutClick = () => {
+    if (!confirmLogout) {
+      setConfirmLogout(true);
+      setTimeout(() => setConfirmLogout(false), 3000);
+      return;
+    }
+    logout();
+  };
 
   const getBadgeValue = (id) => {
     if (id === 'lab' && labBasket?.length > 0) return labBasket.length;
@@ -120,7 +131,7 @@ export default function NavRail({
             title={item.label}
             className={`
               ${item.hiddenOnMobile ? 'hidden md:flex' : 'flex'} relative items-center justify-center transition-all duration-300 group
-              w-12 h-12 shrink-0 md:w-full md:aspect-square md:rounded-2xl rounded-xl
+              w-12 h-12 shrink-0 md:w-full md:aspect-square md:rounded-2xl rounded-xl active:scale-95
               ${item.active
                 ? 'bg-primeAccent/10 text-primeAccent'
                 : 'text-textTertiary hover:bg-bgHover hover:text-textPrimary'
@@ -146,7 +157,7 @@ export default function NavRail({
             )}
 
             {/* Tooltip */}
-            <div className={`hidden md:block absolute left-[70px] px-2 py-1.5 rounded-md text-[11px] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-[100] bg-modal border border-subtle text-textPrimary shadow-lg`}>
+            <div className={`hidden md:block absolute left-[70px] px-2 py-1.5 rounded-md text-[11px] opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-[100] bg-modal border border-borderSubtle text-textPrimary shadow-lg`}>
               {item.label}
             </div>
           </button>
@@ -158,19 +169,19 @@ export default function NavRail({
         <button
           onClick={() => setShowSettings(prev => !prev)}
           title="设置"
-          className={`w-12 h-12 shrink-0 md:w-full md:aspect-square flex items-center justify-center md:rounded-2xl rounded-xl transition-all group text-textTertiary hover:bg-bgHover hover:text-textPrimary`}
+          className={`w-12 h-12 shrink-0 md:w-full md:aspect-square flex items-center justify-center md:rounded-2xl rounded-xl transition-all group text-textTertiary hover:bg-bgHover hover:text-textPrimary active:scale-95`}
         >
           <Settings size={22} className="group-hover:rotate-45 transition-transform duration-500" />
         </button>
 
         <button
-          onClick={() => {
-            if (window.confirm("确定要退出吗？")) {
-              logout();
-            }
-          }}
-          title="退出登录"
-          className="w-12 h-12 shrink-0 md:w-full md:aspect-square flex items-center justify-center md:rounded-2xl rounded-xl text-red-500/30 hover:bg-red-500/10 hover:text-red-500 transition-all group"
+          onClick={handleLogoutClick}
+          title={confirmLogout ? "再次点击确认退出登录" : "退出登录"}
+          className={`w-12 h-12 shrink-0 md:w-full md:aspect-square flex items-center justify-center md:rounded-2xl rounded-xl transition-all group active:scale-95 ${
+            confirmLogout
+              ? 'bg-red-500 text-white-fixed shadow-lg shadow-red-500/25 animate-pulse'
+              : 'text-red-500/30 hover:bg-red-500/10 hover:text-red-500'
+          }`}
         >
           <LogOut size={20} />
         </button>

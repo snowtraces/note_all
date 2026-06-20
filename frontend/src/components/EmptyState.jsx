@@ -121,7 +121,7 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
                   if (onAsk) onAsk(askInput.trim());
                   setAskInput('');
                 }}
-                className="ml-3 bg-primeAccent/10 hover:bg-primeAccent/20 text-primeAccent px-3 py-1.5 rounded-lg text-xs font-semibold tracking-widest uppercase transition-colors"
+                className="ml-3 bg-primeAccent/10 hover:bg-primeAccent/20 text-primeAccent px-3 py-1.5 rounded-lg text-xs font-semibold tracking-widest uppercase transition-colors active:scale-95"
               >
                 深思
               </button>
@@ -141,7 +141,7 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
                 <div className="flex items-center gap-1 p-1 bg-sidebar rounded-lg border border-borderSubtle">
                   <button
                     onClick={() => setActiveTab('serendipity')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-[11px] font-mono transition-all ${activeTab === 'serendipity'
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-[11px] font-mono transition-all active:scale-95 ${activeTab === 'serendipity'
                       ? 'bg-card text-textPrimary shadow-sm border border-borderSubtle'
                       : 'text-textSecondary/50 hover:text-textSecondary'
                       }`}
@@ -151,7 +151,7 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
                   </button>
                   <button
                     onClick={() => setActiveTab('review')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-[11px] font-mono transition-all ${activeTab === 'review'
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-[11px] font-mono transition-all active:scale-95 ${activeTab === 'review'
                       ? 'bg-card text-textPrimary shadow-sm border border-borderSubtle'
                       : 'text-textSecondary/50 hover:text-textSecondary'
                       }`}
@@ -189,7 +189,7 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
                       <button
                         onClick={() => fetchSerendipity(1)}
                         disabled={serendipityLoading}
-                        className="p-2 border border-borderSubtle rounded-lg flex items-center gap-2 text-[10px] font-mono transition-all shadow-sm hover:bg-card disabled:opacity-50"
+                        className="p-2 border border-borderSubtle rounded-lg flex items-center gap-2 text-xs font-mono transition-all shadow-sm hover:bg-card active:scale-95 disabled:opacity-50"
                         title="刷新列表"
                       >
                         <RefreshCw size={12} className={`text-primeAccent/70 ${serendipityLoading ? 'animate-spin' : ''}`} />
@@ -199,7 +199,7 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
                     <button
                       onClick={handleGenerateReview}
                       disabled={reviewLoading}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 rounded-lg text-[10px] font-bold uppercase transition-colors disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primeAccent/10 text-primeAccent hover:bg-primeAccent/20 rounded-lg text-xs font-bold uppercase transition-colors active:scale-95 disabled:opacity-50"
                     >
                       <RefreshCw size={12} className={reviewLoading ? 'animate-spin' : ''} />
                       {reviewLoading ? '生成中...' : '生成回顾'}
@@ -221,12 +221,12 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
                         <div
                           key={ref.id}
                           onClick={() => onItemClick?.(ref)}
-                          className="flex flex-col gap-2 p-4 rounded-xl bg-accent-subtle border border-borderSubtle hover:border-primeAccent/30 hover:bg-primeAccent/5 transition-all cursor-pointer group/ref h-full min-h-[120px] relative"
+                          className="flex flex-col gap-2 p-4 rounded-xl bg-accent-subtle border border-borderSubtle hover:border-primeAccent/30 hover:bg-primeAccent/5 transition-all cursor-pointer group/ref h-full min-h-[120px] relative active:scale-[0.98]"
                         >
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleLabItem(ref.id); }}
-                            className={`absolute top-3 right-3 p-1.5 rounded-lg border transition-all ${labBasket.includes(ref.id)
-                              ? 'bg-primeAccent/20 border-primeAccent/40 text-primeAccent shadow-[0_0_10px_rgba(255,215,0,0.2)]'
+                            className={`absolute top-3 right-3 p-1.5 rounded-lg border transition-all active:scale-90 ${labBasket.includes(ref.id)
+                              ? 'bg-primeAccent/20 border-primeAccent/40 text-primeAccent shadow-[0_0_10px_rgba(var(--prime-accent-rgb),0.2)]'
                               : 'bg-sidebar border-borderSubtle text-textSecondary/30 hover:text-textPrimary hover:bg-card'
                               }`}
                             title="加入实验室合成篮"
@@ -235,7 +235,7 @@ export default function EmptyState({ onAsk, onItemClick, serendipityData, setSer
                           </button>
 
                           <div className="flex items-center mb-1">
-                            <span className="text-[9px] text-textSecondary font-mono tracking-wider group-hover/ref:text-primeAccent/60 transition-colors bg-sidebar px-1.5 py-0.5 rounded leading-none border border-borderSubtle">
+                            <span className="text-xs text-textSecondary font-mono tracking-wider group-hover/ref:text-primeAccent/60 transition-colors bg-sidebar px-1.5 py-0.5 rounded leading-none border border-borderSubtle">
                               {ref.created_at || ref.CreatedAt ? new Date(ref.created_at || ref.CreatedAt).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }) : '未知时间'}
                             </span>
                           </div>

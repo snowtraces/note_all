@@ -36,7 +36,7 @@ const LoginOverlay = ({ onLoginSuccess }) => {
       <div className="max-w-md w-full animate-in fade-in zoom-in duration-500">
         {/* Logo / Title Section */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-primeAccent/10 border border-primeAccent/20 shadow-[0_0_30px_rgba(255,215,0,0.1)] mb-6">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-primeAccent/10 border border-primeAccent/20 shadow-[0_0_30px_rgba(var(--prime-accent-rgb),0.15)] mb-6">
             <ShieldCheck className="w-10 h-10 text-primeAccent" strokeWidth={1.5} />
           </div>
           <h1 className="text-3xl font-light tracking-[0.2em] uppercase mb-3 text-textPrimary">Note All</h1>
@@ -64,7 +64,7 @@ const LoginOverlay = ({ onLoginSuccess }) => {
                 />
               </div>
               {error && (
-                <p className="text-red-400/80 text-[11px] font-light mt-2 ml-1 animate-in slide-in-from-top-1">
+                <p className="text-red-600 dark:text-red-400/80 text-[11px] font-light mt-2 ml-1 animate-in slide-in-from-top-1">
                    {error}
                 </p>
               )}
@@ -73,10 +73,10 @@ const LoginOverlay = ({ onLoginSuccess }) => {
             <button
               type="submit"
               disabled={loading || !password}
-              className={`w-full h-14 rounded-2xl flex items-center justify-center gap-3 transition-all duration-500 overflow-hidden relative group
+              className={`w-full h-14 rounded-2xl flex items-center justify-center gap-3 transition-all duration-500 overflow-hidden relative group active:scale-[0.98]
                 ${loading || !password
                   ? 'bg-bgSubtle text-textTertiary cursor-not-allowed border border-borderSubtle'
-                  : 'bg-primeAccent text-black font-semibold hover:shadow-[0_0_40px_rgba(255,215,0,0.3)] hover:-translate-y-1'}`}
+                  : 'bg-primeAccent text-black font-semibold hover:shadow-[0_0_40px_rgba(var(--prime-accent-rgb),0.35)] hover:-translate-y-1'}`}
             >
               {loading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
