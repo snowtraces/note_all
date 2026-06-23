@@ -20,6 +20,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { generateImage } from '../api/imageGenApi';
 import { deleteChatSession, getChatSessions, getTags, getWikiList } from '../api/noteApi';
+import { getAllWikiEntities } from '../api/wikiApi';
 import { useTheme } from '../context/ThemeContext';
 
 export default function Sidebar({
@@ -115,6 +116,33 @@ export default function Sidebar({
       (w.ai_summary && w.ai_summary.toLowerCase().includes(q)) ||
       w.id.toString().includes(q)
     );
+  });
+
+  // 百科词条列表状态
+  const [wikiEntitiesList, setWikiEntitiesList] = useState([]);
+  const [wikiEntitiesLoading, setWikiEntitiesLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchWikis = () => {
+      if (viewMode === 'wiki') {
+        setWikiEntitiesLoading(true);
+        getAllWikiEntities()
+          .then(data => setWikiEntitiesList(data))
+          .catch(console.error)
+          .finally(() => setWikiEntitiesLoading(false));
+      }
+    };
+
+    fetchWikis();
+
+    window.addEventListener('WIKI_LIST_REFRESH', fetchWikis);
+    return () => window.removeEventListener('WIKI_LIST_REFRESH', fetchWikis);
+  }, [viewMode]);
+
+  const filteredWikiEntities = wikiEntitiesList.filter(w => {
+    const q = query.toLowerCase().trim();
+    if (!q) return true;
+    return (w.name && w.name.toLowerCase().includes(q)) || (w.summary && w.summary.toLowerCase().includes(q));
   });
 
   const fileInputRef = useRef(null);
@@ -263,9 +291,9 @@ export default function Sidebar({
 
         <div className="flex justify-between items-center mb-3 h-auto md:h-8">
           <h1 className={`text-lg md:text-xl font-extrabold tracking-tight transition-colors leading-none ${showTrash ? 'text-red-500/80' : 'text-textPrimary'}`}>
-            {showTrash ? 'Trash ' : (viewMode === 'chats' ? 'Chat ' : viewMode === 'graph' ? 'Graph ' : viewMode === 'lab' ? 'Lab ' : viewMode === 'image_gen' ? 'Image ' : 'Note ')}
+            {showTrash ? 'Trash ' : (viewMode === 'chats' ? 'Chat ' : viewMode === 'graph' ? 'Graph ' : viewMode === 'lab' ? 'Lab ' : viewMode === 'image_gen' ? 'Image ' : viewMode === 'wiki' ? 'Wiki ' : 'Note ')}
             <span className={showTrash ? 'text-red-400' : 'text-primeAccent'}>
-              {showTrash ? 'Bin' : (viewMode === 'chats' ? 'History' : viewMode === 'graph' ? 'Matrix' : viewMode === 'lab' ? 'Space' : viewMode === 'image_gen' ? 'Studio' : 'All')}
+              {showTrash ? 'Bin' : (viewMode === 'chats' ? 'History' : viewMode === 'graph' ? 'Matrix' : viewMode === 'lab' ? 'Space' : viewMode === 'image_gen' ? 'Studio' : viewMode === 'wiki' ? 'Entities' : 'All')}
             </span>
           </h1>
 
@@ -278,7 +306,7 @@ export default function Sidebar({
         </div>
 
         {/* 搜素框 */}
-        {viewMode === 'notes' && (
+        {(viewMode === 'notes' || viewMode === 'wiki') && (
           <div className="relative w-full group" ref={dropdownRef}>
             <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
               {query.startsWith('#') && !showTrash
@@ -310,7 +338,7 @@ export default function Sidebar({
               className={`w-full bg-sidebar/50 hover:bg-sidebar border py-2 pl-9 pr-[86px] text-[13px] rounded-lg shadow-sm border-borderSubtle focus:border-primeAccent/50 text-textPrimary placeholder-textMuted outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 transition-colors duration-200 ${showTrash ? 'opacity-50' : ''}`}
             />
             {/* Wiki 专属仅查询选项：根据 query 是否为空优雅进行右侧避让 */}
-            {!showTrash && (
+            {!showTrash && viewMode === 'notes' && (
               <button
                 type="button"
                 onClick={() => setSearchOnlyWiki(!searchOnlyWiki)}
@@ -321,7 +349,7 @@ export default function Sidebar({
                   }`}
               >
                 <BookOpen size={10} />
-                Wiki
+                <span className="text-[12px] font-bold">Lab</span>
               </button>
             )}
             {query && (
@@ -365,7 +393,7 @@ export default function Sidebar({
                 <div className="w-12 h-12 rounded-2xl bg-primeAccent/5 flex items-center justify-center mb-4">
                   <Search size={20} className="text-primeAccent/40" />
                 </div>
-                <h3 className="text-[13px] font-bold mb-2 text-textSecondary">{searchOnlyWiki ? "未找到 WIKI 档案" : "无相关记忆碎片"}</h3>
+                <h3 className="text-[13px] font-bold mb-2 text-textSecondary">{searchOnlyWiki ? "未找到 Lab 档案" : "无相关记忆碎片"}</h3>
                 <p className="text-[11px] text-textMuted leading-relaxed">
                   尝试更换关键词或标签，或者点击底部「新增文档」来记录新的内容。
                 </p>
@@ -387,14 +415,13 @@ export default function Sidebar({
                     : 'bg-transparent hover:bg-accent-subtle/50 text-textSecondary ring-1 ring-borderSubtle/50 hover:ring-borderSubtle hover:shadow-sm'
                     } group`}
                 >
-                  {/* WIKI 巨型半透明大字 SVG 水印 (固定直接显示，Hover 仅稍稍加深颜色) */}
+                  {/* LAB 巨型半透明大字 SVG 水印 (固定直接显示，Hover 仅稍稍加深颜色) */}
                   {item.is_wiki && (
                     <div className={`absolute -right-2 bottom-1 pointer-events-none select-none z-0 transform transition-all duration-300 ease-out origin-bottom-right leading-none ${isSelected
                       ? 'text-primeAccent/[0.22] dark:text-primeAccent/[0.14] group-hover:text-primeAccent/[0.28] dark:group-hover:text-primeAccent/[0.18]'
                       : 'text-primeAccent/[0.14] dark:text-primeAccent/[0.08] group-hover:text-primeAccent/[0.20] dark:group-hover:text-primeAccent/[0.12]'
                       }`}>
                       <svg viewBox="0 0 110 45" className="w-28 h-12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        {/* 优雅的斜体几何大字 WIKI */}
                         <text x="20" y="38"
                           fill="currentColor"
                           fontSize="30"
@@ -403,7 +430,7 @@ export default function Sidebar({
                           fontFamily="'Inter', 'Segoe UI', system-ui, sans-serif"
                           letterSpacing="-1.8"
                           className="select-none">
-                          WIKI
+                          LAB
                         </text>
                       </svg>
                     </div>
@@ -753,6 +780,41 @@ export default function Sidebar({
           </div>
         ) : viewMode === 'image_gen' ? (
           <ImageGenSidebarItem />
+        ) : viewMode === 'wiki' ? (
+          <>
+            {wikiEntitiesLoading ? (
+              <div className="py-10 flex justify-center items-center text-primeAccent/50">
+                  <RefreshCcw size={16} className="animate-spin" />
+              </div>
+            ) : filteredWikiEntities.length === 0 ? (
+              <div className="py-10 text-center text-[12px] text-textMuted flex flex-col items-center">
+                  <BookOpen size={24} className="mb-2 opacity-20" />
+                  暂无百科词条
+              </div>
+            ) : (
+              filteredWikiEntities.map((wiki) => {
+                  const isSelected = selectedItem?.type === 'wiki' && selectedItem.id === wiki.id;
+                  return (
+                      <div
+                          key={wiki.id}
+                          onClick={() => setSelectedItem({ type: 'wiki', id: wiki.id, name: wiki.name, summary: wiki.summary })}
+                          className={`p-4 rounded-xl transition-all duration-300 flex flex-col shrink-0 min-w-0 cursor-pointer relative overflow-hidden active:scale-[0.98] ${
+                              isSelected
+                                  ? 'bg-primeAccent/10 shadow-[0_4px_20px_rgba(255,215,0,0.06)] ring-1 ring-primeAccent/30'
+                                  : 'bg-transparent hover:bg-accent-subtle/50 text-textSecondary ring-1 ring-borderSubtle/50 hover:ring-borderSubtle hover:shadow-sm'
+                          } group`}
+                      >
+                          <h3 className={`text-[14px] font-bold line-clamp-1 mb-1 transition-colors ${isSelected ? 'text-primeAccent' : 'text-textPrimary group-hover:text-primeAccent/80'}`}>
+                              {wiki.name}
+                          </h3>
+                          <p className="text-[11px] text-textTertiary line-clamp-2 leading-relaxed">
+                              {wiki.summary || "暂无摘要"}
+                          </p>
+                      </div>
+                  );
+              })
+            )}
+          </>
         ) : null}
       </div>
 

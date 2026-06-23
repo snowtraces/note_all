@@ -365,6 +365,8 @@ function WikiSidebarContent({
 // ─────────────────────────────────────────────────────────────────────────────
 // 普通笔记侧边栏（原样保留）
 // ─────────────────────────────────────────────────────────────────────────────
+import { getRelatedWikis } from '../api/wikiApi';
+
 function NormalSidebarContent({
   item,
   fileUrl,
@@ -392,6 +394,15 @@ function NormalSidebarContent({
   handleDelete
 }) {
   const { previewItem, setPreviewItem, copiedId, handleCopy } = usePreview();
+  const [relatedWikis, setRelatedWikis] = useState([]);
+
+  useEffect(() => {
+    if (item?.id) {
+      getRelatedWikis(item.id).then(data => {
+        setRelatedWikis(data || []);
+      }).catch(e => console.error(e));
+    }
+  }, [item?.id]);
 
   const hasRelated = relatedItems && relatedItems.length > 0;
   const hasParents = item.parents && item.parents.length > 0;
@@ -464,6 +475,29 @@ function NormalSidebarContent({
             )}
           </div>
         </div>
+
+        {/* 区块 2.5: 关联 Wiki 词条 */}
+        {relatedWikis.length > 0 && (
+          <div className="bg-card border border-borderSubtle rounded-xl p-3 space-y-2 relative overflow-hidden group">
+             <div className="absolute -right-4 -top-4 w-16 h-16 bg-primeAccent/5 rounded-full blur-2xl pointer-events-none"></div>
+             <div className="flex items-center gap-2 mb-1.5">
+               <Sparkles size={12} className="text-primeAccent" />
+               <span className="text-[11px] font-bold text-textPrimary tracking-wide">关联百科</span>
+             </div>
+             <div className="flex flex-col gap-2">
+               {relatedWikis.map(wiki => (
+                 <div key={wiki.id} className="bg-sidebar border border-borderSubtle/50 rounded-lg p-2.5 transition-all hover:border-primeAccent/30 hover:shadow-sm group/wiki">
+                    <div className="text-[12px] font-semibold text-textSecondary group-hover/wiki:text-primeAccent transition-colors">
+                      {wiki.name}
+                    </div>
+                    <div className="text-[10px] text-textTertiary mt-1 line-clamp-2 leading-relaxed group-hover/wiki:text-textSecondary transition-colors" title={wiki.summary}>
+                      {wiki.summary}
+                    </div>
+                 </div>
+               ))}
+             </div>
+          </div>
+        )}
 
         {/* 区块 3: 关联连接 */}
         {(hasRelated || hasParents) && (

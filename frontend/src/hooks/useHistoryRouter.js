@@ -46,6 +46,11 @@ export function useHistoryRouter({
       viewMode = 'image_gen';
     } else if (path === '/lab') {
       viewMode = 'lab';
+    } else if (path === '/wiki') {
+      viewMode = 'wiki';
+    } else if (path.startsWith('/wiki/')) {
+      viewMode = 'wiki';
+      selectedId = path.split('/')[2];
     }
 
     lastUrlRef.current = path;
@@ -73,6 +78,8 @@ export function useHistoryRouter({
       targetPath = '/image_gen';
     } else if (viewMode === 'lab') {
       targetPath = '/lab';
+    } else if (viewMode === 'wiki') {
+      targetPath = selectedItem ? `/wiki/${selectedItem.id}` : '/wiki';
     }
 
     if (window.location.pathname !== targetPath) {

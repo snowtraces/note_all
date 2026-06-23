@@ -519,3 +519,17 @@ func GetEmbedding(text string) ([]float32, error) {
 
 	return resData.Data[0].Embedding, nil
 }
+
+// ParseSmartJSON 解析大模型返回的智能JSON文本 (去除可能存在的 ```json 标记)
+func ParseSmartJSON(jsonText string, v interface{}) error {
+	jsonText = strings.TrimSpace(jsonText)
+	if strings.HasPrefix(jsonText, "```json") {
+		jsonText = strings.TrimPrefix(jsonText, "```json")
+		jsonText = strings.TrimSuffix(jsonText, "```")
+	} else if strings.HasPrefix(jsonText, "```") {
+		jsonText = strings.TrimPrefix(jsonText, "```")
+		jsonText = strings.TrimSuffix(jsonText, "```")
+	}
+	jsonText = strings.TrimSpace(jsonText)
+	return json.Unmarshal([]byte(jsonText), v)
+}

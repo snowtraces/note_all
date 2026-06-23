@@ -178,6 +178,16 @@ func SetupRouter() *gin.Engine {
 		apiGroup.POST("/note/synthesize/append", noteApi.AppendSynthesize)
 		apiGroup.POST("/note/synthesize/append/save", noteApi.SaveAppendedSynthesize)
 
+		// 9.1.5 LLM 知识编译引擎 (Bypass Architecture)
+		wikiApi := new(api.WikiApi)
+		apiGroup.GET("/wiki/pending", wikiApi.GetPending)
+		apiGroup.POST("/wiki/compile", wikiApi.Compile)
+		apiGroup.POST("/wiki/reject", wikiApi.Reject)
+		apiGroup.GET("/wiki/related", wikiApi.GetRelated)
+		apiGroup.GET("/wiki/entities", wikiApi.GetAllWikis)
+		apiGroup.POST("/wiki/entities/merge", wikiApi.MergeWiki)
+		apiGroup.GET("/wiki/entities/:id", wikiApi.GetWikiDetail)
+		apiGroup.DELETE("/wiki/entities/:id", wikiApi.DeleteWiki)
 		// 9.2 图片上传（独立接口，用于图片本地化）
 		apiGroup.POST("/image/upload", noteApi.UploadImage)
 		apiGroup.POST("/image/upload_from_url", noteApi.UploadImageFromURL)

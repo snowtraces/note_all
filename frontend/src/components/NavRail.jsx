@@ -9,7 +9,8 @@ import {
   Settings,
   BrainCircuit,
   LogOut,
-  Image as ImageIcon
+  Image as ImageIcon,
+  BookOpen
 } from 'lucide-react';
 import { logout } from '../api/authApi';
 import { useTheme } from '../context/ThemeContext';
@@ -50,6 +51,17 @@ export default function NavRail({
       active: viewMode === 'notes' && !showTrash,
       onClick: () => {
         setViewMode('notes');
+        setShowTrash(false);
+        setSelectedItem(null);
+      }
+    },
+    {
+      id: 'wiki',
+      icon: <BookOpen size={22} />,
+      label: '知识百科',
+      active: viewMode === 'wiki' && !showTrash,
+      onClick: () => {
+        setViewMode('wiki');
         setShowTrash(false);
         setSelectedItem(null);
       }

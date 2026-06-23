@@ -254,8 +254,8 @@ func performFullAnalysis(nID uint, templateID uint) {
 	syncTags(nID, tags)
 	syncLinks(nID, markdownText)
 
-	// 新增：更新分片向量索引
-	go UpdateNoteChunks(nID)
+	// 新增：触发知识编译嗅探器 (旁路架构，不阻塞主流程)
+	SniffWikiConceptsBackground(nID)
 
 	// SSE 通知前端数据变化
 	global.SSEBus.Publish("refresh")
@@ -487,6 +487,9 @@ func CreateNoteFromText(text string, providedName string) (*models.NoteItem, err
 
 		syncTags(nID, tags)
 		syncLinks(nID, rawText)
+
+		// 新增：文本剪藏也需要触发知识编译嗅探器
+		SniffWikiConceptsBackground(nID)
 
 		// 更新分片向量索引
 		go UpdateNoteChunks(nID)

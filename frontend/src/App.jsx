@@ -17,6 +17,7 @@ import MarkdownRenderer from './components/MarkdownRenderer';
 import SettingsModal from './components/SettingsModal';
 import GraphView from './components/GraphView';
 import LabView from './components/LabView';
+import WikiView from './components/WikiView';
 import NavRail from './components/NavRail';
 import LoginOverlay from './components/LoginOverlay';
 import PublicSharePage from './components/PublicSharePage';
@@ -28,6 +29,7 @@ import { useMention } from './hooks/useMention';
 import { checkAuth } from './api/authApi';
 import LinkPreviewPortal from './components/LinkPreviewPortal';
 import useLinkPreview from './hooks/useLinkPreview';
+import WikiPrompt from './components/WikiPrompt';
 
 // 智能引证极精致折叠渲染组件
 const CitationsSection = ({ references, onSelectRef }) => {
@@ -255,6 +257,12 @@ function AppContent() {
             setChatHistory([]);
             setCurrentSessionId(0);
           }
+        } else if (routeViewMode === 'wiki') {
+          if (selectedId) {
+            setSelectedItem({ type: 'wiki', id: parseInt(selectedId, 10) });
+          } else {
+            setSelectedItem(null);
+          }
         } else {
           setSelectedItem(null);
         }
@@ -295,12 +303,22 @@ function AppContent() {
     onMessage: (data) => {
       console.log("[SSE] Message received:", data);
 
+      if (data === 'wiki_sniffed') {
+        return; // 嗅探事件由 WikiPrompt 专用组件负责响应
+      }
+
+      if (data === 'wiki_compiled') {
+        window.dispatchEvent(new Event('WIKI_LIST_REFRESH'));
+        return; // Wiki 编译/融合完成，静默刷新 Wiki 列表
+      }
+
       const eventConfig = getSSEEventConfig(data);
 
       if (eventConfig) {
         // 已定义的事件：执行动作 + 显示 toast
         if (eventConfig.action === 'refresh_list') {
           executeSearch(query);
+          window.dispatchEvent(new Event('WIKI_LIST_REFRESH'));
         } else if (eventConfig.action === 'image_gen_refresh') {
           window.dispatchEvent(new Event('IMAGE_GEN_REFRESH'));
         } else if (eventConfig.action === 'review_ready') {
@@ -403,7 +421,11 @@ function AppContent() {
     }
     setSelectedItem(nextItem);
     if (nextItem) {
-      setViewMode('notes');
+      if (nextItem.type === 'wiki') {
+        setViewMode('wiki');
+      } else {
+        setViewMode('notes');
+      }
     }
   };
 
@@ -748,7 +770,7 @@ function AppContent() {
         <div className={`flex-1 flex-col bg-base relative overflow-hidden ${
           (selectedItem || viewMode === 'image_gen' || viewMode === 'graph' || viewMode === 'lab' || (viewMode === 'chats' && chatHistory.length > 0)) ? 'flex w-full absolute inset-0 md:relative md:inset-auto z-50' : 'hidden md:flex'
         }`}>
-          {selectedItem && (
+          {selectedItem && selectedItem.type !== 'wiki' && (
             <div className="absolute inset-0 z-50 bg-base flex flex-col">
               <Detail
                 item={selectedItem}
@@ -761,6 +783,15 @@ function AppContent() {
                 handleUpdateStatus={handleUpdateStatus}
                 onUnsavedChange={setHasUnsavedDetail}
                 onSaveRef={detailSaveRef}
+              />
+            </div>
+          )}
+
+          {selectedItem && selectedItem.type === 'wiki' && (
+            <div className="absolute inset-0 z-50 bg-base flex flex-col">
+              <WikiView 
+                selectedItem={selectedItem}
+                onClose={() => guardedSetSelectedItem(null)} 
               />
             </div>
           )}
@@ -801,10 +832,7 @@ function AppContent() {
 
           {/* Image Generation Layer */}
           <div className={`absolute inset-0 transition-opacity duration-300 ${viewMode === 'image_gen' && !selectedItem ? 'z-40 opacity-100 pointer-events-auto flex flex-col' : '-z-10 opacity-0 pointer-events-none'}`}>
-             <ImageGenView 
-                active={viewMode === 'image_gen' && !selectedItem}
-                onClose={() => setViewMode('notes')}
-             />
+             <ImageGenView />
           </div>
 
           {!selectedItem && viewMode !== 'graph' && viewMode !== 'image_gen' && (
@@ -1011,6 +1039,7 @@ function AppContent() {
         onMouseEnter={onCardMouseEnter}
         onMouseLeave={onCardMouseLeave}
       />
+      <WikiPrompt />
       <ToastContainer />
     </div>
   );
