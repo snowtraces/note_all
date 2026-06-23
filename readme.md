@@ -5,17 +5,17 @@
   <p>一款专注于"无感收集、AI 自动提取、极速检索"的个人碎片化知识管理系统</p>
 
   <p>
-    <a href="https://github.com/your-username/note_all/stargazers"><img src="https://img.shields.io/github/stars/your-username/note_all?style=flat-square&color=yellow" alt="Stars" /></a>
-    <a href="https://github.com/your-username/note_all/network/members"><img src="https://img.shields.io/github/forks/your-username/note_all?style=flat-square&color=orange" alt="Forks" /></a>
-    <a href="https://github.com/your-username/note_all/issues"><img src="https://img.shields.io/github/issues/your-username/note_all?style=flat-square&color=red" alt="Issues" /></a>
-    <a href="https://github.com/your-username/note_all/blob/main/LICENSE"><img src="https://img.shields.io/github/license/your-username/note_all?style=flat-square&color=blue" alt="License" /></a>
+    <a href="https://github.com/snowtraces/note_all/stargazers"><img src="https://img.shields.io/github/stars/snowtraces/note_all?style=flat-square&color=yellow" alt="Stars" /></a>
+    <a href="https://github.com/snowtraces/note_all/network/members"><img src="https://img.shields.io/github/forks/snowtraces/note_all?style=flat-square&color=orange" alt="Forks" /></a>
+    <a href="https://github.com/snowtraces/note_all/issues"><img src="https://img.shields.io/github/issues/snowtraces/note_all?style=flat-square&color=red" alt="Issues" /></a>
+    <a href="https://github.com/snowtraces/note_all/blob/main/LICENSE"><img src="https://img.shields.io/github/license/snowtraces/note_all?style=flat-square&color=blue" alt="License" /></a>
   </p>
   
   <p>
     <img src="https://img.shields.io/badge/Frontend-React%2018-61DAFB?logo=react&style=flat-square" alt="React" />
     <img src="https://img.shields.io/badge/Backend-Golang-00ADD8?logo=go&style=flat-square" alt="Golang" />
-    <img src="https://img.shields.io/badge/AI-DeepSeek%20%7C%20ERNIE-ff69b4&style=flat-square" alt="AI Models" />
-    <img src="https://img.shields.io/badge/Platform-Web%20%7C%20Windows%20%7C%20Android-lightgrey&style=flat-square" alt="Platform" />
+    <img src="https://img.shields.io/badge/AI-DeepSeek%20%7C%20ERNIE-ff69b4?style=flat-square" alt="AI Models" />
+    <img src="https://img.shields.io/badge/Platform-Web%20%7C%20Windows%20%7C%20Android-lightgrey?style=flat-square" alt="Platform" />
   </p>
 
   <br>
