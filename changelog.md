@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 - **手动合并与删除词条**：为前端增加了 Wiki 词条的合并和删除功能，支持在源词条被合并后由 LLM 后台智能执行知识抽取，并在后端完善了安全清理关联笔记与失效幽灵任务的逻辑。
 - **增量防抖延时合并 (Debounce)**：对新笔记触发的增量百科重构引入了 `sync.Map` 防抖机制。短时间内的多次输入会被无缝聚合并在 5 秒后统一发给大模型，避免极端情况下的 CPU 飙升与接口并发冲撞，同时通过 `Map.Delete` 杜绝了长期运行的内存泄漏。
+- **开源规范与治理体系**：新增了 `.github` 目录包含标准 Issue 和 PR 模板，补充了 `CODE_OF_CONDUCT.md` 与 MIT `LICENSE`，全面重写了 `CONTRIBUTING.md`，并在主页 `readme.md` 中更新了项目状态徽章与最新核心特性。
 
 ### Changed
 - **大模型重新炼金（Token 消耗优化）**：极大降低了后台词条生成的 Token 开销。通过在系统 Prompt 中引入 `no_change` 逃逸口，赋予大模型直接拒绝无增量价值的碎片笔记的能力，从根本上阻断了重复内容的无脑全量重写。

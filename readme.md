@@ -5,13 +5,17 @@
   <p>一款专注于"无感收集、AI 自动提取、极速检索"的个人碎片化知识管理系统</p>
 
   <p>
-    <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License" />
-    <img src="https://img.shields.io/badge/Frontend-React%2018-61DAFB?logo=react" alt="React" />
-    <img src="https://img.shields.io/badge/Backend-Golang-00ADD8?logo=go" alt="Golang" />
-    <img src="https://img.shields.io/badge/AI-DeepSeek%20%7C%20ERNIE-ff69b4" alt="AI Models" />
-    <img src="https://img.shields.io/badge/Android-Jetpack%20Compose-3DDC84?logo=android" alt="Android" />
-    <img src="https://img.shields.io/badge/Bot-WeChat%20iLink-07C160?logo=wechat" alt="WeChat Bot" />
-    <img src="https://img.shields.io/badge/Platform-Web%20%7C%20Windows%20%7C%20Android-lightgrey" alt="Platform" />
+    <a href="https://github.com/your-username/note_all/stargazers"><img src="https://img.shields.io/github/stars/your-username/note_all?style=flat-square&color=yellow" alt="Stars" /></a>
+    <a href="https://github.com/your-username/note_all/network/members"><img src="https://img.shields.io/github/forks/your-username/note_all?style=flat-square&color=orange" alt="Forks" /></a>
+    <a href="https://github.com/your-username/note_all/issues"><img src="https://img.shields.io/github/issues/your-username/note_all?style=flat-square&color=red" alt="Issues" /></a>
+    <a href="https://github.com/your-username/note_all/blob/main/LICENSE"><img src="https://img.shields.io/github/license/your-username/note_all?style=flat-square&color=blue" alt="License" /></a>
+  </p>
+  
+  <p>
+    <img src="https://img.shields.io/badge/Frontend-React%2018-61DAFB?logo=react&style=flat-square" alt="React" />
+    <img src="https://img.shields.io/badge/Backend-Golang-00ADD8?logo=go&style=flat-square" alt="Golang" />
+    <img src="https://img.shields.io/badge/AI-DeepSeek%20%7C%20ERNIE-ff69b4&style=flat-square" alt="AI Models" />
+    <img src="https://img.shields.io/badge/Platform-Web%20%7C%20Windows%20%7C%20Android-lightgrey&style=flat-square" alt="Platform" />
   </p>
 
   <br>
@@ -33,18 +37,19 @@
 - [核心特性](#-核心特性)
 - [工作流图解](#️-工作流图解)
 - [技术架构](#️-技术架构)
-- [RAG 检索设计](#-rag-检索设计)
-- [Chat Agent 多轮对话设计](#-chat-agent-多轮对话设计)
-- [知识实验室](#-知识实验室)
-- [微信助手](#-微信助手-clawbot)
 - [编译与打包](#️-编译与打包)
 - [项目结构](#-项目结构)
+- [文档中心](#-文档中心-documentation)
+- [参与贡献](#-参与贡献-contributing)
+- [License](#-license)
 
 ---
 
 ## ✨ 核心特性
 
-### 📥 无感收集 (Ingest)
+Note All 将碎片化知识管理分为三个标准阶段，并引入了全新的 Wiki 构建系统：
+
+### 📥 1. 无感收集 (Ingest)
 
 | 特性 | 说明 |
 |:---|:---|
@@ -52,32 +57,30 @@
 | **剪贴板智能嗅探** | App 获焦自动识别，一键入库 |
 | **URL 智能剪藏** | 穿透反爬，Markdown 自动净化 |
 | **Windows 全局热键** | `Alt+Q` 截图 / `Alt+Shift+Q` 闪记 |
-| **浏览器剪藏扩展** | 划词剪藏及扩展弹窗，补全 PC 工作流 |
+| **原生多格式解析** | 支持 Word (`.docx`) 及所有主流代码/纯文本格式，自动补齐高亮 |
 | **微信 ClawBot 接入** | 扫码即可将微信变为你的私人闪记入口 |
 
-### 🧠 处理中枢 (Process)
+### 🧠 2. 深度处理 (Process)
 
 | 特性 | 说明 |
 |:---|:---|
 | **OCR 极速识别** | 自研流水线，图片秒变文字 |
 | **LLM 结构化分析** | 自动生成摘要，终结未命名时代 |
-| **智能标签 (Auto-Tag)** | 根据内容深度提取主题特性 |
-| **短文本优化策略** | 少于 50 字直接使用原文作摘要，节约 AI 算力 |
-| **自定义 AI 模板** | 支持内建与自定义 Prompt 模板 |
+| **增量 WIKI 防抖重构** | 采用基于 `sync.Map` 的极简防抖聚合，支持碎片笔记自动汇聚生长为 Wiki 词条 |
 | **多模态消息处理** | 不仅处理文字，更支持图片、文件自动收录 |
+| **混合引擎** | 基于 SQLite FTS5 的全文检索与本地向量检索并行 |
+| **自定义 AI 模板** | 支持内建（如智能整合、对比分析等）与自定义 Prompt 模板 |
 
-### 🔍 消费检索 (Consume)
+### 🔍 3. 极速消费 (Consume)
 
 | 特性 | 说明 |
 |:---|:---|
-| **RAG 语义问答** | 基于全库知识的深度对话 |
-| **智能引证** | AI 回答实时溯源，确保真实可靠 |
+| **RAG 语义问答** | 基于全库知识的深度对话与智能引证溯源 |
 | **混合检索引擎** | #标签联想、OCR 文本、AI 摘要并行 |
-| **全功能渲染** | KaTeX 公式、GFM 表格、Prism 代码高亮 |
-| **智能记忆拼图** | AI 串联随机碎片激发灵感 |
-| **显式双链** | 支持 `[[标题]]` 语法，建立笔记间硬关联 |
-| **隐式关联** | 基于标签与向量相似度自动发现并串联知识点 |
-| **知识溯源 (Lineage)** | 合成笔记自动记录来源，支持一键跳回 |
+| **全能沉浸式阅读** | 搭载 CodeMirror 6 源码视图，支持 vi 风格沉浸式正则搜索跳转 |
+| **高定质感 UI 设计** | 基于 `DESIGN.md` 设计系统，具有光影层次、毛玻璃浮层与极佳的微交互反馈 |
+| **智能记忆拼图** | WIKI 溯源档案一键回放，支持幽灵节点图谱预览 |
+| **全离线导出** | 支持一键打包带物理附件的标准 Markdown 归档 ZIP |
 
 ---
 
@@ -93,7 +96,7 @@ graph LR
     F --> G[(向量索引 Vector)]
     D & E --> H[(SQLite FTS5)]
     G & H --> I{知识实验室 Synthesis}
-    I -->|炼金合成| J[体系化长文 / 溯源关联]
+    I -->|防抖增量| J[WIKI 词条聚合 / 溯源关联]
     K[用户提问] -->|RAG| L{混合检索引擎}
     L -->|向量+FTS+Tag| M[分片级重排]
     M --> N[QueryLoop 状态机]
@@ -110,13 +113,38 @@ graph LR
 | 模块 | 技术栈 | 说明 |
 |:---|:---|:---|
 | **服务端** | Golang + SQLite (FTS5) + Vector | 极致轻量，单文件运行，内置语义向量检索 |
-| **Web 前端** | React 18 + Vite + TailwindCSS | SSE (Server-Sent Events) 达成全系统实时同步 |
+| **Web 前端** | React 18 + Vite + TailwindCSS | SSE (Server-Sent Events) 达成全系统实时局部状态更新 |
 | **PC 客户端** | Golang (Win32 API) | 纯血托盘程序，注册系统级原子热键 |
 | **Android 客户端** | Kotlin + Jetpack Compose | 深度收编系统 Share Sheet 流量入口 |
 | **AI 萃取中台** | DeepSeek + PaddleOCR + ERNIE | 多模型联动：DeepSeek 逻辑提炼 + 百度 VLM 视觉感官 |
-| **知识炼金引擎** | 自研 | 跨笔记全量上下文计算，支持多对多父子关联溯源 |
+| **WIKI 炼金引擎** | 自研 | 跨笔记全量上下文防抖计算，支持多对多父子关联与幽灵节点清理 |
 
 </details>
+
+---
+
+## 🛠️ 编译与运行 (Build & Run)
+
+```powershell
+# Windows 环境下一键还原依赖并编译所有模块
+.\build.ps1 -Module all
+```
+详细的编译步骤（含 ARM64 交叉编译与本地 Python 向量模型部署）与环境配置请参考 [安装指南](docs/installation.md)。
+
+---
+
+## 📂 项目结构
+
+```text
+.
+├── android_client/    # Android 应用 (Jetpack Compose)
+├── backend/           # Golang 服务端核心 (Gin + Gorm)
+├── browser_extension/ # 浏览器剪藏协议实现
+├── docs/              # 详细技术与功能规格文档
+├── frontend/          # React Web 界面 (Vite + TailwindCSS)
+├── pc_client/         # Windows 托盘程序 (CGO + Win32)
+└── .github/           # 开源社区模板及自动化配置 (PR/Issue Templates)
+```
 
 ---
 
@@ -129,55 +157,19 @@ graph LR
 | [🏗️ 技术架构](docs/design/architecture.md) | RAG 检索设计、Agent 状态机、系统拓扑 |
 | [🤖 Agent 设计](docs/design/agent.md) | 多轮对话 Agent 架构与实现细节 |
 | [🔌 API 参考](docs/api-reference.md) | 后端服务 RESTful API 接口定义 |
-| [🤝 贡献指南](CONTRIBUTING.md) | 如何参与项目开发与提交代码 |
+| [🤝 代理人开发规范](AGENTS.md) | 前端 UI 规范与大模型代理接入必读指南 |
 
 ---
 
-## ✨ 核心特性
+## 🤝 参与贡献 (Contributing)
 
-Note All 将碎片化知识管理分为三个标准阶段：
+我们非常欢迎社区的贡献！无论是修复 Bug、添加新功能，还是改进文档，你的帮助都将使 Note All 变得更好。
 
-### 📥 1. 无感收集 (Ingest)
-*   **多端覆盖**：Android 全局分享、Windows 截图 (`Alt+Q`)、浏览器剪藏扩展。
-*   **自动处理**：实时 OCR 识别、LLM 摘要生成、智能标签提取。
-*   **微信集成**：通过 WeChat ClawBot 协议，像发微信一样存笔记。
-
-### 🧠 2. 深度处理 (Process)
-*   **混合引擎**：基于 SQLite FTS5 的全文检索与本地向量检索并行。
-*   **知识实验室**：由 AI 驱动的碎片笔记合成工具，辅助知识升华。
-*   **多模态支持**：自动解析图片中的代码、数学公式及长文逻辑。
-
-### 🔍 3. 极速消费 (Consume)
-*   **RAG 问答**：基于全库知识的语义对话，支持智能引证溯源。
-*   **多轮 Agent**：理解上下文指代词，支持复杂的多步检索任务。
-*   **可视化图谱**：通过标签与双链关联发现知识间的连接，支持幽灵节点预览。
-
----
-
-## 🛠️ 编译与运行 (Build & Run)
-
-```powershell
-# Windows 环境下一键编译所有模块
-.\build.ps1 -Module all
-```
-详细的编译步骤与环境配置请参考 [安装指南](docs/installation.md)。
-
----
-
-## 📂 项目结构
-
-```text
-.
-├── backend/           # Golang 服务端核心 (Gin + Gorm)
-├── frontend/          # React Web 界面 (Vite + TailwindCSS)
-├── android_client/    # Android 应用 (Jetpack Compose)
-├── pc_client/         # Windows 托盘程序 (CGO + Win32)
-├── browser_extension/ # 浏览器剪藏协议实现
-└── docs/              # 详细技术与使用文档
-```
+- 欲了解开发流程与架构规范，请首先阅读 [贡献指南](CONTRIBUTING.md) 和 [代理人开发规范](AGENTS.md)。
+- 提交代码前，请确保遵循了 [设计规范](DESIGN.md) 和 [行为准则](CODE_OF_CONDUCT.md)。
 
 ---
 
 ## 📄 License
 
-Project is licensed under the [MIT License](LICENSE).
+本项目基于 [MIT License](LICENSE) 开源。
