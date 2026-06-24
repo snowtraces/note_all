@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] - 2026-06-24
+
+### Fixed
+- **生图界面渲染修复**：修复了在图片生成（ImageGen）模式下，由于未正确向下传递 `active` 属性导致组件被 React 隐式拦截为 `null` 使得页面右侧完全消失不可操作的 Bug。
 ## [Unreleased] - 2026-06-23
 
 ### Added

@@ -832,7 +832,7 @@ function AppContent() {
 
           {/* Image Generation Layer */}
           <div className={`absolute inset-0 transition-opacity duration-300 ${viewMode === 'image_gen' && !selectedItem ? 'z-40 opacity-100 pointer-events-auto flex flex-col' : '-z-10 opacity-0 pointer-events-none'}`}>
-             <ImageGenView />
+             <ImageGenView active={viewMode === 'image_gen' && !selectedItem} />
           </div>
 
           {!selectedItem && viewMode !== 'graph' && viewMode !== 'image_gen' && (
